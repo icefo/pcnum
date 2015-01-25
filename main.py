@@ -83,7 +83,7 @@ class MetaHandler:
                 for self.key, self.v in self.data.items():
                     for self.value in self.v:
                         self.sql = (self.vuid, self.key, self.value)
-                        # check if the value doesn't already exist
+                        
                         self.cur.execute('''select * from DublinCore where vuid=? and subject=? and object=?''', self.sql)
                         self.data_fetchall.append(self.cur.fetchall())
             elif self.vuid:
@@ -96,12 +96,13 @@ class MetaHandler:
                 for self.key, self.v in self.data.items():
                     for self.value in self.v:
                         self.sql = (self.key, self.value)
-                        # check if the value doesn't already exist
+
                         self.cur.execute('''select * from DublinCore where subject=? and object=?''', self.sql)
                         self.data_fetchall.append(self.cur.fetchall())
             else:
                 self.cur.execute('''select * from DublinCore''')
                 self.data_fetchall = self.cur.fetchall()
+            print(self.data_fetchall)
 
 
         elif self.database == "FilePathByFormat":
@@ -124,7 +125,6 @@ class MetaHandler:
                 for self.key, self.v in self.data.items():
                     for self.value in self.v:
                         self.sql = (self.value,)
-                        # check if the value doesn't already exist
                         self.cur.execute('''select * from FilePathByFormat where codec=?''', self.sql)
                         self.data_fetchall.append(self.cur.fetchall())
             else:
@@ -137,9 +137,17 @@ class MetaHandler:
 
 
 the_object = MetaHandler()
-if 1:
+
+a = 2
+
+if a == 1:
     dict = {"codec": ("ffv1",)}
     the_object.Search("FilePathByFormat", data=dict, vuid=10)
-else:
-    dict = {"actor": ("george", "machin")}
+    # output [[(0, 'ffv1', '/this/is/a/path/file.ffv1'), (10, 'ffv1', '/this/is/a/path')]]
+elif a == 2:
+    dict = {"actor": ("mario",)}
+    the_object.Search("DublinCore", vuid=16)
+    # output [(16, 'actor', 'mario'), (16, 'actor', 'the hand')]
+elif a == 3:
+    dict = {"actor": ("mario", "the hand")}
     the_object.New("DublinCore", dict)
