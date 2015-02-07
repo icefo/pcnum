@@ -1,27 +1,20 @@
 __author__ = 'adrien'
 
 import datetime
-from pymongo import MongoClient
+from pymongo import MongoClient, ASCENDING
 
 client = MongoClient('mongodb://localhost:27017/')
 
 db = client['test-database']
 
-db['posts-collection'].drop()
+# db['videos'].drop()
 
-posts = db['posts-collection']
-
-
-post = \
-[
-    {"vuid": 0, 'actor': ['jessica well', 'marion partner'], 'producer': ['mistervilain', 'fatguy'], 'title': "once upon a time"},
-    {"vuid": 1, 'actor': ['george waschinton', 'Tom backery'], 'producer': ['fatrichguy', 'fatguy'], 'title': "You're not going away"}
-]
+videos_metadata = db['videos_metadata']
 
 
-post_id = posts.insert(post)
+# videos_metadata.update({"vuid": 0}, {"$set": {"producer": ["Updated !",], "date": "svdv"}})
 
-# print(db.collection_names())
+print(videos_metadata.find({'dc:subject': {"$regex": ".*consequatur.*"}, 'dc:language': "fr"}).sort([("dc:format.duration", ASCENDING)]).explain())
 
-for post in posts.find({"actor": {"$regex": "^jes"}, "title": {"$regex": "^Yo"}}):
+for post in videos_metadata.find({'dc:subject': {"$regex": ".*consequatur.*"}, 'dc:language': "fr"}).sort([("dc:format.duration", ASCENDING)]):
     print(post)
