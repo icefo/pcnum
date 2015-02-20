@@ -1,13 +1,13 @@
 import subprocess
 
 
-def run_process(exe):
-    p = subprocess.Popen(exe, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, universal_newlines=True)
-    while(True):
-        if p.poll() is not None:  # returns None while subprocess is running
+def run_process(shell_command):
+    process = subprocess.Popen(shell_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+    while True:
+        if process.poll() is not None:  # returns None while subprocess is running
             break
 
-        stdout_line = p.stdout.readline()[:-5]
+        stdout_line = process.stdout.readline()[:-5]
         if stdout_line.startswith("frame="):
             list_of_characters = []
             counter = 0
@@ -27,13 +27,17 @@ def run_process(exe):
             # {'fps': '0.0', 'bitrate': '18.0kbits/s', 'frame': '16', 'time': '00:00:00.34', 'q': '0.0', 'size': '1kB'}
             yield stdout_dictionary
 
+command = [
+            'nice', '-n', '19',
+                'ffmpeg',
+                    '-i', '/home/adrien/Documents/tm/output2min.mkv',
+                        '-strict', '-2',
+                        '-t', '10',
+                        '-c:v', 'libx264', '-crf', '26', '-preset', 'slow', '-filter:v', 'hqdn3d=3:2:2:3',
+                        '-c:a', 'aac', '-b:a', '128k',
+                    '/home/adrien/Documents/tm/output2min_lossy.mkv'
+            ]
 
-
-command = "" \
-          "nice -n 19 ffmpeg -i " \
-          "'/home/adrien/Documents/tm/output2min.mkv' " \
-          "-strict -2 -t 10 -c:v libx264 -crf 26 -preset slow -filter:v hqdn3d=3:2:2:3 -c:a aac -b:a 128k " \
-          "'/home/adrien/Documents/tm/output2min_lossy.mkv'"
 
 for line in run_process(command):
     print(line)

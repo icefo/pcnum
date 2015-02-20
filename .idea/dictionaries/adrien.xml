@@ -2,6 +2,7 @@
   <dictionary name="adrien">
     <words>
       <w>bitrate</w>
+      <w>decklink</w>
       <w>ffmpeg</w>
       <w>kbits</w>
       <w>stdout</w>
