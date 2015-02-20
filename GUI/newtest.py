@@ -2,7 +2,7 @@ import sys
 from PyQt5.QtWidgets import (QMainWindow, QAction, QApplication, QTabWidget, QWidget,
                              QHeaderView, QGridLayout,
                              QRadioButton, QTextEdit, QLabel, QLineEdit, QCheckBox, QTableWidget, QComboBox, QPushButton)
-from PyQt5.QtGui import QIcon
+from PyQt5.QtGui import QIcon, QFont
 # from functools import partial
 
 
@@ -43,7 +43,7 @@ class Tabs(QTabWidget):
     def __init__(self, parent):
         super().__init__(parent)
         self.tab1 = Tab1()
-        self.addTab(self.tab1, "heyyy")
+        self.addTab(self.tab1, "heyyy macalenaaaa")
 
 
 
@@ -54,7 +54,27 @@ class Tab1(QWidget):
 
         self.table = None
         self.tab1_init()
-        #print(self.truc)
+
+    def delete_table_row(self):
+        sender = self.sender()
+        index = self.table.indexAt(sender.pos())
+        if index.isValid():
+            self.table.removeRow(index.row())
+
+    def combobox_changed(self, text):
+        sender = self.sender()
+        index = self.table.indexAt(sender.pos())
+        if index.isValid():
+            row = index.row()
+            if text == "dc:description":
+                print(self.table.rowHeight(row))
+                self.table.removeCellWidget(row, 1)
+                self.table.setCellWidget(row, 1, QTextEdit())
+                self.table.setRowHeight(row, 60)
+            else:
+                self.table.removeCellWidget(row, 1)
+                self.table.setCellWidget(row, 1, QLineEdit())
+                self.table.setRowHeight(row, 30)
 
     def tab1_init(self):
         grid = QGridLayout()
@@ -88,38 +108,65 @@ class Tab1(QWidget):
         self.table.setRowCount(0)
         self.table.setColumnCount(3)
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
-        self.table.resizeRowsToContents()
+        self.table.setColumnWidth(0, 170)
+        table_font = QFont(QFont().defaultFamily(), 12)
+        self.table.setFont(table_font)
 
-        grid.addWidget(self.table, 3, 0, 5,2)
+
+        grid.addWidget(self.table, 3, 0, 5, 2)
 
         new_table_row = QPushButton("Nouveau")
         grid.addWidget(new_table_row, 3, 3)
+
+        def digitise():
+            # Handle the dublincore metadata
+            dublincore_dict = {}
+            for row in range(self.table.rowCount()):
+                combobox_text = self.table.cellWidget(row, 0).currentText()
+                try:
+                    text_widget_value = self.table.cellWidget(row, 1).displayText()
+                except AttributeError:
+                    text_widget_value = self.table.cellWidget(row, 1).toPlainText()
+
+                try:
+                    dublincore_dict[combobox_text].append(text_widget_value)
+                except KeyError:
+                    dublincore_dict[combobox_text] = [text_widget_value]
+            print(dublincore_dict)
+
+            # Handle the other stuff
+            digitise_infos = {}
+            if decklink_radio_1.isChecked():
+                digitise_infos["decklink_card"] = "1"
+            else:
+                digitise_infos["decklink_card"] = "2"
+            digitise_infos["H264"] = compressed_file_h264.isChecked()
+            digitise_infos["H265"] = compressed_file_h265.isChecked()
+            digitise_infos["package_mediatheque"] = package_mediatheque.isChecked()
+            print(digitise_infos)
+
+
+        launch_digitise = QPushButton("Numériser")
+        grid.addWidget(launch_digitise, 5, 3)
+        launch_digitise.clicked.connect(digitise)
 
         # here happen the magic :
 
         def addrow():
             row_count = self.table.rowCount()
-            print(row_count)
             self.table.insertRow(row_count)
-            combo_list = ["bla", "blu", "bli", "blop"]
+            combo_list = ['dc:contributor', 'dc:coverage', 'dc:creator', 'dc:date', 'dc:description', 'dc:format', 'dc:identifier', 'dc:language', 'dc:publisher', 'dc:relation', 'dc:rights', 'dc:source', 'dc:subject', 'dc:title', 'dc:type', 'dcterms:abstract', 'dcterms:accepted', 'dcterms:accessRights', 'dcterms:alternative', 'dcterms:audience', 'dcterms:available', 'dcterms:bibliographicCitation', 'dcterms:conformsTo', 'dcterms:copyrighted', 'dcterms:created', 'dcterms:educationLevel', 'dcterms:extent', 'dcterms:hasFormat', 'dcterms:hasPart', 'dcterms:hasVersion', 'dcterms:isFormatOf', 'dcterms:isPartOf', 'dcterms:isReferencedBy', 'dcterms:isReplacedBy', 'dcterms:isRequiredBy', 'dcterms:isVersionOf', 'dcterms:issued', 'dcterms:mediator', 'dcterms:medium', 'dcterms:modified', 'dcterms:references', 'dcterms:replaces', 'dcterms:requires', 'dcterms:spatial', 'dcterms:submitted', 'dcterms:tableOfContents', 'dcterms:temporal', 'dcterms:valid']
             self.table.setCellWidget(row_count, 0, QComboBox())
             self.table.cellWidget(row_count, 0).addItems(combo_list)
-            self.table.setCellWidget(row_count, 1, QTextEdit())
+            self.table.cellWidget(row_count, 0).activated[str].connect(self.combobox_changed)
+            self.table.setCellWidget(row_count, 1, QLineEdit())
             self.table.setCellWidget(row_count, 2, QPushButton("Delete"))
             self.table.cellWidget(row_count, 2).clicked.connect(self.delete_table_row)
-            # self.table.cellClicked.connect(self.cell_was_clicked)
 
 
         new_table_row.clicked.connect(addrow)
 
         self.setLayout(grid)
-
-    def delete_table_row(self):
-        sender = self.sender()
-        index = self.table.indexAt(sender.pos())
-        if index.isValid():
-            print(index.row(), index.column())
-            self.table.removeRow(index.row())
 
 
 
