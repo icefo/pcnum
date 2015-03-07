@@ -65,4 +65,11 @@ for value in name_to_element.values():
     #print(value[0])
 
 dcterm_list.sort()
-print(dcterm_list)
+counter = 0
+for item in dcterm_list:
+    if counter == 5:
+        print("'",item,"'", ", ", sep="")
+        counter = 0
+    else:
+        print("'",item,"'", end=", ",sep="")
+    counter += 1

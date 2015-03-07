@@ -2,10 +2,12 @@
   <dictionary name="adrien">
     <words>
       <w>bitrate</w>
+      <w>dcterms</w>
       <w>decklink</w>
       <w>dublincore</w>
       <w>ffmpeg</w>
       <w>kbits</w>
+      <w>mediatheque</w>
       <w>stdout</w>
     </words>
   </dictionary>
