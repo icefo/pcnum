@@ -124,9 +124,7 @@ class Tab1(QWidget):
         self.table.cellWidget(row_count, 2).clicked.connect(self.delete_table_row)
 
     def digitise(self):
-        # utiliser les sockets unix pour passer les dicos au conversion_deamon
-        # http://stackoverflow.com/questions/6920858/interprocess-communication-in-python
-        # https://docs.python.org/3/library/multiprocessing.html#multiprocessing-listeners-clients
+
 
         # Handle the dublincore metadata
         dublincore_dict = {}

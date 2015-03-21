@@ -44,4 +44,4 @@ for line in run_process(command):
 
 # The last line give the final size of the file (audio + video + mux)
 # {'time': '00:00:10.00', 'bitrate': '2771.4kbits/s', 'fps': '8.0', 'q': '-1.0', 'Lsize': '3385kB', 'frame': '250'}
-# Variable bitrate !!!
+# use Variable bitrate for the conversion!!!
