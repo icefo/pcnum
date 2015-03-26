@@ -34,7 +34,7 @@ command = [
                         '-strict', '-2',
                         '-t', '10',
                         '-c:v', 'libx264', '-crf', '26', '-preset', 'slow', '-filter:v', 'hqdn3d=3:2:2:3',
-                        '-c:a', 'aac', '-b:a', '128k',
+                        '-c:value', 'aac', '-b:value', '128k',
                     '/home/adrien/Documents/tm/output2min_lossy.mkv'
             ]
 
@@ -42,6 +42,6 @@ command = [
 for line in run_process(command):
     print(line)
 
-# The last line give the final size of the file (audio + video + mux)
+# The last value give the final size of the file (audio + video + mux)
 # {'time': '00:00:10.00', 'bitrate': '2771.4kbits/s', 'fps': '8.0', 'q': '-1.0', 'Lsize': '3385kB', 'frame': '250'}
 # use Variable bitrate for the conversion!!!

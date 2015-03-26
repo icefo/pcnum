@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import (QMainWindow, QAction, QApplication, QTabWidget, QWi
                              QRadioButton, QTextEdit, QLabel, QLineEdit, QCheckBox, QTableWidget, QComboBox, QPushButton)
 from PyQt5.QtGui import QIcon, QFont
 # from functools import partial
-# pas besoin finalement mais a garder ca peut etre utile
+# pas besoin finalement mais value garder ca peut etre utile
 # partial( self.myFunction, myArgument='something')
 
 
@@ -92,7 +92,7 @@ class Tab1(QWidget):
         if index.isValid():
             row = index.row()
             if text == "dc:description":
-                print(self.table.rowHeight(row))
+                # print(self.table.rowHeight(row))
                 self.table.removeCellWidget(row, 1)
                 self.table.setCellWidget(row, 1, QTextEdit())
                 self.table.setRowHeight(row, 60)
