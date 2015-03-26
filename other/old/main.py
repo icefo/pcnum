@@ -26,7 +26,7 @@ class MetaHandler:
         # self.cur.execute("delete from DublinCore")
 
         if self.database == "DublinCore":
-            # Check if value vuid is provided, if not calculate one
+            # Check if a vuid is provided, if not calculate one
             if not self.vuid:
                 self.cur.execute("select max(vuid) from DublinCore")
                 try:
@@ -50,7 +50,7 @@ class MetaHandler:
                         raise ValueError(self.sql)
 
         elif self.database == "FilePathByFormat":
-            # Check if value vuid is provided, if not raise an error
+            # Check if a vuid is provided, if not raise an error
             if not self.vuid:
                 raise ValueError("vuid not provided")
             for self.key, self.v in self.data.items():
@@ -74,7 +74,7 @@ class MetaHandler:
     def Search(self, database, data=None, vuid=None):
         """
         :param database: put here the table you want to query
-        :param data: give value dict with key = object and value(s) = subject
+        :param data: give a dict with key = object and value(s) = subject
         :param vuid: give the video unique identifier of the video
         :return: list of tuples [(vuid, object, subject), (16, actor, mario)]]
         """
@@ -192,9 +192,9 @@ a = 2
 if a == 1:
     dict = {"codec": ("ffv1",)}
     the_object.Search("FilePathByFormat", data=dict, vuid=10)
-    # output [[(10, 'ffv1', '/this/is/value/path')]]
+    # output [[(10, 'ffv1', '/this/is/a/path')]]
 elif a == 2:
-    dict = {"title": ("once upon value time...", "the Title")}
+    dict = {"title": ("once upon a time...", "the Title")}
     the_object.Search("DublinCore", data=dict)
     # output [(16, 'actor', 'mario'), (16, 'actor', 'the hand')]
 elif a == 3:

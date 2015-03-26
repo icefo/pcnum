@@ -1,7 +1,7 @@
 def Search(self, database, data=None, vuid=None):
         """
         :param database: put here the table you want to query
-        :param data: give value dict with key = object and value(s) = subject
+        :param data: give a dict with key = object and value(s) = subject
         :param vuid: give the video unique identifier of the video
         :return: list of tuples [(vuid, object, subject), (16, actor, mario)]]
         """

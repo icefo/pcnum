@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import (QMainWindow, QAction, QApplication, QTabWidget, QWi
                              QRadioButton, QTextEdit, QLabel, QLineEdit, QCheckBox, QTableWidget, QComboBox, QPushButton)
 from PyQt5.QtGui import QIcon, QFont
 # from functools import partial
-# pas besoin finalement mais value garder ca peut etre utile
+# pas besoin finalement mais a garder ca peut etre utile
 # partial( self.myFunction, myArgument='something')
 
 

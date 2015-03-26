@@ -34,7 +34,7 @@ command = [
                         '-strict', '-2',
                         '-t', '10',
                         '-c:v', 'libx264', '-crf', '26', '-preset', 'slow', '-filter:v', 'hqdn3d=3:2:2:3',
-                        '-c:value', 'aac', '-b:value', '128k',
+                        '-c:a', 'aac', '-b:a', '128k',
                     '/home/adrien/Documents/tm/output2min_lossy.mkv'
             ]
 
