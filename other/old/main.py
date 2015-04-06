@@ -6,7 +6,7 @@ import itertools
 
 class MetaHandler:
     def __init__(self):
-        self.db_path = "/home/adrien/Documents/PycharmProjects/tests/other/old/bla.db"
+        self.db_path = "/home/adrien/Documents/PycharmProjects/Pc_num/other/old/bla.db"
         self.db_path_ro = "file:" + self.db_path + "?mode=ro"
         self.hourra = "Hourra !"
         print(self.hourra)
