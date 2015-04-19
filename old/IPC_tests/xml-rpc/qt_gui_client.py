@@ -5,9 +5,9 @@ from PyQt5.QtWidgets import (QMainWindow, QAction, QApplication, QTabWidget, QWi
                              QHeaderView, QGridLayout,
                              QRadioButton, QTextEdit, QLabel, QLineEdit, QCheckBox, QTableWidget, QComboBox, QPushButton)
 from PyQt5.QtGui import QIcon, QFont
-# from functools import partial
+from functools import partial
 # pas besoin finalement mais a garder ca peut etre utile
-# partial( self.myFunction, myArgument='something')
+#partial( self.myFunction, myArgument='something')
 
 
 # very testable class (hint: you can use mock.Mock for the signals)
@@ -18,24 +18,6 @@ from PyQt5.QtGui import QIcon, QFont
 # Ecrire des securitées qui disent si le backend tourne pas, bloquer le bouton pour eviter de flooder le backend
 # liberer le bouton quand le thread est terminé
 # Utiliser plusieurs fois la même classe ou réinitialer a chaque fois + une classe par fonction ? Nope...
-class Worker(QtCore.QObject):
-
-    client = xmlrpc.client.ServerProxy('http://localhost:8000')
-
-    launch_digitise_done = QtCore.pyqtSignal([str])
-    finished = QtCore.pyqtSignal()
-    print("hewfb")
-
-    def __init__(self, cmdlist):
-        super().__init__()
-        self.cmdlist = cmdlist
-
-    def run(self):
-        print("bridge digitize()")
-        return_status = self.client.launch_digitise(self.cmdlist)
-        # self.dataReady.emit(['dummy', 'data'], {'dummy': ['data']})
-        self.launch_digitise_done.emit(return_status)
-        self.finished.emit()
 
 
 class Example(QMainWindow):
@@ -80,6 +62,24 @@ class Tabs(QTabWidget):
         self.addTab(self.tab2, "heyyy ceeepalaaaa")
 
 
+class Tab1Worker(QtCore.QObject):
+
+    client = xmlrpc.client.ServerProxy('http://localhost:8000')
+
+    launch_digitise_done = QtCore.pyqtSignal([str])
+    finished = QtCore.pyqtSignal()
+    print("hewfb")
+
+    def __init__(self):
+        super().__init__()
+
+    def digitise(self, command=None):
+        print("bridge digitize()")
+        return_status = self.client.launch_digitise(command)
+        self.launch_digitise_done.emit(return_status)
+        self.finished.emit()
+
+
 class Tab1(QWidget):
     def __init__(self):
         # Initialize the parent class QWidget
@@ -109,7 +109,27 @@ class Tab1(QWidget):
         self.launch_digitise = QPushButton("Numériser")
         self.result_digitise = QLabel("et patapon")
 
+        #########
+
+        self.workerThread = None
+        self.workerObject = None
+
+        #########
+
         self.tab_init()
+
+    def tab1_worker(self, action, parameter):
+        self.workerThread = QtCore.QThread()
+        self.workerObject = Tab1Worker()
+        self.workerObject.moveToThread(self.workerThread)
+
+        if action == "digitise":
+            self.launch_digitise.setEnabled(False)
+            self.workerThread.started.connect(partial(self.workerObject.digitise, command=parameter))
+            self.workerObject.finished.connect(self.workerThread.quit)
+            self.workerObject.finished.connect(partial(self.launch_digitise.setEnabled, True))
+            self.workerObject.launch_digitise_done.connect(self.result_digitise.setText)
+            self.workerThread.start()
 
     def delete_table_row(self):
         sender = self.sender()
@@ -170,7 +190,6 @@ class Tab1(QWidget):
                     dublincore_dict[combobox_text].append(text_widget_value)
                 except KeyError:
                     dublincore_dict[combobox_text] = [text_widget_value]
-        # print(dublincore_dict)
 
         # Handle the other stuff
         digitise_infos = {}
@@ -181,25 +200,13 @@ class Tab1(QWidget):
         digitise_infos["H264"] = self.compressed_file_h264.isChecked()
         digitise_infos["H265"] = self.compressed_file_h265.isChecked()
         digitise_infos["package_mediatheque"] = self.package_mediatheque.isChecked()
-        # print(digitise_infos)
-        # sleep(5)
+
         self.result_digitise.setText("Eyy digitapon")
 
         to_be_send = [digitise_infos, dublincore_dict]
         print(to_be_send)
 
-        # self is ultra-important : if you don't attach the thread to the object it crash without explanation
-        # todo : create a function to wrap all the boilerplate ? self.func(func_to_call, func_argument)
-
-        self.workerThread = QtCore.QThread()
-        self.workerObject = Worker(to_be_send)
-        self.workerObject.moveToThread(self.workerThread)
-        self.workerThread.started.connect(self.workerObject.run)
-        self.workerObject.finished.connect(self.workerThread.quit)
-        self.workerObject.launch_digitise_done.connect(self.result_digitise.setText)
-        self.workerThread.start()
-
-
+        self.tab1_worker(action="digitise", parameter=to_be_send)
 
     def tab_init(self):
         grid = QGridLayout()
@@ -208,8 +215,6 @@ class Tab1(QWidget):
         grid.addWidget(self.decklink_label, 0, 0)
         grid.addWidget(self.decklink_radio_1, 0, 1)
         grid.addWidget(self.decklink_radio_2, 0, 2)
-        # todo : Si la carte est dejà utilisée empêcher une autre numérisation de commencer avec
-        # Button.setEnabled(False) avec une demande sur le socket du conversion deamon
 
         # Compressed files to create
         grid.addWidget(self.compressed_file_label, 1, 0)
