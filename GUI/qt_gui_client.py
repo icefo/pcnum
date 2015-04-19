@@ -1,9 +1,10 @@
 import sys
 from PyQt5 import QtCore
+from PyQt5.QtCore import QDateTime
 import xmlrpc.client
 from PyQt5.QtWidgets import (QMainWindow, QAction, QApplication, QTabWidget, QWidget,
                              QHeaderView, QGridLayout,
-                             QRadioButton, QTextEdit, QLabel, QLineEdit, QCheckBox, QTableWidget, QComboBox, QPushButton)
+                             QRadioButton, QTextEdit, QLabel, QLineEdit, QCheckBox, QTableWidget, QComboBox, QPushButton, QCalendarWidget)
 from PyQt5.QtGui import QIcon, QFont
 from functools import partial
 # pas besoin finalement mais a garder ca peut etre utile
@@ -68,7 +69,7 @@ class Tab1Worker(QtCore.QObject):
 
     launch_digitise_done = QtCore.pyqtSignal([str])
     finished = QtCore.pyqtSignal()
-    print("hewfb")
+    print("Tab1 Worker init")
 
     def __init__(self):
         super().__init__()
@@ -111,25 +112,28 @@ class Tab1(QWidget):
 
         #########
 
-        self.workerThread = None
-        self.workerObject = None
+        self.workerThread_digitise = None
+        self.workerObject_digitise = None
 
         #########
 
         self.tab_init()
 
     def tab1_worker(self, action, parameter):
-        self.workerThread = QtCore.QThread()
-        self.workerObject = Tab1Worker()
-        self.workerObject.moveToThread(self.workerThread)
 
         if action == "digitise":
+            self.workerThread_digitise = QtCore.QThread()
+            self.workerObject_digitise = Tab1Worker()
+            self.workerObject_digitise.moveToThread(self.workerThread_digitise)
+
             self.launch_digitise.setEnabled(False)
-            self.workerThread.started.connect(partial(self.workerObject.digitise, command=parameter))
-            self.workerObject.finished.connect(self.workerThread.quit)
-            self.workerObject.finished.connect(partial(self.launch_digitise.setEnabled, True))
-            self.workerObject.launch_digitise_done.connect(self.result_digitise.setText)
-            self.workerThread.start()
+
+            self.workerThread_digitise.started.connect(partial(self.workerObject_digitise.digitise, command=parameter))
+            self.workerObject_digitise.finished.connect(self.workerThread_digitise.quit)
+            self.workerObject_digitise.finished.connect(partial(self.launch_digitise.setEnabled, True))
+            self.workerObject_digitise.launch_digitise_done.connect(self.result_digitise.setText)
+
+            self.workerThread_digitise.start()
 
     def delete_table_row(self):
         sender = self.sender()
@@ -143,10 +147,13 @@ class Tab1(QWidget):
         if index.isValid():
             row = index.row()
             if text == "dc:description":
-                # print(self.table.rowHeight(row))
                 self.table.removeCellWidget(row, 1)
                 self.table.setCellWidget(row, 1, QTextEdit())
                 self.table.setRowHeight(row, 60)
+            elif text == "dc:date":
+                self.table.removeCellWidget(row, 1)
+                self.table.setCellWidget(row, 1, QCalendarWidget())
+                self.table.setRowHeight(row, 240)
             else:
                 self.table.removeCellWidget(row, 1)
                 self.table.setCellWidget(row, 1, QLineEdit())
@@ -180,18 +187,21 @@ class Tab1(QWidget):
         dublincore_dict = {}
         for row in range(self.table.rowCount()):
             combobox_text = self.table.cellWidget(row, 0).currentText()
-            try:
-                text_widget_value = self.table.cellWidget(row, 1).displayText()
-            except AttributeError:
-                text_widget_value = self.table.cellWidget(row, 1).toPlainText()
+            widget_type = self.table.cellWidget(row, 1).metaObject().className()
+            if widget_type == "QLineEdit":
+                widget_text_value = self.table.cellWidget(row, 1).displayText()
+            elif widget_type == "QTextEdit":
+                widget_text_value = self.table.cellWidget(row, 1).toPlainText()
+            elif widget_type == "QCalendarWidget":
+                widget_text_value = self.table.cellWidget(row, 1).selectedDate().toPyDate().strftime("%d %b %Y")
 
-            if text_widget_value is not "":
+            if widget_text_value is not "":
                 try:
-                    dublincore_dict[combobox_text].append(text_widget_value)
+                    dublincore_dict[combobox_text].append(widget_text_value)
                 except KeyError:
-                    dublincore_dict[combobox_text] = [text_widget_value]
+                    dublincore_dict[combobox_text] = [widget_text_value]
 
-        # Handle the other stuff
+        # Handle the other infos
         digitise_infos = {}
         if self.decklink_radio_1.isChecked():
             digitise_infos["decklink_card"] = "1"
@@ -250,6 +260,25 @@ class Tab1(QWidget):
         self.setLayout(grid)
 
 
+class Tab2Worker(QtCore.QObject):
+
+    client = xmlrpc.client.ServerProxy('http://localhost:8000')
+
+    search_done = QtCore.pyqtSignal([str])
+    finished = QtCore.pyqtSignal()
+    print("Tab2 worker init")
+
+    def __init__(self):
+        super().__init__()
+
+    def search(self, command):
+        print("bridge search()")
+        return_payload = self.client.search(command)
+        print(return_payload)
+        self.search_done.emit(return_payload)
+        self.finished.emit()
+
+
 class Tab2(QWidget):
     def __init__(self):
         # Initialize the parent class QWidget
@@ -261,6 +290,11 @@ class Tab2(QWidget):
         self.table_font = QFont(QFont().defaultFamily(), 12)
         self.add_row_button = QPushButton("ajouter")
         self.search_button = QPushButton("rechercher")
+
+        #########
+
+        self.workerThread_search = None
+        self.workerObject_search = None
 
         self.tab_init()
 
@@ -291,6 +325,9 @@ class Tab2(QWidget):
                 self.table.removeCellWidget(row, 1)
                 self.table.setCellWidget(row, 1, QComboBox())
                 self.table.cellWidget(row, 1).addItems(logic_year_list)
+                self.table.removeCellWidget(row, 2)
+                self.table.setCellWidget(row, 2, QCalendarWidget())
+                self.table.setRowHeight(row, 240)
             else:
                 self.table.removeCellWidget(row, 1)
                 self.table.setCellWidget(row, 1, QComboBox())
@@ -324,6 +361,48 @@ class Tab2(QWidget):
         self.table.setCellWidget(row_count, 3, QPushButton("Delete"))
         self.table.cellWidget(row_count, 3).clicked.connect(self.delete_table_row)
 
+    def tab2_worker(self, action, parameter):
+
+        if action == "search":
+            self.workerThread_search = QtCore.QThread()
+            self.workerObject_search = Tab2Worker()
+            self.workerObject_search.moveToThread(self.workerThread_search)
+
+            self.search_button.setEnabled(False)
+
+            self.workerThread_search.started.connect(partial(self.workerObject_search.search, command=parameter))
+            self.workerObject_search.finished.connect(self.workerThread_search.quit)
+            self.workerObject_search.finished.connect(partial(self.search_button.setEnabled, True))
+            # self.workerObject_search.launch_digitise_done.connect(self.result_digitise.setText)
+
+            self.workerThread_search.start()
+
+    def search(self):
+        # Handle the dublincore metadata
+        search_dict = {}
+        for row in range(self.table.rowCount()):
+            dc_combobox_text = self.table.cellWidget(row, 0).currentText()
+            data_widget_type = self.table.cellWidget(row, 2).metaObject().className()
+            if data_widget_type == "QLineEdit":
+                data_widget_text_value = self.table.cellWidget(row, 2).displayText()
+            elif data_widget_type == "QTextEdit":
+                data_widget_text_value = self.table.cellWidget(row, 2).toPlainText()
+            elif data_widget_type == "QCalendarWidget":
+                data_widget_text_value = self.table.cellWidget(row, 2).selectedDate().toPyDate().strftime("%d %b %Y")
+            query_type = self.table.cellWidget(row, 1).currentText()
+
+            if data_widget_text_value is not "":
+                try:
+                    search_dict[dc_combobox_text][query_type].append(data_widget_text_value)
+                except KeyError:
+                    try:
+                        search_dict[dc_combobox_text][query_type] = [data_widget_text_value]
+                    except KeyError:
+                        search_dict[dc_combobox_text] = {query_type: [data_widget_text_value]}
+
+        print(search_dict)
+        self.tab2_worker(action="search", parameter=search_dict)
+
     def tab_init(self):
         grid = QGridLayout()
 
@@ -335,6 +414,7 @@ class Tab2(QWidget):
         self.table.setColumnWidth(0, 170)
         self.table.setFont(self.table_font)
         self.add_row_button.clicked.connect(self.add_row)
+        self.search_button.clicked.connect(self.search)
 
         grid.addWidget(self.table, 0, 0, 3, 3)
         grid.addWidget(self.add_row_button, 0, 4)

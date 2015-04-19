@@ -16,5 +16,8 @@ videos_metadata = db['videos_metadata']
 
 print(videos_metadata.find({'dc:subject': {"$regex": ".*consequatur.*"}, 'dc:language': "fr"}).sort([("dc:format.duration", ASCENDING)]).explain())
 
+# for post in videos_metadata.find({'dc:subject': {"$regex": ".*consequatur.*"}, 'dc:language': "fr"}).sort([("dc:format.duration", ASCENDING)]):
+#     print(post)
+
 for post in videos_metadata.find({'dc:subject': {"$regex": ".*consequatur.*"}, 'dc:language': "fr"}).sort([("dc:format.duration", ASCENDING)]):
     print(post)

@@ -42,7 +42,7 @@ dicto =\
         'dc:date': fake.iso8601(),
         'dc:description': fake.text(max_nb_chars=200),
         'dc:format': {"size_ratio": "4/3", "duration": fake.random_int(min=1000, max=5400)},
-        'dc:identifier' : "Vuid " + str(counter),
+        'dc:identifier': "Vuid " + str(counter),
         'dc:language': random.choice(("en", "fr")),
         'dc:publisher': fake.company(),
         'dc:subject': [fake.sentence(nb_words=6, variable_nb_words=True), fake.sentence(nb_words=6, variable_nb_words=True)],
