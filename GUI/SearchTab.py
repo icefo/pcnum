@@ -30,7 +30,7 @@ class SearchTabWorker(QtCore.QObject):
         self.finished.emit()
 
 
-class SearchWidget(QWidget):
+class SearchTab(QWidget):
     def __init__(self):
         # Initialize the parent class QWidget
         super().__init__()
@@ -226,33 +226,3 @@ class SearchWidget(QWidget):
         self.grid1.addWidget(self.search_button, 4, 4)
 
         self.setLayout(self.grid1)
-
-
-
-
-class ResultWidget(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.grid = QGridLayout()
-        self.line = QLineEdit()
-
-        self.widget_init()
-
-    def widget_init(self):
-        self.grid.addWidget(self.line, 0, 0)
-        self.setLayout(self.grid)
-
-class SearchTab(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.search_widget = SearchWidget()
-        self.result_widget = ResultWidget()
-        self.layouuuuut = QStackedLayout()
-
-        self.tab_init()
-
-    def tab_init(self):
-        self.layout.addWidget(self.search_widget)
-        self.layout.addWidget(self.result_widget)
-        self.setLayout(self.layouuuuut)
-
