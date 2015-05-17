@@ -26,17 +26,25 @@ def search(arg):
 
     eyy = {}
 
-    for dc_items, dict_query in arg.items():
-        print(dc_items, dict_query)
+    for dc_item, dict_query in arg.items():
+        print(dc_item, dict_query)
         for query_type, query in dict_query.items():
             if query_type == "equal":
-                eyy[dc_items] = query[0]
+                eyy[dc_item] = query[0]
             elif query_type == "contain":
-                eyy[dc_items] = {"$regex": ".*" + query[0] + ".*"}
+                eyy[dc_item] = {"$regex": ".*" + query[0] + ".*"}
+            elif query_type == "greater":
+                eyy[dc_item] = {"$gt": query[0]}
+            elif query_type == "inferior":
+                eyy[dc_item] = {"$lt": query[0]}
 
-    for post in videos_metadata.find(eyy).sort([("dc:format.duration", ASCENDING)]):
+    result_list = []
+    for post in videos_metadata.find(eyy, {'_id': False}).sort([("dc:format.duration", ASCENDING)]):
+        result_list.append(post)
         print(post)
-    return "aleeeeluya"
+
+    print(eyy)
+    return result_list
 
 server.register_function(search)
 server.register_function(launch_digitise)  # , 'add')

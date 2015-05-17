@@ -10,13 +10,17 @@ counter = 0
 dublin_random_list = []
 for _ in range(0, 4000):
     dublin_random =\
-        {   "vuid": counter,
+        {   "dc:identifier": counter,
+            "dc:rights": "usage libre pour l'éducation",
+            "dc:source": "VHS",
+            "dc:type": "image",
+            "dcterms:modified": fake.iso8601(),
             'dc:contributor': fake.name(),
             'dc:creator': fake.name(),
-            'dc:date': fake.iso8601(),
             'dc:description': fake.text(max_nb_chars=200),
-            'dc:format': {"size_ratio": "4/3", "duration": fake.random_int(min=1000, max=5400)},
-            'dc:identifier' : "Vuid " + str(counter),
+            'dcterms:abstract': fake.text(max_nb_chars=50),
+            'dcterms:created': fake.random_int(min=1900, max=2010),
+            'dc:format': {"size_ratio": "4/3", "duration": fake.random_int(min=20, max=320)},
             'dc:language': random.choice(("en", "fr")),
             'dc:publisher': fake.company(),
             'dc:subject': [fake.sentence(nb_words=6, variable_nb_words=True), fake.sentence(nb_words=6, variable_nb_words=True)],
@@ -37,12 +41,16 @@ videos_metadata = db['videos_metadata']
 
 dicto =\
     {
+        "dc:rights": "usage libre pour l'éducation",
+        "dc:source": "VHS",
+        "dc:type": "image",
+        "dcterms:modified": fake.iso8601(),
         'dc:contributor': fake.name(),
         'dc:creator': fake.name(),
-        'dc:date': fake.iso8601(),
         'dc:description': fake.text(max_nb_chars=200),
-        'dc:format': {"size_ratio": "4/3", "duration": fake.random_int(min=1000, max=5400)},
-        'dc:identifier': "Vuid " + str(counter),
+        'dcterms:abstract': fake.text(max_nb_chars=50),
+        'dcterms:created': fake.random_int(min=1900, max=2010),
+        'dc:format': {"size_ratio": "4/3", "duration": fake.random_int(min=20, max=320)},
         'dc:language': random.choice(("en", "fr")),
         'dc:publisher': fake.company(),
         'dc:subject': [fake.sentence(nb_words=6, variable_nb_words=True), fake.sentence(nb_words=6, variable_nb_words=True)],
@@ -51,9 +59,9 @@ dicto =\
 
 # I'm just terribly lazy; this create an index for all the fields
 for key in dicto.keys():
-    db['videos'].create_index([(key, ASCENDING )])
+    db['videos_metadata'].create_index([(key, ASCENDING )])
 
-db['videos'].create_index([( "vuid", ASCENDING )], unique=True)
+db['videos_metadata'].create_index([("dc:identifier", ASCENDING )], unique=True)
 
 
 # Insert the metadata in the database
