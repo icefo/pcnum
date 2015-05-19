@@ -3,7 +3,7 @@ from PyQt5 import QtCore
 from PyQt5.QtWidgets import QWidget, QLabel, QPushButton, QVBoxLayout, QApplication, QLineEdit, QGridLayout
 
 # thx dude: http://stackoverflow.com/questions/9314095/pyqt-how-to-set-up-a-widget-hidding-an-other-widget-if-its-visible
-
+# less hacky http://stackoverflow.com/questions/7690677/pyqt-widgets-in-multiple-files
 class SenderWidget(QWidget):
     signal_hided = QtCore.pyqtSignal()
     signal_shown = QtCore.pyqtSignal()
