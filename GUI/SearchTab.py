@@ -66,12 +66,24 @@ class SearchTab(QWidget):
         self.tab_init()
 
     def delete_table_row(self):
+        """
+        This function is linked to the delete button when a row is added.
+        When the delete button is pressed, the function look up its row and delete it
+        :return: nothing
+        """
         sender = self.sender()
         index = self.query_table.indexAt(sender.pos())
         if index.isValid():
             self.query_table.removeRow(index.row())
 
     def dc_combobox_changed(self, text):
+        """
+        This function is linked to the dublin core combobox when a row is added
+        When the combobox selected item changes (example: from dc:contributor to dc:description),
+        this function is called to make the row fit its new usage. (example: enter text or a date)
+        :param text: it's the selected combobox item name
+        :return: nothing
+        """
         sender = self.sender()
         index = self.query_table.indexAt(sender.pos())
         logic_time_list = ["equal", "greater", "inferior"]
@@ -79,16 +91,15 @@ class SearchTab(QWidget):
         if index.isValid():
             row = index.row()
             if text == "dc:description":
-                # print(self.table.rowHeight(row))
+                self.query_table.removeCellWidget(row, 1)
+                self.query_table.setCellWidget(row, 1, QComboBox())
+                self.query_table.cellWidget(row, 1).addItems(logic_text_list)
+
                 self.query_table.removeCellWidget(row, 2)
                 self.query_table.setCellWidget(row, 2, QTextEdit())
                 self.query_table.setRowHeight(row, 60)
-            else:
-                self.query_table.removeCellWidget(row, 2)
-                self.query_table.setCellWidget(row, 2, QLineEdit())
-                self.query_table.setRowHeight(row, 30)
 
-            if text == "dcterms:created":
+            elif text == "dcterms:created":
                 self.query_table.removeCellWidget(row, 1)
                 self.query_table.setCellWidget(row, 1, QComboBox())
                 self.query_table.cellWidget(row, 1).addItems(logic_time_list)
@@ -111,7 +122,18 @@ class SearchTab(QWidget):
                 self.query_table.setCellWidget(row, 1, QComboBox())
                 self.query_table.cellWidget(row, 1).addItems(logic_text_list)
 
+                self.query_table.removeCellWidget(row, 2)
+                self.query_table.setCellWidget(row, 2, QLineEdit())
+                self.query_table.setRowHeight(row, 30)
+
     def add_row(self):
+        """
+        This function add a new row (Hoho !) when the new_table_row button is pressed
+        this function will fill the combobox with their name and a tooltip,
+        link the dublin core combobox to the dc_combobox_changed function,
+        link the delete button with the delete_table_row function
+        :return: nothing
+        """
 
         dc_data = OrderedDict()
         dc_data['dc:contributor'] = "entrer le nom des personnes ayant contribués au film"
@@ -148,16 +170,24 @@ class SearchTab(QWidget):
         self.query_table.setCellWidget(row_count, 3, QPushButton("Delete"))
         self.query_table.cellWidget(row_count, 3).clicked.connect(self.delete_table_row)
 
-    def tab2_worker(self, action, parameter):
+    def search_worker(self, action, data):
+        """
+        :param action: tell which action the search_worker function should launch
+        :param data: the parameter can be a dictionary, a list, a sting, an integer
+        if the chosen action is "search" the parameter will be a dictionary.
 
-        if action == "search":
+        :return: nothing, the function instantiate the DigitiseTabWorker class and then exit
+        """
+
+        # toute la base de donnée est retournée si on fait une recherche sans arguments
+        if data and action == "search":
             self.workerThread_search = QtCore.QThread()
             self.workerObject_search = SearchTabWorker()
             self.workerObject_search.moveToThread(self.workerThread_search)
 
             self.search_button.setEnabled(False)
 
-            self.workerThread_search.started.connect(partial(self.workerObject_search.search, command=parameter))
+            self.workerThread_search.started.connect(partial(self.workerObject_search.search, command=data))
             self.workerObject_search.finished.connect(self.workerThread_search.quit)
             self.workerObject_search.finished.connect(partial(self.search_button.setEnabled, True))
             self.workerObject_search.search_done.connect(self.search_done)
@@ -170,9 +200,16 @@ class SearchTab(QWidget):
         print(argu)
 
     def search(self):
+        """
+        This function gather the search keys and put them in a dictionary similar to the one shown below:
+        {'dc:description': {'contain': ['some part of the description', 'an other part of the description']},
+        'dc:format.duration': {'inferior': [120]}, 'dc:contributor': {'equal': ['great contributor']}}
+
+        :return: nothing but call the search worker with the dictionary as parameter
+        """
 
         # Handle the dublincore metadata
-        search_dict = {}
+        query_dict = {}
         for row in range(self.query_table.rowCount()):
             dc_combobox_text = self.query_table.cellWidget(row, 0).currentText()
             data_widget_type = self.query_table.cellWidget(row, 2).metaObject().className()
@@ -186,26 +223,28 @@ class SearchTab(QWidget):
 
             if data_widget_text_value is not "":
                 if dc_combobox_text == "durée":
-                    search_dict["dc:format.duration"] = {query_type: [int(data_widget_text_value)]}
+                    query_dict["dc:format.duration"] = {query_type: [int(data_widget_text_value)]}
                 elif dc_combobox_text == 'dcterms:created':
-                    try:
-                        search_dict[dc_combobox_text][query_type] = [int(data_widget_text_value)]
-                    except KeyError:
-                        search_dict[dc_combobox_text] = {query_type: [int(data_widget_text_value)]}
+                    query_dict[dc_combobox_text] = {query_type: [int(data_widget_text_value)]}
                 else:
                     try:
-                        search_dict[dc_combobox_text][query_type].append(data_widget_text_value)
+                        query_dict[dc_combobox_text][query_type].append(data_widget_text_value)
                     except KeyError:
                         try:
-                            search_dict[dc_combobox_text][query_type] = [data_widget_text_value]
+                            query_dict[dc_combobox_text][query_type] = [data_widget_text_value]
                         except KeyError:
-                            search_dict[dc_combobox_text] = {query_type: [data_widget_text_value]}
+                            query_dict[dc_combobox_text] = {query_type: [data_widget_text_value]}
 
-        print(search_dict)
-        self.tab2_worker(action="search", parameter=search_dict)
+        print(query_dict)
+        self.search_worker(action="search", data=query_dict)
 
     def tab_init(self):
-
+        """
+        This function is called when the DigitiseTab class init
+        Its job is to put the widgets instantiated in the init function to their place and
+        set some link between functions and buttons
+        :return: nothing
+        """
         # todo: Pour afficher le resultat de la recherche, rendre le widget grid1 invisible et le remplacer par grid2
         # grid2 contiendra une table remplie avec les résultats de la recherche + un bouton pour re-afficher grid1.
 

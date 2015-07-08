@@ -11,6 +11,8 @@ from collections import OrderedDict
 
 from functools import partial
 
+# todo: remove every QCalendarWidget usage
+
 
 class DigitiseTabWorker(QtCore.QObject):
 
@@ -68,29 +70,25 @@ class DigitiseTab(QWidget):
 
         self.tab_init()
 
-    def tab1_worker(self, action, parameter):
-
-        if action == "digitise":
-            self.workerThread_digitise = QtCore.QThread()
-            self.workerObject_digitise = DigitiseTabWorker()
-            self.workerObject_digitise.moveToThread(self.workerThread_digitise)
-
-            self.launch_digitise.setEnabled(False)
-
-            self.workerThread_digitise.started.connect(partial(self.workerObject_digitise.digitise, command=parameter))
-            self.workerObject_digitise.finished.connect(self.workerThread_digitise.quit)
-            self.workerObject_digitise.finished.connect(partial(self.launch_digitise.setEnabled, True))
-            self.workerObject_digitise.launch_digitise_done.connect(self.result_digitise.setText)
-
-            self.workerThread_digitise.start()
-
     def delete_table_row(self):
+        """
+        This function is linked to the delete button when a row is added.
+        When the delete button is pressed, the function look up its row and delete it
+        :return: nothing
+        """
         sender = self.sender()
         index = self.digitise_table.indexAt(sender.pos())
         if index.isValid():
             self.digitise_table.removeRow(index.row())
 
     def combobox_changed(self, text):
+        """
+        This function is linked to the combobox when a row is added
+        When the combobox selected item changes (example: from dc:contributor to dc:description),
+        this function is called to make the row fit its new usage. (example: enter text or a date)
+        :param text: it's the selected combobox item name
+        :return: nothing
+        """
         sender = self.sender()
         index = self.digitise_table.indexAt(sender.pos())
         if index.isValid():
@@ -115,6 +113,13 @@ class DigitiseTab(QWidget):
                 self.digitise_table.setRowHeight(row, 30)
 
     def add_row(self):
+        """
+        This function add a new row (Hoho !) when the new_table_row button is pressed
+        this function will fill the combobox with their name and a tooltip,
+        link the combobox to the combobox_changed function,
+        link the delete button with the delete_table_row function
+        :return: nothing
+        """
 
         dc_data = OrderedDict()
         dc_data['dc:contributor'] = "entrer le nom des personnes ayant contribués au film"
@@ -145,7 +150,35 @@ class DigitiseTab(QWidget):
         self.digitise_table.setCellWidget(row_count, 2, QPushButton("Delete"))
         self.digitise_table.cellWidget(row_count, 2).clicked.connect(self.delete_table_row)
 
+    def digitise_worker(self, action, data):
+        """
+        :param action: tell which action the digitise_worker function should launch
+        :param data: the data can be a dictionary, a list, a sting, an integer
+        if the chosen action is "digitise" the parameter will be : [digitise_infos, dublincore_dict]
+        digitise_infos and dublincore_dict are dictionarys
+
+        :return: nothing, the function instantiate the DigitiseTabWorker class and then exit
+        """
+
+        if action == "digitise" and "duration" in data[1].get('format', {}):
+            # this check if at least a duration is set before sending the data to the back end
+            self.workerThread_digitise = QtCore.QThread()
+            self.workerObject_digitise = DigitiseTabWorker()
+            self.workerObject_digitise.moveToThread(self.workerThread_digitise)
+
+            self.launch_digitise.setEnabled(False)
+
+            self.workerThread_digitise.started.connect(partial(self.workerObject_digitise.digitise, command=data))
+            self.workerObject_digitise.finished.connect(self.workerThread_digitise.quit)
+            self.workerObject_digitise.finished.connect(partial(self.launch_digitise.setEnabled, True))
+            self.workerObject_digitise.launch_digitise_done.connect(self.result_digitise.setText)
+
+            self.workerThread_digitise.start()
+
     def digitise(self):
+        # todo: add the constants to the dublincore_dict
+        """
+        This function wil gather all the metadata, add the constants listed below.
 
         # Handle the dublincore metadata
         # dc:rights = usage libre pour l'éducation
@@ -154,6 +187,13 @@ class DigitiseTab(QWidget):
         # dcterms:modified = date de la numérisation
         # dc:identifier = id incremental pour chaque VHS
         # dc:format = {"size_ratio": "4/3", "duration": temps}
+
+        :return: nothing but call the digitise_worker function with the parameter [digitise_infos, dublincore_dict]
+
+        [{'H265': False, 'decklink_card': '2', 'H264': False, 'package_mediatheque': False},
+        {'dc:description': ['this is a general summary of the resource'], 'dc:contributor': ['great contributor'],
+        'format': {'size_ratio': '4/3', 'duration': 165}}]
+        """
 
         dublincore_dict = {}
         for row in range(self.digitise_table.rowCount()):
@@ -170,7 +210,11 @@ class DigitiseTab(QWidget):
                 if combobox_text == "durée":
                     dublincore_dict["format"] = {"size_ratio": "4/3", "duration": int(widget_text_value)}
                 elif combobox_text == "dcterms:created":
-                    dublincore_dict["dcterms:created"] = int(widget_text_value)
+                    dublincore_dict[combobox_text] = int(widget_text_value)
+                elif combobox_text == "dc:description":
+                    # this will only keep one description
+                    # todo: merge the descriptions ?
+                    dublincore_dict[combobox_text] = widget_text_value
                 else:
                     try:
                         dublincore_dict[combobox_text].append(widget_text_value)
@@ -192,9 +236,15 @@ class DigitiseTab(QWidget):
         to_be_send = [digitise_infos, dublincore_dict]
         print(to_be_send)
 
-        self.tab1_worker(action="digitise", parameter=to_be_send)
+        self.digitise_worker(action="digitise", data=to_be_send)
 
     def tab_init(self):
+        """
+        This function is called when the DigitiseTab class init
+        Its job is to put the widgets instantiated in the init function to their place and
+        set some link between functions and buttons
+        :return: nothing
+        """
         grid = QGridLayout()
 
         # Decklink card choice

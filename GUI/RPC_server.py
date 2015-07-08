@@ -20,6 +20,9 @@ def launch_digitise(listo):
     return "Okayyyyy"
 
 def search(arg):
+    # todo: fix bug when you search for multiples stuff like dc:subject {'contain': ['laudantium', 'omnis']}
+    # only one is searched : {'dc:subject': {'$regex': '.*laudantium.*'}, 'dc:format.duration': {'$lt': 60}}
+    # fix this gui side or server side ?
     client = MongoClient('mongodb://localhost:27017/')
     db = client['test-database']
     videos_metadata = db['videos_metadata']

@@ -18,9 +18,15 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         
-        self.init_ui()
+        self.init_main_window()
 
-    def init_ui(self):
+    def init_main_window(self):
+        """
+        this function init the main window
+        it set the status bar, menu bar and set the Tabs class as the central widget
+
+        :return: nothing
+        """
         
         tabs = Tabs(self)
         self.setCentralWidget(tabs)
@@ -48,6 +54,9 @@ class Tabs(QTabWidget):
 
     def __init__(self, parent):
         super().__init__(parent)
+        self.tabs_init()
+
+    def tabs_init(self):
         self.DigitiseTab = DigitiseTab()
         self.addTab(self.DigitiseTab, "heyyy macalenaaaa")
 
