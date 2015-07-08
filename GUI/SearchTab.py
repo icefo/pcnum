@@ -1,11 +1,10 @@
 __author__ = 'adrien'
 
 from PyQt5 import QtCore
-from PyQt5.QtCore import QDateTime
 import xmlrpc.client
 from PyQt5.QtWidgets import (QWidget,
                              QHeaderView, QGridLayout, QStackedLayout,
-                             QTextEdit, QLineEdit, QTableWidget, QComboBox, QPushButton, QCalendarWidget)
+                             QTextEdit, QLineEdit, QTableWidget, QComboBox, QPushButton)
 from PyQt5.QtGui import QFont
 from functools import partial
 from collections import OrderedDict
@@ -217,8 +216,6 @@ class SearchTab(QWidget):
                 data_widget_text_value = self.query_table.cellWidget(row, 2).displayText()
             elif data_widget_type == "QTextEdit":
                 data_widget_text_value = self.query_table.cellWidget(row, 2).toPlainText()
-            elif data_widget_type == "QCalendarWidget":
-                data_widget_text_value = self.query_table.cellWidget(row, 2).selectedDate().toPyDate().strftime("%d %b %Y")
             query_type = self.query_table.cellWidget(row, 1).currentText()
 
             if data_widget_text_value is not "":

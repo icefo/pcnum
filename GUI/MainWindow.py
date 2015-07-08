@@ -1,6 +1,6 @@
 import sys
 from PyQt5.QtWidgets import QMainWindow, QAction, QApplication, QTabWidget
-from PyQt5.QtGui import QIcon, QFont
+from PyQt5.QtGui import QIcon
 from GUI.DigitiseTab import DigitiseTab
 from GUI.SearchTab import SearchTab
 # very testable class (hint: you can use mock.Mock for the signals)

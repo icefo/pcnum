@@ -1,17 +1,14 @@
 __author__ = 'adrien'
 
 from PyQt5 import QtCore
-from PyQt5.QtCore import QDateTime
 import xmlrpc.client
-from PyQt5.QtWidgets import (QMainWindow, QAction, QApplication, QTabWidget, QWidget,
+from PyQt5.QtWidgets import (QWidget,
                              QHeaderView, QGridLayout,
-                             QRadioButton, QTextEdit, QLabel, QLineEdit, QCheckBox, QTableWidget, QComboBox, QPushButton, QCalendarWidget)
-from PyQt5.QtGui import QIcon, QFont
+                             QRadioButton, QTextEdit, QLabel, QLineEdit, QCheckBox, QTableWidget, QComboBox, QPushButton)
+from PyQt5.QtGui import QFont
 from collections import OrderedDict
 
 from functools import partial
-
-# todo: remove every QCalendarWidget usage
 
 
 class DigitiseTabWorker(QtCore.QObject):
@@ -203,8 +200,6 @@ class DigitiseTab(QWidget):
                 widget_text_value = self.digitise_table.cellWidget(row, 1).displayText()
             elif widget_type == "QTextEdit":
                 widget_text_value = self.digitise_table.cellWidget(row, 1).toPlainText()
-            elif widget_type == "QCalendarWidget":
-                widget_text_value = self.digitise_table.cellWidget(row, 1).selectedDate().toPyDate().strftime("%d %b %Y")
 
             if widget_text_value is not "":
                 if combobox_text == "durée":
