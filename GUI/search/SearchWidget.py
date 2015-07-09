@@ -1,35 +1,20 @@
 __author__ = 'adrien'
 
 from PyQt5 import QtCore
-import xmlrpc.client
 from PyQt5.QtWidgets import (QWidget,
-                             QHeaderView, QGridLayout, QStackedLayout,
+                             QHeaderView, QGridLayout,
                              QTextEdit, QLineEdit, QTableWidget, QComboBox, QPushButton)
 from PyQt5.QtGui import QFont
 from functools import partial
 from collections import OrderedDict
+from GUI.search.SearchWidgetWorker import SearchWidgetWorker
 
 # todo permettre de trouver les videos numérisées un certain jour, retour de Qcalendar
-class SearchTabWorker(QtCore.QObject):
-
-    client = xmlrpc.client.ServerProxy('http://localhost:8000')
-
-    search_done = QtCore.pyqtSignal([list])
-    finished = QtCore.pyqtSignal()
-    print("SearchTab worker init")
-
-    def __init__(self):
-        super().__init__()
-
-    def search(self, command):
-        print("bridge search()")
-        return_payload = self.client.search(command)
-        #print(return_payload)
-        self.search_done.emit(return_payload)
-        self.finished.emit()
 
 
-class SearchTab(QWidget):
+class SearchWidget(QWidget):
+    show_result_widget_signal = QtCore.pyqtSignal()
+
     def __init__(self):
         # Initialize the parent class QWidget
         super().__init__()
@@ -175,13 +160,13 @@ class SearchTab(QWidget):
         :param data: the parameter can be a dictionary, a list, a sting, an integer
         if the chosen action is "search" the parameter will be a dictionary.
 
-        :return: nothing, the function instantiate the DigitiseTabWorker class and then exit
+        :return: nothing, the function instantiate the DigitiseWidgetWorker class and then exit
         """
 
         # toute la base de donnée est retournée si on fait une recherche sans arguments
         if data and action == "search":
             self.workerThread_search = QtCore.QThread()
-            self.workerObject_search = SearchTabWorker()
+            self.workerObject_search = SearchWidgetWorker()
             self.workerObject_search.moveToThread(self.workerThread_search)
 
             self.search_button.setEnabled(False)
@@ -237,13 +222,11 @@ class SearchTab(QWidget):
 
     def tab_init(self):
         """
-        This function is called when the DigitiseTab class init
+        This function is called when the SearchWidget class init
         Its job is to put the widgets instantiated in the init function to their place and
         set some link between functions and buttons
         :return: nothing
         """
-        # todo: Pour afficher le resultat de la recherche, rendre le widget grid1 invisible et le remplacer par grid2
-        # grid2 contiendra une table remplie avec les résultats de la recherche + un bouton pour re-afficher grid1.
 
         self.grid1 = QGridLayout()
 
@@ -256,6 +239,7 @@ class SearchTab(QWidget):
         self.query_table.setFont(self.table_font)
         self.add_row_button.clicked.connect(self.add_row)
         self.search_button.clicked.connect(self.search)
+        self.search_button.clicked.connect(self.show_result_widget_signal.emit)
 
         self.grid1.addWidget(self.query_table, 0, 0, 3, 3)
         self.grid1.addWidget(self.add_row_button, 0, 4)

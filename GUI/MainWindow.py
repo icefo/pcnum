@@ -1,8 +1,12 @@
 import sys
+
 from PyQt5.QtWidgets import QMainWindow, QAction, QApplication, QTabWidget
+
 from PyQt5.QtGui import QIcon
-from GUI.DigitiseTab import DigitiseTab
-from GUI.SearchTab import SearchTab
+
+from GUI.digitise.DigitiseWidget import DigitiseWidget
+from GUI.search.MainSearchWidget import MainSearchWidget
+
 # very testable class (hint: you can use mock.Mock for the signals)
 # post corrected solution :
 # http://stackoverflow.com/questions/24820063/python-pyqt-how-to-call-a-gui-function-from-a-worker-thread
@@ -57,10 +61,10 @@ class Tabs(QTabWidget):
         self.tabs_init()
 
     def tabs_init(self):
-        self.DigitiseTab = DigitiseTab()
+        self.DigitiseTab = DigitiseWidget()
         self.addTab(self.DigitiseTab, "heyyy macalenaaaa")
 
-        self.SearchTab = SearchTab()
+        self.SearchTab = MainSearchWidget()
         self.addTab(self.SearchTab, "heyyy ceeepalaaaa")
 
 

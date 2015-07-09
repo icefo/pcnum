@@ -1,7 +1,6 @@
 __author__ = 'adrien'
 
 from PyQt5 import QtCore
-import xmlrpc.client
 from PyQt5.QtWidgets import (QWidget,
                              QHeaderView, QGridLayout,
                              QRadioButton, QTextEdit, QLabel, QLineEdit, QCheckBox, QTableWidget, QComboBox, QPushButton)
@@ -9,27 +8,10 @@ from PyQt5.QtGui import QFont
 from collections import OrderedDict
 from datetime import datetime
 from functools import partial
+from GUI.digitise.DigitiseWidgetWorker import DigitiseWidgetWorker
 
 
-class DigitiseTabWorker(QtCore.QObject):
-
-    client = xmlrpc.client.ServerProxy('http://localhost:8000')
-
-    launch_digitise_done = QtCore.pyqtSignal([str])
-    finished = QtCore.pyqtSignal()
-    print("DigitiseTab Worker init")
-
-    def __init__(self):
-        super().__init__()
-
-    def digitise(self, command=None):
-        print("bridge digitize()")
-        return_status = self.client.launch_digitise(command)
-        self.launch_digitise_done.emit(return_status)
-        self.finished.emit()
-
-
-class DigitiseTab(QWidget):
+class DigitiseWidget(QWidget):
     def __init__(self):
         # Initialize the parent class QWidget
         super().__init__()
@@ -167,7 +149,7 @@ class DigitiseTab(QWidget):
         if action == "digitise" and "duration" in data[1].get('format', {}):
             # this check if at least a duration is set before sending the data to the back end
             self.workerThread_digitise = QtCore.QThread()
-            self.workerObject_digitise = DigitiseTabWorker()
+            self.workerObject_digitise = DigitiseWidgetWorker()
             self.workerObject_digitise.moveToThread(self.workerThread_digitise)
 
             self.launch_digitise.setEnabled(False)
@@ -252,7 +234,7 @@ class DigitiseTab(QWidget):
 
     def tab_init(self):
         """
-        This function is called when the DigitiseTab class init
+        This function is called when the DigitiseWidget class init
         Its job is to put the widgets instantiated in the init function to their place and
         set some link between functions and buttons
         :return: nothing
