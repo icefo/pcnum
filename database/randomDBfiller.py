@@ -1,6 +1,7 @@
 # Create the random data
 from faker import Factory
 import random
+from datetime import datetime
 fake = Factory.create('fr_FR')
 # seed to get always the same random data
 fake.seed(4321)
@@ -9,12 +10,13 @@ counter = 0
 
 dublin_random_list = []
 for _ in range(0, 4000):
+    bla = datetime.now().replace(microsecond=0).isoformat()
     dublin_random =\
         {   "dc:identifier": counter,
             "dc:rights": "usage libre pour l'éducation",
             "dc:source": "VHS",
-            "dc:type": "image",
-            "dcterms:modified": fake.iso8601(),
+            "dc:type": "video",
+            "dcterms:modified": bla,
             'dc:contributor': fake.name(),
             'dc:creator': fake.name(),
             'dc:description': fake.text(max_nb_chars=200),
@@ -44,7 +46,7 @@ dicto =\
         "dc:rights": "usage libre pour l'éducation",
         "dc:source": "VHS",
         "dc:type": "image",
-        "dcterms:modified": fake.iso8601(),
+        "dcterms:modified": "$currentDate",
         'dc:contributor': fake.name(),
         'dc:creator': fake.name(),
         'dc:description': fake.text(max_nb_chars=200),

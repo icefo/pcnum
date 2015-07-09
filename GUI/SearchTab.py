@@ -9,7 +9,7 @@ from PyQt5.QtGui import QFont
 from functools import partial
 from collections import OrderedDict
 
-
+# todo permettre de trouver les videos numérisées un certain jour, retour de Qcalendar
 class SearchTabWorker(QtCore.QObject):
 
     client = xmlrpc.client.ServerProxy('http://localhost:8000')

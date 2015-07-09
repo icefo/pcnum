@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import (QWidget,
                              QRadioButton, QTextEdit, QLabel, QLineEdit, QCheckBox, QTableWidget, QComboBox, QPushButton)
 from PyQt5.QtGui import QFont
 from collections import OrderedDict
-
+from datetime import datetime
 from functools import partial
 
 
@@ -104,12 +104,18 @@ class DigitiseTab(QWidget):
                 self.digitise_table.setCellWidget(row, 1, QLineEdit())
                 self.digitise_table.setRowHeight(row, 30)
                 self.digitise_table.cellWidget(row, 1).setInputMask("000")
+            elif text == "ratio":
+                self.digitise_table.removeCellWidget(row, 1)
+                self.digitise_table.setCellWidget(row, 1, QComboBox())
+                self.digitise_table.setRowHeight(row, 30)
+                self.digitise_table.cellWidget(row, 1).addItems(["4/3", "16/9"])
             else:
                 self.digitise_table.removeCellWidget(row, 1)
                 self.digitise_table.setCellWidget(row, 1, QLineEdit())
                 self.digitise_table.setRowHeight(row, 30)
 
     def add_row(self):
+        # todo add the size ratio with default 4/3
         """
         This function add a new row (Hoho !) when the new_table_row button is pressed
         this function will fill the combobox with their name and a tooltip,
@@ -131,6 +137,7 @@ class DigitiseTab(QWidget):
         dc_data['dcterms:tableOfContents'] = "remplir si le film se divise en parties"
         dc_data['dcterms:created'] = "année de sortie du film"
         dc_data['durée'] = "durée du film en minutes"
+        dc_data['ratio'] = "format visuel du film"
 
         row_count = self.digitise_table.rowCount()
         self.digitise_table.insertRow(row_count)
@@ -173,7 +180,7 @@ class DigitiseTab(QWidget):
             self.workerThread_digitise.start()
 
     def digitise(self):
-        # todo: add the constants to the dublincore_dict
+        # todo: find a way to use an increment only for the dc:identifier field, like an UID
         """
         This function wil gather all the metadata, add the constants listed below.
 
@@ -193,6 +200,8 @@ class DigitiseTab(QWidget):
         """
 
         dublincore_dict = {}
+        dublincore_dict["format"] = {"size_ratio": "4/3"}
+
         for row in range(self.digitise_table.rowCount()):
             combobox_text = self.digitise_table.cellWidget(row, 0).currentText()
             widget_type = self.digitise_table.cellWidget(row, 1).metaObject().className()
@@ -200,10 +209,14 @@ class DigitiseTab(QWidget):
                 widget_text_value = self.digitise_table.cellWidget(row, 1).displayText()
             elif widget_type == "QTextEdit":
                 widget_text_value = self.digitise_table.cellWidget(row, 1).toPlainText()
+            elif widget_type == "QComboBox":
+                widget_text_value = self.digitise_table.cellWidget(row, 1).currentText()
 
             if widget_text_value is not "":
                 if combobox_text == "durée":
-                    dublincore_dict["format"] = {"size_ratio": "4/3", "duration": int(widget_text_value)}
+                    dublincore_dict["format"]["duration"] = int(widget_text_value)
+                elif combobox_text == "ratio":
+                    dublincore_dict["format"]["size_ratio"] = widget_text_value
                 elif combobox_text == "dcterms:created":
                     dublincore_dict[combobox_text] = int(widget_text_value)
                 elif combobox_text == "dc:description":
@@ -215,6 +228,10 @@ class DigitiseTab(QWidget):
                         dublincore_dict[combobox_text].append(widget_text_value)
                     except KeyError:
                         dublincore_dict[combobox_text] = [widget_text_value]
+        dublincore_dict["dc:rights"] = "usage libre pour l'éducation"
+        dublincore_dict["dc:source"] = "VHS"
+        dublincore_dict["dc:type"] = "video"
+        dublincore_dict["dcterms:modified"] = datetime.now().replace(microsecond=0).isoformat()
 
         # Handle the other infos
         digitise_infos = {}
