@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import QWidget, QLabel, QPushButton, QLineEdit, QGridLayout
 
 class ResultWidget(QWidget):
     show_search_widget_signal = QtCore.pyqtSignal()
-    # receive_text = QtCore.pyqtSignal([str])
+    receive_list = QtCore.pyqtSignal([list])
 
     def __init__(self):
         super().__init__()
@@ -19,3 +19,9 @@ class ResultWidget(QWidget):
         self.button = QPushButton('Back')
         widget_layout.addWidget(self.button, 0, 1)
         self.button.clicked.connect(self.show_search_widget_signal.emit)
+        self.receive_list.connect(self.search_done)
+
+    def search_done(self, argu):
+        self.search_results = argu
+        print("hehehe it rocks !")
+        print(argu)

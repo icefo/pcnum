@@ -14,6 +14,7 @@ from GUI.search.SearchWidgetWorker import SearchWidgetWorker
 
 class SearchWidget(QWidget):
     show_result_widget_signal = QtCore.pyqtSignal()
+    search_transmit = QtCore.pyqtSignal([list])
 
     def __init__(self):
         # Initialize the parent class QWidget
@@ -174,14 +175,9 @@ class SearchWidget(QWidget):
             self.workerThread_search.started.connect(partial(self.workerObject_search.search, command=data))
             self.workerObject_search.finished.connect(self.workerThread_search.quit)
             self.workerObject_search.finished.connect(partial(self.search_button.setEnabled, True))
-            self.workerObject_search.search_done.connect(self.search_done)
+            self.workerObject_search.search_done.connect(self.search_transmit.emit)
 
             self.workerThread_search.start()
-
-    def search_done(self, argu):
-        self.search_results = argu
-        print("aleluyaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-        print(argu)
 
     def search(self):
         """

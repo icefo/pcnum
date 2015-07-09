@@ -20,6 +20,7 @@ class MainSearchWidget(QWidget):
         self.stack.addWidget(self.result_widget)
 
         self.search_widget.show_result_widget_signal.connect(partial(self.stack.setCurrentWidget, self.result_widget))
+        self.search_widget.search_transmit.connect(self.result_widget.receive_list)
         self.result_widget.show_search_widget_signal.connect(partial(self.stack.setCurrentWidget, self.search_widget))
 
         # self.search_widget.send_text.connect(self.result_widget.receive_text)

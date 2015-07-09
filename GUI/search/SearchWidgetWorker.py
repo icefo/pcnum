@@ -18,6 +18,6 @@ class SearchWidgetWorker(QtCore.QObject):
     def search(self, command):
         print("bridge search()")
         return_payload = self.client.search(command)
-        #print(return_payload)
+
         self.search_done.emit(return_payload)
         self.finished.emit()
