@@ -1,6 +1,6 @@
 __author__ = 'adrien'
-dublincore_dict = {}
-dublincore_dict["format"] = {"size_ratio": "4/3"}
-dublincore_dict["format"]["duration"] = 666
+blup = [{'dcterms:abstract': 'Maiores illum sapiente dolorum repellat.', 'dcterms:created': 1966, 'dc:description': 'Et vel ex culpa temporibus necessitatibus. Tenetur deleniti ut molestiae perferendis enim. Aut nulla voluptate ut amet. Ullam occaecati consequatur consequatur recusandae.', 'dc:language': 'en', 'dcterms:modified': '$currentDate', 'dc:publisher': 'Petitjean', 'dc:type': 'video', 'dc:title': 'Ducimus neque voluptatem quia.', 'dc:contributor': 'Renée Chevalier', 'dc:subject': ['Magni eos in tempora ut.', 'Consequuntur laborum id eos repudiandae.'], 'dc:identifier': 120, 'dc:source': 'VHS', 'dc:rights': "usage libre pour l'éducation", 'dc:format': {'size_ratio': '4/3', 'duration': 60}, 'dc:creator': 'Tristan Reynaud'}, {'dcterms:abstract': 'Aperiam eaque incidunt ad officia incidunt.', 'dcterms:created': 2004, 'dc:description': 'Modi beatae unde id cumque maxime nemo qui. Et qui dolor velit eum. Porro fugit unde velit.\nSequi est voluptatibus consequuntur non. Aut in id placeat. Corrupti cupiditate quis facere occaecati vero.', 'dc:language': 'fr', 'dcterms:modified': '$currentDate', 'dc:publisher': 'Rousseau Poirier S.A.R.L.', 'dc:type': 'video', 'dc:title': 'Eum dolores expedita.', 'dc:contributor': 'Adèle Da Costa', 'dc:subject': ['Nihil reprehenderit enim ea quam ut aperiam.', 'Et et nihil voluptas molestias blanditiis.'], 'dc:identifier': 762, 'dc:source': 'VHS', 'dc:rights': "usage libre pour l'éducation", 'dc:format': {'size_ratio': '4/3', 'duration': 60}, 'dc:creator': 'Agathe Guyon'}]
 
-print(dublincore_dict)
+for item in blup:
+    for key, value in item.items():
+        print(key, value)

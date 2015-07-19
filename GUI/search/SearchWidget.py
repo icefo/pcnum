@@ -22,7 +22,7 @@ class SearchWidget(QWidget):
 
         # query table
         #########
-        self.grid1 = None
+        self.query_widget_layout = None
         self.query_table = QTableWidget()
         self.table_font = QFont(QFont().defaultFamily(), 12)
         self.add_row_button = QPushButton("ajouter")
@@ -224,7 +224,7 @@ class SearchWidget(QWidget):
         :return: nothing
         """
 
-        self.grid1 = QGridLayout()
+        self.query_widget_layout = QGridLayout()
 
         # query Table
         self.query_table.setRowCount(0)
@@ -233,12 +233,14 @@ class SearchWidget(QWidget):
         self.query_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
         self.query_table.setColumnWidth(0, 170)
         self.query_table.setFont(self.table_font)
+        self.query_table.setHorizontalHeaderLabels(["", "", "", ""])
+
         self.add_row_button.clicked.connect(self.add_row)
         self.search_button.clicked.connect(self.search)
         self.search_button.clicked.connect(self.show_result_widget_signal.emit)
 
-        self.grid1.addWidget(self.query_table, 0, 0, 3, 3)
-        self.grid1.addWidget(self.add_row_button, 0, 4)
-        self.grid1.addWidget(self.search_button, 4, 4)
+        self.query_widget_layout.addWidget(self.query_table, 0, 0, 3, 3)
+        self.query_widget_layout.addWidget(self.add_row_button, 0, 4)
+        self.query_widget_layout.addWidget(self.search_button, 4, 4)
 
-        self.setLayout(self.grid1)
+        self.setLayout(self.query_widget_layout)

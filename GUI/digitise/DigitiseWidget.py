@@ -240,6 +240,7 @@ class DigitiseWidget(QWidget):
         :return: nothing
         """
         grid = QGridLayout()
+        self.setLayout(grid)
 
         # Decklink card choice
         grid.addWidget(self.decklink_label, 0, 0)
@@ -262,19 +263,12 @@ class DigitiseWidget(QWidget):
         self.digitise_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
         self.digitise_table.setColumnWidth(0, 170)
         self.digitise_table.setFont(self.table_font)
+        self.digitise_table.setHorizontalHeaderLabels(["", "", ""])
+
         grid.addWidget(self.digitise_table, 3, 0, 5, 2)
-
         grid.addWidget(self.new_table_row, 3, 3)
-
         grid.addWidget(self.launch_digitise, 5, 3)
-
         grid.addWidget(self.result_digitise, 6, 3)
 
         self.new_table_row.clicked.connect(self.add_row)
-
-        ###############
-
         self.launch_digitise.clicked.connect(self.digitise)
-
-        # set the layout on the QWidget instantiated class
-        self.setLayout(grid)

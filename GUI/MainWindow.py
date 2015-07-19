@@ -31,7 +31,8 @@ class MainWindow(QMainWindow):
 
         :return: nothing
         """
-        
+        # font = QFont(QFont().defaultFamily(), 12)
+        # self.setFont(font)
         tabs = Tabs(self)
         self.setCentralWidget(tabs)
 
