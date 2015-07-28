@@ -225,6 +225,7 @@ class SearchWidget(QWidget):
         """
 
         self.query_widget_layout = QGridLayout()
+        self.setLayout(self.query_widget_layout)
 
         # query Table
         self.query_table.setRowCount(0)
@@ -242,5 +243,3 @@ class SearchWidget(QWidget):
         self.query_widget_layout.addWidget(self.query_table, 0, 0, 3, 3)
         self.query_widget_layout.addWidget(self.add_row_button, 0, 4)
         self.query_widget_layout.addWidget(self.search_button, 4, 4)
-
-        self.setLayout(self.query_widget_layout)
