@@ -4,6 +4,8 @@ from PyQt5.QtWidgets import QMainWindow, QAction, QApplication, QTabWidget
 
 from PyQt5.QtGui import QIcon
 
+from PyQt5 import QtCore
+
 from GUI.digitise.DigitiseWidget import DigitiseWidget
 from GUI.search.MainSearchWidget import MainSearchWidget
 
@@ -31,17 +33,14 @@ class MainWindow(QMainWindow):
 
         :return: nothing
         """
-        # font = QFont(QFont().defaultFamily(), 12)
-        # self.setFont(font)
-        tabs = Tabs(self)
-        self.setCentralWidget(tabs)
 
         exitAction = QAction(QIcon('exit.png'), 'Exit', self)
         exitAction.setShortcut('Ctrl+Q')
         exitAction.setStatusTip('Exit application')
         exitAction.triggered.connect(self.close)
 
-        self.statusBar()
+        statusbar = self.statusBar()
+
 
         menubar = self.menuBar()
         fileMenu = menubar.addMenu('&File')
@@ -49,6 +48,12 @@ class MainWindow(QMainWindow):
 
         #toolbar = self.addToolBar('Exit')
         #toolbar.addAction(exitAction)
+
+        # font = QFont(QFont().defaultFamily(), 12)
+        # self.setFont(font)
+        tabs = Tabs(self)
+        tabs.set_statusbar_text_2.connect(statusbar.showMessage)
+        self.setCentralWidget(tabs)
         
         self.setGeometry(300, 300, 500, 600)
         self.setWindowTitle('Main window')    
@@ -57,12 +62,15 @@ class MainWindow(QMainWindow):
 
 class Tabs(QTabWidget):
 
+    set_statusbar_text_2 = QtCore.pyqtSignal([str])
+
     def __init__(self, parent):
         super().__init__(parent)
         self.tabs_init()
 
     def tabs_init(self):
         self.DigitiseTab = DigitiseWidget()
+        self.DigitiseTab.set_statusbar_text_1.connect(self.set_statusbar_text_2)
         self.addTab(self.DigitiseTab, "heyyy macalenaaaa")
 
         self.SearchTab = MainSearchWidget()

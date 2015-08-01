@@ -17,7 +17,7 @@ for _ in range(0, 4000):
             "dc:source": "VHS",
             "dc:type": "video",
             "dcterms:modified": bla,
-            'dc:contributor': fake.name(),
+            'dc:contributor': [fake.name(), fake.name(), fake.name()],
             'dc:creator': fake.name(),
             'dc:description': fake.text(max_nb_chars=200),
             'dcterms:abstract': fake.text(max_nb_chars=50),

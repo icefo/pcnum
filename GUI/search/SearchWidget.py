@@ -201,16 +201,22 @@ class SearchWidget(QWidget):
 
             if data_widget_text_value is not "":
                 if dc_combobox_text == "durée":
-                    query_dict["dc:format.duration"] = {query_type: [int(data_widget_text_value)]}
-                elif dc_combobox_text == 'dcterms:created':
-                    query_dict[dc_combobox_text] = {query_type: [int(data_widget_text_value)]}
-                else:
-                    try:
+                    dc_combobox_text = "dc:format.duration"
+                try:
+                    if dc_combobox_text == "dcterms:created" or dc_combobox_text == "dc:format.duration":
+                        query_dict[dc_combobox_text][query_type].append(int(data_widget_text_value))
+                    else:
                         query_dict[dc_combobox_text][query_type].append(data_widget_text_value)
-                    except KeyError:
-                        try:
+                except KeyError:
+                    try:
+                        if dc_combobox_text == "dcterms:created" or dc_combobox_text == "dc:format.duration":
+                            query_dict[dc_combobox_text][query_type] = [int(data_widget_text_value)]
+                        else:
                             query_dict[dc_combobox_text][query_type] = [data_widget_text_value]
-                        except KeyError:
+                    except KeyError:
+                        if dc_combobox_text == "dcterms:created" or dc_combobox_text == "dc:format.duration":
+                            query_dict[dc_combobox_text] = {query_type: [int(data_widget_text_value)]}
+                        else:
                             query_dict[dc_combobox_text] = {query_type: [data_widget_text_value]}
 
         print(query_dict)
