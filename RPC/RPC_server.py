@@ -33,7 +33,10 @@ def search(arg):
         for query_type, query in dict_query.items():
             if query_type == "equal":
                 for query_item in query:
-                    mongo_query["$and"].append({dc_item: {"$regex": query_item, "$options": "i"}})
+                    if isinstance(query_item, str):
+                        mongo_query["$and"].append({dc_item: {"$regex": query_item, "$options": "i"}})
+                    else:
+                        mongo_query["$and"].append({dc_item: query_item})
             elif query_type == "contain":
                 for query_item in query:
                     mongo_query["$and"].append({dc_item: {"$regex": ".*" + query_item + ".*", "$options": "i"}})
@@ -46,7 +49,7 @@ def search(arg):
     result_list = []
     for post in videos_metadata.find(mongo_query, {'_id': False}).sort([("dc:format.duration", ASCENDING)]):
         result_list.append(post)
-        #print(post)
+        print(post)
 
     db_client.close()
     return result_list

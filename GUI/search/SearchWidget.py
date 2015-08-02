@@ -41,8 +41,8 @@ class SearchWidget(QWidget):
 
         #########
 
-        self.workerThread_search = None
-        self.workerObject_search = None
+        self.worker_thread_search = None
+        self.worker_object_search = None
 
         # this variable will store the search results when they come
         self.search_results = None
@@ -165,18 +165,18 @@ class SearchWidget(QWidget):
 
         # toute la base de donnée est retournée si on fait une recherche sans arguments
         if data and action == "search":
-            self.workerThread_search = QtCore.QThread()
-            self.workerObject_search = SearchWidgetWorker()
-            self.workerObject_search.moveToThread(self.workerThread_search)
+            self.worker_thread_search = QtCore.QThread()
+            self.worker_object_search = SearchWidgetWorker()
+            self.worker_object_search.moveToThread(self.worker_thread_search)
 
             self.search_button.setEnabled(False)
 
-            self.workerThread_search.started.connect(partial(self.workerObject_search.search, command=data))
-            self.workerObject_search.finished.connect(self.workerThread_search.quit)
-            self.workerObject_search.finished.connect(partial(self.search_button.setEnabled, True))
-            self.workerObject_search.search_done.connect(self.search_transmit.emit)
+            self.worker_thread_search.started.connect(partial(self.worker_object_search.search, command=data))
+            self.worker_object_search.finished.connect(self.worker_thread_search.quit)
+            self.worker_object_search.finished.connect(partial(self.search_button.setEnabled, True))
+            self.worker_object_search.search_done.connect(self.search_transmit.emit)
 
-            self.workerThread_search.start()
+            self.worker_thread_search.start()
 
     def search(self):
         """

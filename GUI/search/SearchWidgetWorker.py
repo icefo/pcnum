@@ -10,10 +10,10 @@ class SearchWidgetWorker(QtCore.QObject):
 
     search_done = QtCore.pyqtSignal([list])
     finished = QtCore.pyqtSignal()
-    print("SearchWidget worker init")
 
     def __init__(self):
         super().__init__()
+        print("SearchWidget Worker init")
 
     def search(self, command):
         print("bridge search()")

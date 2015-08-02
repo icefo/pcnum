@@ -13,7 +13,7 @@ class ResultWidget(QWidget):
 
     def __init__(self):
         super().__init__()
-        # self.receive_text.connect(line_edit.setText)
+
         self.display_result = QTreeWidget()
         self.result_font = QFont(QFont().defaultFamily(), 12)
         self.return_to_search_button = QPushButton('Back')

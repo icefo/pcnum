@@ -9,10 +9,10 @@ class DigitiseWidgetWorker(QtCore.QObject):
 
     launch_digitise_done = QtCore.pyqtSignal([str])
     finished = QtCore.pyqtSignal()
-    print("DigitiseWidget Worker init")
 
     def __init__(self):
         super().__init__()
+        print("DigitiseWidget Worker init")
 
     def digitise(self, command=None):
         print("bridge digitize()")

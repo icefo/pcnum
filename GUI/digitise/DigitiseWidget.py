@@ -45,9 +45,9 @@ class DigitiseWidget(QWidget):
         # self.error_label = QLabel("Veuillez entrer une durée pour lancer la numérisation")
 
         #########
-
-        self.workerThread_digitise = None
-        self.workerObject_digitise = None
+        # they have to be attached to the object, if not they are destroyed when the function exit
+        self.worker_thread_digitise = None
+        self.worker_object_digitise = None
 
         #########
 
@@ -149,21 +149,21 @@ class DigitiseWidget(QWidget):
 
         :return: nothing, the function instantiate the DigitiseTabWorker class and then exit
         """
-
+        # this check if at least a duration is set before sending the data to the back end
         if action == "digitise" and "duration" in data[1].get('format', {}):
-            # this check if at least a duration is set before sending the data to the back end
-            self.workerThread_digitise = QtCore.QThread()
-            self.workerObject_digitise = DigitiseWidgetWorker()
-            self.workerObject_digitise.moveToThread(self.workerThread_digitise)
+
+            self.worker_thread_digitise = QtCore.QThread()
+            self.worker_object_digitise = DigitiseWidgetWorker()
+            self.worker_object_digitise.moveToThread(self.worker_thread_digitise)
 
             self.launch_digitise.setEnabled(False)
 
-            self.workerThread_digitise.started.connect(partial(self.workerObject_digitise.digitise, command=data))
-            self.workerObject_digitise.finished.connect(self.workerThread_digitise.quit)
-            self.workerObject_digitise.finished.connect(partial(self.launch_digitise.setEnabled, True))
-            self.workerObject_digitise.launch_digitise_done.connect(self.result_digitise.setText)
+            self.worker_thread_digitise.started.connect(partial(self.worker_object_digitise.digitise, command=data))
+            self.worker_object_digitise.finished.connect(self.worker_thread_digitise.quit)
+            self.worker_object_digitise.finished.connect(partial(self.launch_digitise.setEnabled, True))
+            self.worker_object_digitise.launch_digitise_done.connect(self.result_digitise.setText)
 
-            self.workerThread_digitise.start()
+            self.worker_thread_digitise.start()
             self.set_statusbar_text_1.emit("Digitisation lancée")
         else:
             self.set_statusbar_text_1.emit("Nope Nope Nope")

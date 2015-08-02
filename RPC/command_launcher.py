@@ -22,9 +22,9 @@ def run_ffmpeg(shell_command, log_settings):
     :return:
     """
     mongo_client = MongoClient(log_settings["mongo_db"]["server_address"])
-    db = mongo_client[log_settings["mongo_db"]["database"]]
+    log_database = mongo_client[log_settings["mongo_db"]["database"]]
 
-    complete_logs = db[log_settings["mongo_db"]["complete_logs"]]
+    complete_logs = log_database[log_settings["mongo_db"]["complete_logs"]]
     complete_logs_document = {"vuid": log_settings["vuid"],
                               "action": log_settings["action"],
                               "start_date": datetime.now(),
@@ -33,7 +33,7 @@ def run_ffmpeg(shell_command, log_settings):
                               }
     complete_logs_document_id = complete_logs.insert(complete_logs_document)
 
-    ongoing_conversions = db[log_settings["mongo_db"]["ongoing_conversions"]]
+    ongoing_conversions = log_database[log_settings["mongo_db"]["ongoing_conversions"]]
     ongoing_conversions_document = {"vuid": log_settings["vuid"],
                                     "action": log_settings["action"],
                                     "start_date": datetime.now(),
