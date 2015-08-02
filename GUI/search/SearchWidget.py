@@ -22,7 +22,6 @@ class SearchWidget(QWidget):
 
         # query table
         #########
-        self.query_widget_layout = None
         self.query_table = QTableWidget()
         self.table_font = QFont(QFont().defaultFamily(), 12)
         self.add_row_button = QPushButton("ajouter")
@@ -230,8 +229,8 @@ class SearchWidget(QWidget):
         :return: nothing
         """
 
-        self.query_widget_layout = QGridLayout()
-        self.setLayout(self.query_widget_layout)
+        query_widget_layout = QGridLayout()
+        self.setLayout(query_widget_layout)
 
         # query Table
         self.query_table.setRowCount(0)
@@ -246,6 +245,6 @@ class SearchWidget(QWidget):
         self.search_button.clicked.connect(self.search)
         self.search_button.clicked.connect(self.show_result_widget_signal.emit)
 
-        self.query_widget_layout.addWidget(self.query_table, 0, 0, 3, 3)
-        self.query_widget_layout.addWidget(self.add_row_button, 0, 4)
-        self.query_widget_layout.addWidget(self.search_button, 4, 4)
+        query_widget_layout.addWidget(self.query_table, 0, 0, 3, 3)
+        query_widget_layout.addWidget(self.add_row_button, 0, 4)
+        query_widget_layout.addWidget(self.search_button, 4, 4)

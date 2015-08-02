@@ -8,6 +8,7 @@ from PyQt5 import QtCore
 
 from GUI.digitise.DigitiseWidget import DigitiseWidget
 from GUI.search.MainSearchWidget import MainSearchWidget
+from GUI.status.StatusWidget import StatusWidget
 
 # very testable class (hint: you can use mock.Mock for the signals)
 # post corrected solution :
@@ -69,12 +70,15 @@ class Tabs(QTabWidget):
         self.tabs_init()
 
     def tabs_init(self):
-        self.DigitiseTab = DigitiseWidget()
-        self.DigitiseTab.set_statusbar_text_1.connect(self.set_statusbar_text_2)
-        self.addTab(self.DigitiseTab, "heyyy macalenaaaa")
+        digitise_tab = DigitiseWidget()
+        digitise_tab.set_statusbar_text_1.connect(self.set_statusbar_text_2)
+        self.addTab(digitise_tab, "Numérisation")
 
-        self.SearchTab = MainSearchWidget()
-        self.addTab(self.SearchTab, "heyyy ceeepalaaaa")
+        search_tab = MainSearchWidget()
+        self.addTab(search_tab, "Recherche")
+
+        status_tab = StatusWidget()
+        self.addTab(status_tab, "Status")
 
 
 if __name__ == '__main__':

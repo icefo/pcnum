@@ -42,7 +42,7 @@ class DigitiseWidget(QWidget):
         self.new_table_row = QPushButton("Nouveau")
         self.launch_digitise = QPushButton("Numériser")
         self.result_digitise = QLabel("et patapon")
-        self.error_label = QLabel("Veuillez entrer une durée pour lancer la numérisation")
+        # self.error_label = QLabel("Veuillez entrer une durée pour lancer la numérisation")
 
         #########
 
@@ -277,7 +277,7 @@ class DigitiseWidget(QWidget):
         grid.addWidget(self.new_table_row, 3, 3)
         grid.addWidget(self.launch_digitise, 5, 3)
         grid.addWidget(self.result_digitise, 6, 3)
-        grid.addWidget(self.error_label, 7, 3)
+        # grid.addWidget(self.error_label, 7, 3)
 
         self.new_table_row.clicked.connect(self.add_row)
         self.launch_digitise.clicked.connect(self.digitise)
