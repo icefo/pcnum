@@ -8,8 +8,10 @@
       <w>ffmpeg</w>
       <w>kbits</w>
       <w>mediatheque</w>
+      <w>mongo</w>
       <w>statusbar</w>
       <w>stdout</w>
+      <w>vuid</w>
     </words>
   </dictionary>
 </component>
