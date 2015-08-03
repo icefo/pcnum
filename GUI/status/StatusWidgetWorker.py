@@ -3,10 +3,11 @@ __author__ = 'adrien'
 from PyQt5 import QtCore
 from pymongo import MongoClient
 from functools import partial
+from time import sleep
 
 class StatusWidgetWorker(QtCore.QObject):
 
-    ongoing_conversions_signal = QtCore.pyqtSignal([dict])
+    ongoing_conversions_transmit = QtCore.pyqtSignal([list])
 
     def __init__(self, mongo_settings):
         """
@@ -28,11 +29,10 @@ class StatusWidgetWorker(QtCore.QObject):
         self.ongoing_conversions = mongo_settings["ongoing_conversions"]
 
     def status_retriever(self):
-        # go in an infinit loop here
-        # send data using signals every sec
-        # use Qthread.sleep
-        # color in green the completed ones in the table
-        # add a button to flush the completed ones
         print("mongo bridge()")
-        for doc in self.log_database[self.ongoing_conversions].find({}):
-            print(doc)
+        while True:
+            ongoing_conversions_list = []
+            for doc in self.log_database[self.ongoing_conversions].find({}):
+                ongoing_conversions_list.append(doc)
+            self.ongoing_conversions_transmit.emit(ongoing_conversions_list)
+            sleep(2)

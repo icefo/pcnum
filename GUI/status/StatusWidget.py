@@ -24,6 +24,7 @@ class StatusWidget(QWidget):
         self.worker_object_status = None
 
         self.tab_init()
+        self.status_worker()
         self.status_table_auto_updater()
 
     def tab_init(self):
@@ -43,7 +44,7 @@ class StatusWidget(QWidget):
         self.ongoing_conversions.setFont(self.table_font)
         self.ongoing_conversions.setHorizontalHeaderLabels(["nom", "année", "vuid", "date début", "progès"])
 
-    def status_table_auto_updater(self):
+    def status_worker(self):
         mongo_settings =\
             {
                 "server_address": "mongodb://localhost:27017/",
@@ -57,16 +58,16 @@ class StatusWidget(QWidget):
         self.worker_object_status.moveToThread(self.worker_thread_status)
 
         self.worker_thread_status.started.connect(self.worker_object_status.status_retriever)
+        self.worker_object_status.ongoing_conversions_transmit.connect(self.status_table_auto_updater)
 
         self.worker_thread_status.start()
 
+    def status_table_auto_updater(self, blup=[]):
 
-
-
-
-
-        self.ongoing_conversions.insertRow(0)
-        for column in range(5):
-            self.ongoing_conversions.setCellWidget(0, column, QLabel("colonne" + str(column)))
+        # self.ongoing_conversions.insertRow(0)
+        # for column in range(5):
+        #     self.ongoing_conversions.setCellWidget(0, column, QLabel("colonne" + str(column)))
+        for sf in blup:
+            print(sf)
 
 
