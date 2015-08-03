@@ -23,13 +23,16 @@ log_settings = {
                 "complete_logs": "run_ffmpeg_complete_logs",
                 "ongoing_conversions": "run_ffmpeg_ongoing_conversions"},
             "action": "raw_to_h264",
-            "vuid": 1
+            "vuid": 2,
+            "year": 1965,
+            "title": "the holloway",
+            "duration": 1/6
             }
 
 if __name__ == '__main__':
 
     p = Process(target=run_ffmpeg, args=(shell_command, log_settings))
     p.start()
-    #p.join()
+    #p.de
 
 print("knooooooooooookonk")

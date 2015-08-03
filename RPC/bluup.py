@@ -17,6 +17,7 @@ ffmpeg_complete_logs = log_db["run_ffmpeg_complete_logs"]
 #             print(elem, doc[elem])
 
 ongoing_conversions = log_db["run_ffmpeg_ongoing_conversions"]
+ongoing_conversions.drop()
 
 while True:
     try:

@@ -1,7 +1,7 @@
 __author__ = 'adrien'
 
 from PyQt5 import QtCore
-from pymongo import MongoClient
+from pymongo import MongoClient, ASCENDING
 from functools import partial
 from time import sleep
 
@@ -32,7 +32,7 @@ class StatusWidgetWorker(QtCore.QObject):
         print("mongo bridge()")
         while True:
             ongoing_conversions_list = []
-            for doc in self.log_database[self.ongoing_conversions].find({}):
+            for doc in self.log_database[self.ongoing_conversions].find({}, {'_id': False}).sort([("start_date", ASCENDING)]):
                 ongoing_conversions_list.append(doc)
             self.ongoing_conversions_transmit.emit(ongoing_conversions_list)
             sleep(2)

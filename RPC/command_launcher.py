@@ -15,7 +15,10 @@ def run_ffmpeg(shell_command, log_settings):
                 "complete_logs": "run_ffmpeg_complete_logs",
                 "ongoing_conversions": "run_ffmpeg_ongoing_conversions"},
             "action": "raw_to_h264",
-            "vuid": 1
+            "vuid": 1,
+            "year": 1995,
+            "title": "the killer cactus' story",
+            "duration": 2 (min)
             }
 
 
@@ -27,6 +30,9 @@ def run_ffmpeg(shell_command, log_settings):
     complete_logs = log_database[log_settings["mongo_db"]["complete_logs"]]
     complete_logs_document = {"vuid": log_settings["vuid"],
                               "action": log_settings["action"],
+                              "year": log_settings["year"],
+                              "title": log_settings["title"],
+                              "duration": log_settings["duration"],
                               "start_date": datetime.now(),
                               "end_date": None,
                               "log_data": []
@@ -36,6 +42,9 @@ def run_ffmpeg(shell_command, log_settings):
     ongoing_conversions = log_database[log_settings["mongo_db"]["ongoing_conversions"]]
     ongoing_conversions_document = {"vuid": log_settings["vuid"],
                                     "action": log_settings["action"],
+                                    "year": log_settings["year"],
+                                    "title": log_settings["title"],
+                                    "duration": log_settings["duration"],
                                     "start_date": datetime.now(),
                                     "end_date": None,
                                     "log_data": {}
