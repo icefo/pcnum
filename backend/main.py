@@ -2,6 +2,8 @@ __author__ = 'adrien'
 from multiprocessing import Process
 from backend.command_launcher import run_ffmpeg
 
+# todo store converted video with vuid -- video_name name; same for raw videos
+
 # The last value give the final size of the file (audio + video + mux)
 # {'time': '00:00:10.00', 'bitrate': '2771.4kbits/s', 'fps': '8.0', 'q': '-1.0', 'Lsize': '3385kB', 'frame': '250'}
 # use Variable bitrate for the conversion!!!

@@ -1,26 +1,32 @@
 __author__ = 'adrien'
 
-from PyQt5 import QtCore
+from PyQt5.QtCore import QObject, pyqtSignal
 from time import sleep
 from pymongo import MongoClient
 
-class DigitiseWidgetWorker(QtCore.QObject):
+class DigitiseWidgetWorker(QObject):
 
-    launch_digitise_done = QtCore.pyqtSignal([str])
-    finished = QtCore.pyqtSignal()
+    launch_digitise_done = pyqtSignal([str])
+    finished = pyqtSignal()
 
-    def __init__(self, mongo_settings):
+    def __init__(self):
         super().__init__()
         print("DigitiseWidget Worker init")
-        mongo_client = MongoClient([mongo_settings["server_address"]])
-        self.log_database = mongo_client[mongo_settings["database"]]
-        self.complete_logs = mongo_settings["complete_logs"]
-        self.ongoing_conversions = mongo_settings["ongoing_conversions"]
+        db_client = MongoClient("mongodb://localhost:27017/")
+        db = db_client["videos_metadata"]
+        self.videos_metadata = db["videos_metadata"]
+
+    def get_new_vuid(self):
+        list_of_vuids = []
+        for post in self.videos_metadata.find({}, {"dc:identifier": True, "_id": False}):
+            list_of_vuids.append(post["dc:identifier"])
+        return max(list_of_vuids) + 1
 
     def digitise(self, command):
         print("bridge digitize()")
         print(command[0])
         sleep(5)
+        self.get_new_vuid()
         print(command[1])
         self.launch_digitise_done.emit("Okayyyyy")
         self.finished.emit()

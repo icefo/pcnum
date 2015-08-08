@@ -1,15 +1,12 @@
 __author__ = 'adrien'
 
-from PyQt5 import QtCore
+from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtWidgets import QWidget, QPushButton, QGridLayout, QTreeWidget, QTreeWidgetItem, QTextBrowser
 from PyQt5.QtGui import QFont
 
-# use html settext fo the Qtextedit module
-# mauvaise idee, utilise qtreewidget---> pas editable mais c'est pas grave
-
 class ResultWidget(QWidget):
-    show_search_widget_signal = QtCore.pyqtSignal()
-    receive_list = QtCore.pyqtSignal([list])
+    show_search_widget_signal = pyqtSignal()
+    receive_list = pyqtSignal([list])
 
     def __init__(self):
         super().__init__()

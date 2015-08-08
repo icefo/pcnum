@@ -2,7 +2,6 @@ __author__ = 'adrien'
 
 from PyQt5.QtCore import QObject, pyqtSignal
 from pymongo import MongoClient, ASCENDING
-from time import sleep
 
 
 class SearchWidgetWorker(QObject):
@@ -13,8 +12,8 @@ class SearchWidgetWorker(QObject):
     def __init__(self):
         super().__init__()
         print("SearchWidget Worker init")
-        self.db_client = MongoClient('mongodb://localhost:27017/')
-        db = self.db_client['videos_metadata']
+        db_client = MongoClient('mongodb://localhost:27017/')
+        db = db_client['videos_metadata']
         self.videos_metadata = db['videos_metadata']
 
     def search(self, command):

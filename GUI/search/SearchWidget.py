@@ -1,6 +1,6 @@
 __author__ = 'adrien'
 
-from PyQt5 import QtCore
+from PyQt5.QtCore import pyqtSignal, QThread, Qt
 from PyQt5.QtWidgets import (QWidget,
                              QHeaderView, QGridLayout,
                              QTextEdit, QLineEdit, QTableWidget, QComboBox, QPushButton)
@@ -10,11 +10,11 @@ from collections import OrderedDict
 from GUI.search.SearchWidgetWorker import SearchWidgetWorker
 
 # todo permettre de trouver les videos numérisées un certain jour, retour de Qcalendar
-
+# todo double clic sur une video lance vlc avec un nice normal
 
 class SearchWidget(QWidget):
-    show_result_widget_signal = QtCore.pyqtSignal()
-    search_transmit = QtCore.pyqtSignal([list])
+    show_result_widget_signal = pyqtSignal()
+    search_transmit = pyqtSignal([list])
 
     def __init__(self):
         # Initialize the parent class QWidget
@@ -142,7 +142,7 @@ class SearchWidget(QWidget):
         count = 0
         for dc_key, dc_tooltip in dc_data.items():
             self.query_table.cellWidget(row_count, 0).addItem(dc_key)
-            self.query_table.cellWidget(row_count, 0).setItemData(count, dc_tooltip, QtCore.Qt.ToolTipRole)
+            self.query_table.cellWidget(row_count, 0).setItemData(count, dc_tooltip, Qt.ToolTipRole)
             count += 1
 
         self.query_table.cellWidget(row_count, 0).activated[str].connect(self.dc_combobox_changed)
@@ -165,7 +165,7 @@ class SearchWidget(QWidget):
 
         # toute la base de donnée est retournée si on fait une recherche sans arguments
         if data and action == "search":
-            self.worker_thread_search = QtCore.QThread()
+            self.worker_thread_search = QThread()
             self.worker_object_search = SearchWidgetWorker()
             self.worker_object_search.moveToThread(self.worker_thread_search)
 

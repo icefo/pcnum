@@ -35,7 +35,7 @@ from pymongo import MongoClient, ASCENDING
 
 client = MongoClient('mongodb://localhost:27017/')
 
-db = client['test-database']
+db = client['videos_metadata']
 
 db['videos_metadata'].drop()
 

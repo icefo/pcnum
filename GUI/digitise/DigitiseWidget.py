@@ -1,6 +1,6 @@
 __author__ = 'adrien'
 
-from PyQt5 import QtCore
+from PyQt5.QtCore import pyqtSignal, Qt, QThread
 from PyQt5.QtWidgets import (QWidget,
                              QHeaderView, QGridLayout,
                              QRadioButton, QTextEdit, QLabel, QLineEdit, QCheckBox, QTableWidget, QComboBox, QPushButton)
@@ -10,10 +10,15 @@ from datetime import datetime
 from functools import partial
 from GUI.digitise.DigitiseWidgetWorker import DigitiseWidgetWorker
 
+# todo permettre l'importation de dvd
+# todo pour dvd degriser seulement si un dvd est dans le lecteur
+# todo griser la puce radio des q'une numérisation est en cours dessus
+# todo permettre la numerisation seulement si decklink 1-2 ou dvd sont selectioné
+
 
 class DigitiseWidget(QWidget):
 
-    set_statusbar_text_1 = QtCore.pyqtSignal([str])
+    set_statusbar_text_1 = pyqtSignal([str])
 
     def __init__(self):
         # Initialize the parent class QWidget
@@ -132,7 +137,7 @@ class DigitiseWidget(QWidget):
         count = 0
         for dc_key, dc_tooltip in dc_data.items():
             self.digitise_table.cellWidget(row_count, 0).addItem(dc_key)
-            self.digitise_table.cellWidget(row_count, 0).setItemData(count, dc_tooltip, QtCore.Qt.ToolTipRole)
+            self.digitise_table.cellWidget(row_count, 0).setItemData(count, dc_tooltip, Qt.ToolTipRole)
             count += 1
 
         self.digitise_table.cellWidget(row_count, 0).activated[str].connect(self.combobox_changed)
@@ -152,16 +157,8 @@ class DigitiseWidget(QWidget):
         # this check if at least a duration is set before sending the data to the back end
         if action == "digitise" and "duration" in data[1].get('format', {}):
 
-            mongo_settings =\
-                {
-                    "server_address": "mongodb://localhost:27017/",
-                    "database": "log-database",
-                    "complete_logs": "run_ffmpeg_complete_logs",
-                    "ongoing_conversions": "run_ffmpeg_ongoing_conversions"
-                }
-
-            self.worker_thread_digitise = QtCore.QThread()
-            self.worker_object_digitise = DigitiseWidgetWorker(mongo_settings)
+            self.worker_thread_digitise = QThread()
+            self.worker_object_digitise = DigitiseWidgetWorker()
             self.worker_object_digitise.moveToThread(self.worker_thread_digitise)
 
             self.launch_digitise.setEnabled(False)
@@ -178,7 +175,6 @@ class DigitiseWidget(QWidget):
 
 
     def digitise(self):
-        # todo: find a way to use an increment only for the dc:identifier field, like an UID
         """
         This function wil gather all the metadata, add the constants listed below.
 
@@ -218,8 +214,6 @@ class DigitiseWidget(QWidget):
                 elif combobox_text == "dcterms:created":
                     dublincore_dict[combobox_text] = int(widget_text_value)
                 elif combobox_text == "dc:description":
-                    # this will only keep one description
-                    # todo: merge the descriptions ?
                     dublincore_dict[combobox_text] = widget_text_value
                 else:
                     try:

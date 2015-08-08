@@ -45,22 +45,16 @@ class StatusWidget(QWidget):
         self.ongoing_conversions.setHorizontalHeaderLabels(["titre", "année", "vuid", "date début", "progès"])
 
     def status_worker(self):
-        mongo_settings =\
-            {
-                "server_address": "mongodb://localhost:27017/",
-                "database": "log-database",
-                "complete_logs": "run_ffmpeg_complete_logs",
-                "ongoing_conversions": "run_ffmpeg_ongoing_conversions"
-            }
 
         self.worker_thread_status = QtCore.QThread()
-        self.worker_object_status = StatusWidgetWorker(mongo_settings)
+        self.worker_object_status = StatusWidgetWorker()
         self.worker_object_status.moveToThread(self.worker_thread_status)
 
         self.worker_thread_status.started.connect(self.worker_object_status.status_retriever)
         self.worker_object_status.ongoing_conversions_transmit.connect(self.status_table_auto_updater)
 
         self.worker_thread_status.start()
+
 
     def status_table_auto_updater(self, blup=[]):
         def get_sec(s):
