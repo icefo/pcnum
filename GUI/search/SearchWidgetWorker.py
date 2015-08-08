@@ -1,24 +1,24 @@
 __author__ = 'adrien'
 
-from PyQt5 import QtCore
+from PyQt5.QtCore import QObject, pyqtSignal
 from pymongo import MongoClient, ASCENDING
+from time import sleep
 
 
-class SearchWidgetWorker(QtCore.QObject):
+class SearchWidgetWorker(QObject):
 
-    search_done = QtCore.pyqtSignal([list])
-    finished = QtCore.pyqtSignal()
+    search_done = pyqtSignal([list])
+    finished = pyqtSignal()
 
     def __init__(self):
         super().__init__()
         print("SearchWidget Worker init")
+        self.db_client = MongoClient('mongodb://localhost:27017/')
+        db = self.db_client['videos_metadata']
+        self.videos_metadata = db['videos_metadata']
 
     def search(self, command):
         print("bridge search()")
-
-        db_client = MongoClient('mongodb://localhost:27017/')
-        db = db_client['test-database']
-        videos_metadata = db['videos_metadata']
 
         mongo_query = {"$and": []}
         for dc_item, dict_query in command.items():
@@ -27,7 +27,7 @@ class SearchWidgetWorker(QtCore.QObject):
                 if query_type == "equal":
                     for query_item in query:
                         if isinstance(query_item, str):
-                            mongo_query["$and"].append({dc_item: {"$regex": query_item, "$options": "i"}})
+                            mongo_query["$and"].append({dc_item: {"$regex": "^" + query_item + "$", "$options": "i"}})
                         else:
                             mongo_query["$and"].append({dc_item: query_item})
                 elif query_type == "contain":
@@ -40,11 +40,9 @@ class SearchWidgetWorker(QtCore.QObject):
 
         print(mongo_query)
         result_list = []
-        for post in videos_metadata.find(mongo_query, {'_id': False}).sort([("dc:format.duration", ASCENDING)]):
+        for post in self.videos_metadata.find(mongo_query, {'_id': False}).sort([("dc:format.duration", ASCENDING)]):
             result_list.append(post)
             print(post)
-
-        db_client.close()
 
         self.search_done.emit(result_list)
         self.finished.emit()

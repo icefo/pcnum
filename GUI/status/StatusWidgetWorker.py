@@ -2,7 +2,7 @@ __author__ = 'adrien'
 
 from PyQt5 import QtCore
 from pymongo import MongoClient, ASCENDING
-from functools import partial
+
 from time import sleep
 
 class StatusWidgetWorker(QtCore.QObject):
@@ -36,3 +36,6 @@ class StatusWidgetWorker(QtCore.QObject):
                 ongoing_conversions_list.append(doc)
             self.ongoing_conversions_transmit.emit(ongoing_conversions_list)
             sleep(2)
+
+    def blup(self):
+        print("aleluyaaaaaaaaaaaaaaaaaaaaaaa")

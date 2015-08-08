@@ -8,7 +8,6 @@ from collections import OrderedDict
 from datetime import datetime
 from functools import partial
 from GUI.status.StatusWidgetWorker import StatusWidgetWorker
-from GUI.search.SearchWidgetWorker import SearchWidgetWorker
 
 class StatusWidget(QWidget):
     def __init__(self):
@@ -62,7 +61,6 @@ class StatusWidget(QWidget):
         self.worker_object_status.ongoing_conversions_transmit.connect(self.status_table_auto_updater)
 
         self.worker_thread_status.start()
-
 
     def status_table_auto_updater(self, blup=[]):
         def get_sec(s):

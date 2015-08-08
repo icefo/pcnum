@@ -1,6 +1,6 @@
 __author__ = 'adrien'
 from multiprocessing import Process
-from RPC.command_launcher import run_ffmpeg
+from backend.command_launcher import run_ffmpeg
 
 # The last value give the final size of the file (audio + video + mux)
 # {'time': '00:00:10.00', 'bitrate': '2771.4kbits/s', 'fps': '8.0', 'q': '-1.0', 'Lsize': '3385kB', 'frame': '250'}
@@ -30,7 +30,10 @@ log_settings = {
             }
 
 if __name__ == '__main__':
-
+    # infinite loop here
+    # check for waiting_conversions table
+    # start in priority decklink acquisition jobs, when they are done start the jobs that need the raw decklink files
+    # even if this will be checked in the gui check if the decklink card is not already in use
     p = Process(target=run_ffmpeg, args=(shell_command, log_settings))
     p.start()
     #p.de

@@ -152,8 +152,16 @@ class DigitiseWidget(QWidget):
         # this check if at least a duration is set before sending the data to the back end
         if action == "digitise" and "duration" in data[1].get('format', {}):
 
+            mongo_settings =\
+                {
+                    "server_address": "mongodb://localhost:27017/",
+                    "database": "log-database",
+                    "complete_logs": "run_ffmpeg_complete_logs",
+                    "ongoing_conversions": "run_ffmpeg_ongoing_conversions"
+                }
+
             self.worker_thread_digitise = QtCore.QThread()
-            self.worker_object_digitise = DigitiseWidgetWorker()
+            self.worker_object_digitise = DigitiseWidgetWorker(mongo_settings)
             self.worker_object_digitise.moveToThread(self.worker_thread_digitise)
 
             self.launch_digitise.setEnabled(False)
