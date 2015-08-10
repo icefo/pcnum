@@ -2,6 +2,7 @@ __author__ = 'adrien'
 
 from PyQt5.QtCore import QObject, pyqtSignal
 from pymongo import MongoClient, ASCENDING
+import atexit
 
 
 class SearchWidgetWorker(QObject):
@@ -12,9 +13,14 @@ class SearchWidgetWorker(QObject):
     def __init__(self):
         super().__init__()
         print("SearchWidget Worker init")
-        db_client = MongoClient('mongodb://localhost:27017/')
-        db = db_client['videos_metadata']
+        self.db_client = MongoClient('mongodb://localhost:27017/')
+        db = self.db_client['videos_metadata']
         self.videos_metadata = db['videos_metadata']
+        atexit.register(self.cleanup)
+
+    def cleanup(self):
+        self.db_client.close()
+        print("SearchWidget Worker exit")
 
     def search(self, command):
         print("bridge search()")

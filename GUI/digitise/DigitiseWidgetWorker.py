@@ -3,6 +3,7 @@ __author__ = 'adrien'
 from PyQt5.QtCore import QObject, pyqtSignal
 from time import sleep
 from pymongo import MongoClient
+import atexit
 
 class DigitiseWidgetWorker(QObject):
 
@@ -12,9 +13,14 @@ class DigitiseWidgetWorker(QObject):
     def __init__(self):
         super().__init__()
         print("DigitiseWidget Worker init")
-        db_client = MongoClient("mongodb://localhost:27017/")
-        db = db_client["videos_metadata"]
-        self.videos_metadata = db["videos_metadata"]
+        self.db_client = MongoClient("mongodb://localhost:27017/")
+        metadata_db = self.db_client["metadata"]
+        self.videos_metadata = metadata_db["videos_metadata"]
+        atexit.register(self.cleanup)
+
+    def cleanup(self):
+        self.db_client.close()
+        print("DigitiseWidget Worker exit")
 
     def get_new_vuid(self):
         list_of_vuids = []
@@ -30,3 +36,4 @@ class DigitiseWidgetWorker(QObject):
         print(command[1])
         self.launch_digitise_done.emit("Okayyyyy")
         self.finished.emit()
+
