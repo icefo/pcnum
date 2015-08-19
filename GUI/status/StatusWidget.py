@@ -8,6 +8,8 @@ from collections import OrderedDict
 from datetime import datetime
 from functools import partial
 from GUI.status.StatusWidgetWorker import StatusWidgetWorker
+from pprint import pprint
+
 
 class StatusWidget(QWidget):
     def __init__(self):
@@ -50,11 +52,10 @@ class StatusWidget(QWidget):
         self.worker_object_status = StatusWidgetWorker()
         self.worker_object_status.moveToThread(self.worker_thread_status)
 
-        self.worker_thread_status.started.connect(self.worker_object_status.status_retriever)
+        self.worker_thread_status.started.connect(self.worker_object_status.conversion_status)
         self.worker_object_status.ongoing_conversions_transmit.connect(self.status_table_auto_updater)
 
         self.worker_thread_status.start()
-
 
     def status_table_auto_updater(self, blup=[]):
         def get_sec(s):
@@ -68,17 +69,20 @@ class StatusWidget(QWidget):
         for row in blup:
             row_count = self.ongoing_conversions.rowCount()
             self.ongoing_conversions.insertRow(row_count)
-            self.ongoing_conversions.setCellWidget(row_count, 0, QLabel(row["title"]))
+            self.ongoing_conversions.setCellWidget(row_count, 0, QLabel(row["title"][0]))
             self.ongoing_conversions.setCellWidget(row_count, 1, QLabel(str(row["year"])))
             self.ongoing_conversions.setCellWidget(row_count, 2, QLabel(str(row["vuid"])))
             start_date = row["start_date"].replace(microsecond=0).isoformat()
             self.ongoing_conversions.setCellWidget(row_count, 3, QLabel(start_date))
             try:
-                progress = (get_sec(row["log_data"]["time"]) / (row["duration"]*60))*100
+                done = get_sec(row["log_data"]["time"])
+                total = row["duration"]
+                progress = (done / total)*100
+                progress = round(progress, 2)
                 self.ongoing_conversions.setCellWidget(row_count, 4, QLabel(str(progress)))
             except KeyError:
                 pass
-            print(row)
+            pprint(row)
 
 
 

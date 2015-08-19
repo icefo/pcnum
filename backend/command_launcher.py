@@ -1,6 +1,12 @@
 import subprocess
 from pymongo import MongoClient
 from datetime import datetime
+from os import getpid
+from pprint import pprint
+
+# need tccat from transcode package
+# need ffmpeg from deb-multimedia.org
+
 
 def run_ffmpeg(shell_command, log_settings):
     """
@@ -24,41 +30,51 @@ def run_ffmpeg(shell_command, log_settings):
 
     :return:
     """
-    mongo_client = MongoClient(log_settings["mongo_db"]["server_address"])
-    log_database = mongo_client[log_settings["mongo_db"]["database"]]
+    pprint(shell_command)
+    process = subprocess.Popen(shell_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
 
-    complete_logs = log_database[log_settings["mongo_db"]["complete_logs"]]
+    mongo_client = MongoClient("mongodb://localhost:27017/")
+    log_database = mongo_client["log-database"]
+
+    complete_logs = log_database["run_ffmpeg_complete_logs"]
     complete_logs_document = {"vuid": log_settings["vuid"],
                               "action": log_settings["action"],
                               "year": log_settings["year"],
                               "title": log_settings["title"],
                               "duration": log_settings["duration"],
                               "start_date": datetime.now(),
+                              "pid": getpid(),
+                              "return_code": None,
                               "end_date": None,
                               "log_data": []
                               }
     complete_logs_document_id = complete_logs.insert(complete_logs_document)
 
-    ongoing_conversions = log_database[log_settings["mongo_db"]["ongoing_conversions"]]
+    ongoing_conversions = log_database["run_ffmpeg_ongoing_conversions"]
     ongoing_conversions_document = {"vuid": log_settings["vuid"],
                                     "action": log_settings["action"],
                                     "year": log_settings["year"],
                                     "title": log_settings["title"],
                                     "duration": log_settings["duration"],
                                     "start_date": datetime.now(),
+                                    "pid": getpid(),
+                                    "return_code": None,
                                     "end_date": None,
                                     "log_data": {}
                                     }
     ongoing_conversions_document_id = ongoing_conversions.insert(ongoing_conversions_document)
 
-    process = subprocess.Popen(shell_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
     while True:
         if process.poll() is not None:  # returns None while subprocess is running
+            return_code = process.returncode
             complete_logs.find_and_modify(query={"_id": complete_logs_document_id},
-                                          update={"$set": {"end_date": datetime.now()}})
+                                          update={"$set": {"end_date": datetime.now(), "return_code": return_code}})
             ongoing_conversions.find_and_modify(query={"_id": ongoing_conversions_document_id},
-                                                update={"$set": {"end_date": datetime.now()}})
+                                          update={"$set": {"end_date": datetime.now(), "return_code": return_code}})
             mongo_client.close()
+            if return_code is not 0:
+                raise ChildProcessError("FFMPEG process returned with a non zero code \"", str(return_code),
+                                        "\" , see complete log for details")
             break
 
         # stdout_line example: frame=  288 fps= 16 q=32.0 size=    1172kB time=00:00:09.77 bitrate= 982.4kbits/s

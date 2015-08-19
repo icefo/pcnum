@@ -4,6 +4,8 @@ from PyQt5.QtCore import QObject, pyqtSignal
 from time import sleep
 from pymongo import MongoClient
 import atexit
+from pprint import pprint
+
 
 class DigitiseWidgetWorker(QObject):
 
@@ -16,6 +18,9 @@ class DigitiseWidgetWorker(QObject):
         self.db_client = MongoClient("mongodb://localhost:27017/")
         metadata_db = self.db_client["metadata"]
         self.videos_metadata = metadata_db["videos_metadata"]
+        log_database = self.db_client["log-database"]
+        self.waiting_conversions = log_database["waiting_conversions"]
+
         atexit.register(self.cleanup)
 
     def cleanup(self):
@@ -28,12 +33,17 @@ class DigitiseWidgetWorker(QObject):
             list_of_vuids.append(post["dc:identifier"])
         return max(list_of_vuids) + 1
 
-    def digitise(self, command):
+    def digitise(self, metadata):
         print("bridge digitize()")
-        print(command[0])
-        sleep(5)
-        self.get_new_vuid()
-        print(command[1])
+        vuid = self.get_new_vuid()
+        metadata[1]["dc:identifier"] = vuid
+
+        metadata = {"vuid": vuid, "metadata": metadata}
+        pprint(metadata)
+        self.waiting_conversions.insert(metadata)
+
         self.launch_digitise_done.emit("Okayyyyy")
         self.finished.emit()
 
+    def check_decklink_button(self):
+        pass

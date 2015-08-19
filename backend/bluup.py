@@ -1,42 +1,25 @@
-__author__ = 'adrien'
-from pymongo import MongoClient
-from time import sleep
-
-# mongo_client = MongoClient("mongodb://localhost:27017/")
-# log_db = mongo_client["log-database"]
-# ffmpeg_complete_logs = log_db["run_ffmpeg_complete_logs"]
-# #ffmpeg_complete_logs.drop()
-#
-# # for doc in ffmpeg_complete_logs.find({}):
-# #     for elem in doc:
-# #         if elem == "log_data":
-# #             for blup in doc[elem]:
-# #                 # print(blup)
-# #                 pass
-# #         else:
-# #             print(elem, doc[elem])
-#
-# ongoing_conversions = log_db["run_ffmpeg_ongoing_conversions"]
-# ongoing_conversions.drop()
-#
-# while True:
-#     try:
-#         for doc in ongoing_conversions.find({}):
-#             print(doc)
-#             sleep(1)
-#     except KeyboardInterrupt:
-#         break
-
-class DbObject(object):
-
-    def __init__(self):
-        print("coooooooooonstruction")
-        self.db_client = MongoClient('mongodb://localhost:27017/')
-        db = self.db_client['test-database']
-        self.videos_metadata = db['videos_metadata']
-
-    def __del__(self):
-        print("decooooooooooonstruction !")
-        self.db_client.close()
-
-blup = DbObject()
+listo = ['nice',
+ '-n',
+ '19',
+ 'ffmpeg',
+ '-i',
+ '/home/adrien/Vidéos/AMERICAN_GANGSTER/title00.mkv',
+ '-t',
+ '10',
+ '-c:v',
+ 'libx264',
+ '-crf',
+ '18',
+ '-preset',
+ 'medium',
+ '-filter:v',
+ 'hqdn3d=3:2:2:3',
+ '-c:a',
+ 'libfdk_aac',
+ '-b:a',
+ '192k',
+ '/home/adrien/documents/tm/american gansters -- 2001']
+a = ""
+for i in listo:
+    a = a + i + " "
+print(a)
