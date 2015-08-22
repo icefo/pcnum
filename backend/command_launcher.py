@@ -4,7 +4,6 @@ from datetime import datetime
 from os import getpid
 from pprint import pprint
 
-# need tccat from transcode package
 # need ffmpeg from deb-multimedia.org
 
 
@@ -15,11 +14,6 @@ def run_ffmpeg(shell_command, log_settings):
         example: ['nice', '-n', '19', "echo", "I like kiwis"]
     :param log_settings: dictionary
         example: {
-            "mongo_db": {
-                "server_address": "mongodb://localhost:27017/",
-                "database": "log-database",
-                "complete_logs": "run_ffmpeg_complete_logs",
-                "ongoing_conversions": "run_ffmpeg_ongoing_conversions"},
             "action": "raw_to_h264",
             "vuid": 1,
             "year": 1995,

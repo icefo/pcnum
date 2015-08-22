@@ -40,9 +40,10 @@ class Backend(object):
         self.dvd_to_h264 = [
                     'nice', '-n', '19',
                         'ffmpeg',
-                            '-i', '/home/mediatheque/video/film_name/title00.mkv',
-                                '-c:v', 'libx264', '-crf', '18', '-preset', 'medium',
-                                '-c:a', 'libfdk_aac', '-b:a', '192k',
+                            '-i', '/home/mediatheque/video/film_name/title00.mkv', '-map', '0',
+                                '-c:s', 'copy',
+                                '-c:v', 'libx264', '-crf', '20', '-preset', 'medium',
+                                '-c:a', 'libfdk_aac', '-vbr', '4',
                             '/home/adrien/Documents/tm/test2.mkv'
                     ]
 
@@ -52,7 +53,7 @@ class Backend(object):
                             '-i', '/home/mediatheque/video/film_name/title00.mkv',
                                 '-t', '10',
                                 '-c:v', 'libx264', '-crf', '18', '-preset', 'medium', '-filter:v', 'hqdn3d=3:2:2:3',
-                                '-c:a', 'libfdk_aac', '-b:a', '192k',
+                                '-c:a', 'libfdk_aac', '-vb:a', '192k',
                             '/home/adrien/Documents/tm/test2.mkv'
                     ]
 
@@ -93,7 +94,7 @@ class Backend(object):
         p.start()
 
     def start_watch(self):
-        print("Night gathers, and now my watch begins. It shall not end until my death.")
+        print("Night gathers, and now my watch begins. It shall not end until my death...")
         currently_processing = []
         while True:
             waiting_conversions_list = []
@@ -103,6 +104,8 @@ class Backend(object):
                     pprint(doc)
                     currently_processing.append(doc["_id"])
                     self.start_dvd_conversion(doc)
+                elif doc["metadata"][0]["source"] == "file" and doc["_id"] not in currently_processing:
+                    pass
                 else:
                     print("else called")
 

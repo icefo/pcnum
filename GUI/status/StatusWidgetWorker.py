@@ -21,8 +21,8 @@ class StatusWidgetWorker(QObject):
         self.waiting_conversions = log_database["waiting_conversions"]
         self.ongoing_conversions = log_database["run_ffmpeg_ongoing_conversions"]
 
-        # self.waiting_conversions.drop()
-        # self.ongoing_conversions.drop()
+        self.waiting_conversions.drop()
+        self.ongoing_conversions.drop()
 
         atexit.register(self.cleanup)
 

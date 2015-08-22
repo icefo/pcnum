@@ -12,7 +12,7 @@ from functools import partial
 from GUI.digitise.DigitiseWidgetWorker import DigitiseWidgetWorker
 
 
-# todo pour dvd degriser seulement si un dvd est dans le lecteur
+
 # todo griser la puce radio des q'une numérisation est en cours dessus
 # todo empecher de mettre plus d'un titre à un film
 # todo permettre l'importation d'un fichier sans modification
@@ -31,14 +31,15 @@ class DigitiseWidget(QWidget):
         self.decklink_label = QLabel("Choisissez la source vidéo")
         self.decklink_radio_1 = QRadioButton("Decklink 1")
         self.decklink_radio_2 = QRadioButton("Decklink 2")
-        self.dvd_radio = QRadioButton("DVD")
+        self.file_import = QRadioButton("importer fichier vidéo")
+        self.dvd_import = QRadioButton("importer dvd")
 
         #########
 
-        self.compressed_file_label = QLabel("Choisissez le format des fichiers compressés à créer")
-        self.compressed_file_h264 = QCheckBox("H264")
-        self.compressed_file_h264.setChecked(True)
-        self.compressed_file_h265 = QCheckBox("H265")
+        # self.compressed_file_label = QLabel("Choisissez le format des fichiers compressés à créer")
+        # self.compressed_file_h264 = QCheckBox("H264")
+        # self.compressed_file_h264.setChecked(True)
+        # self.compressed_file_h265 = QCheckBox("H265")
 
         #########
 
@@ -158,7 +159,7 @@ class DigitiseWidget(QWidget):
 
         :return: nothing, the function instantiate the DigitiseTabWorker class and then exit
         """
-        # this check if at least a duration is set before sending the data to the back end
+        # this check if at least a duration, title, and creation date is set before sending the data to the back end
         if action == "decklink" and "duration" in data[1].get('format', {}) and data[1]["dc:title"] and data[1]["dcterms:created"]:
 
             self.worker_thread_digitise = QThread()
@@ -172,9 +173,8 @@ class DigitiseWidget(QWidget):
             elif data[0]["source"] == "decklink_2":
                 self.decklink_radio_2.setEnabled(False)
                 self.worker_object_digitise.finished.connect(partial(self.decklink_radio_2.setEnabled, True))
-            elif data[0]["source"] == "DVD":
-                self.dvd_radio.setEnabled(False)
-                self.worker_object_digitise.finished.connect(partial(self.dvd_radio.setEnabled, True))
+            else:
+                raise ValueError
 
             self.worker_thread_digitise.started.connect(partial(self.worker_object_digitise.digitise, metadata=data))
             self.worker_object_digitise.finished.connect(self.worker_thread_digitise.quit)
@@ -182,24 +182,24 @@ class DigitiseWidget(QWidget):
             self.worker_object_digitise.launch_digitise_done.connect(self.result_digitise.setText)
 
             self.worker_thread_digitise.start()
-            self.set_statusbar_text_1.emit("Digitisation lancée")
+            self.set_statusbar_text_1.emit("Decklink numérisation lancée")
 
-        elif action == "DVD" and data[0]["filename"] and data[1]["dc:title"] and data[1]["dcterms:created"]:
+        elif (action == "DVD" or action == "file") and data[0]["filename"] and data[1]["dc:title"] and data[1]["dcterms:created"]:
 
             self.worker_thread_digitise = QThread()
             self.worker_object_digitise = DigitiseWidgetWorker()
             self.worker_object_digitise.moveToThread(self.worker_thread_digitise)
 
             self.launch_digitise.setEnabled(False)
-            if data[0]["source"] == "decklink_1":
-                self.decklink_radio_1.setEnabled(False)
-                self.worker_object_digitise.finished.connect(partial(self.decklink_radio_1.setEnabled, True))
-            elif data[0]["source"] == "decklink_2":
-                self.decklink_radio_2.setEnabled(False)
-                self.worker_object_digitise.finished.connect(partial(self.decklink_radio_2.setEnabled, True))
-            elif data[0]["source"] == "DVD":
-                self.dvd_radio.setEnabled(False)
-                self.worker_object_digitise.finished.connect(partial(self.dvd_radio.setEnabled, True))
+
+            if data[0]["source"] == "DVD":
+                self.dvd_import.setEnabled(False)
+                self.worker_object_digitise.finished.connect(partial(self.dvd_import.setEnabled, True))
+            elif data[0]["source"] == "file":
+                self.file_import.setEnabled(False)
+                self.worker_object_digitise.finished.connect(partial(self.file_import.setEnabled, True))
+            else:
+                raise ValueError
 
             self.worker_thread_digitise.started.connect(partial(self.worker_object_digitise.digitise, metadata=data))
             self.worker_object_digitise.finished.connect(self.worker_thread_digitise.quit)
@@ -207,10 +207,7 @@ class DigitiseWidget(QWidget):
             self.worker_object_digitise.launch_digitise_done.connect(self.result_digitise.setText)
 
             self.worker_thread_digitise.start()
-            self.set_statusbar_text_1.emit("Digitisation lancée")
-
-        else:
-            self.set_statusbar_text_1.emit("Nope Nope Nope")
+            self.set_statusbar_text_1.emit("DVD numérisation lancée")
 
     def digitise(self):
         """
@@ -230,10 +227,16 @@ class DigitiseWidget(QWidget):
         {'dc:description': ['this is a general summary of the resource'], 'dc:contributor': ['great contributor'],
         'format': {'size_ratio': '4/3', 'duration': 165}}]
         """
+
         filename = None
-        if self.dvd_radio.isChecked():
+        if self.dvd_import.isChecked():
             file_dialog = QFileDialog(self)
             filename = file_dialog.getOpenFileName(directory="/home/adrien/Vidéos", filter="MKV files (*.mkv)")
+            filename = filename[0]
+            print(filename)
+        elif self.file_import.isChecked():
+            file_dialog = QFileDialog(self)
+            filename = file_dialog.getOpenFileName(directory="/home/adrien/Vidéos")
             filename = filename[0]
             print(filename)
 
@@ -278,12 +281,16 @@ class DigitiseWidget(QWidget):
         elif self.decklink_radio_2.isChecked():
             digitise_infos["source"] = "decklink_2"
             worker_action = "decklink"
-        elif self.dvd_radio.isChecked():
+        elif self.file_import.isChecked():
+            digitise_infos["source"] = "file"
+            worker_action = "file"
+        elif self.dvd_import.isChecked():
             digitise_infos["source"] = "DVD"
             worker_action = "DVD"
 
-        digitise_infos["H264"] = self.compressed_file_h264.isChecked()
-        digitise_infos["H265"] = self.compressed_file_h265.isChecked()
+        # digitise_infos["H264"] = self.compressed_file_h264.isChecked()
+        # digitise_infos["H265"] = self.compressed_file_h265.isChecked()
+
         digitise_infos["filename"] = filename
         # digitise_infos["package_mediatheque"] = self.package_mediatheque.isChecked()
 
@@ -308,12 +315,12 @@ class DigitiseWidget(QWidget):
         grid.addWidget(self.decklink_label, 0, 0)
         grid.addWidget(self.decklink_radio_1, 0, 1)
         grid.addWidget(self.decklink_radio_2, 0, 2)
-        grid.addWidget(self.dvd_radio, 0, 3)
+        grid.addWidget(self.file_import, 0, 3)
 
         # Compressed files to create
-        grid.addWidget(self.compressed_file_label, 1, 0)
-        grid.addWidget(self.compressed_file_h264, 1, 1)
-        grid.addWidget(self.compressed_file_h265, 1, 2)
+        # grid.addWidget(self.compressed_file_label, 1, 0)
+        # grid.addWidget(self.compressed_file_h264, 1, 1)
+        # grid.addWidget(self.compressed_file_h265, 1, 2)
 
         # Package mediatheque
         # grid.addWidget(self.package_mediatheque, 2, 0)
