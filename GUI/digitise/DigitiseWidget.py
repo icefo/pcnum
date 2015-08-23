@@ -104,14 +104,13 @@ class DigitiseWidget(QWidget):
                 self.digitise_table.removeCellWidget(row, 1)
                 self.digitise_table.setCellWidget(row, 1, QComboBox())
                 self.digitise_table.setRowHeight(row, 30)
-                self.digitise_table.cellWidget(row, 1).addItems(["4/3", "16/9"])
+                self.digitise_table.cellWidget(row, 1).addItems(["4:3", "16:9"])
             else:
                 self.digitise_table.removeCellWidget(row, 1)
                 self.digitise_table.setCellWidget(row, 1, QLineEdit())
                 self.digitise_table.setRowHeight(row, 30)
 
     def add_row(self):
-        # todo add the size ratio with default 4/3
         """
         This function add a new row (Hoho !) when the new_table_row button is pressed
         this function will fill the combobox with their name and a tooltip,
@@ -160,7 +159,7 @@ class DigitiseWidget(QWidget):
         :return: nothing, the function instantiate the DigitiseTabWorker class and then exit
         """
         # this check if at least a duration, title, and creation date is set before sending the data to the back end
-        if action == "decklink" and "duration" in data[1].get('format', {}) and data[1]["dc:title"] and data[1]["dcterms:created"]:
+        if action == "decklink" and "duration" in data[1].get('dc:format', {}) and data[1]["dc:title"] and data[1]["dcterms:created"]:
 
             self.worker_thread_digitise = QThread()
             self.worker_object_digitise = DigitiseWidgetWorker()
@@ -225,23 +224,23 @@ class DigitiseWidget(QWidget):
 
         [{'H265': False, 'decklink_card': '2', 'H264': False, 'package_mediatheque': False},
         {'dc:description': ['this is a general summary of the resource'], 'dc:contributor': ['great contributor'],
-        'format': {'size_ratio': '4/3', 'duration': 165}}]
+        'dc:format': {'size_ratio': '4/3', 'duration': 165}}]
         """
 
         filename = None
         if self.dvd_import.isChecked():
             file_dialog = QFileDialog(self)
-            filename = file_dialog.getOpenFileName(directory="/home/adrien/Vidéos", filter="MKV files (*.mkv)")
+            filename = file_dialog.getOpenFileName(directory="/media/storage", filter="MKV files (*.mkv)")
             filename = filename[0]
             print(filename)
         elif self.file_import.isChecked():
             file_dialog = QFileDialog(self)
-            filename = file_dialog.getOpenFileName(directory="/home/adrien/Vidéos")
+            filename = file_dialog.getOpenFileName(directory="/media/storage")
             filename = filename[0]
             print(filename)
 
         dublincore_dict = {}
-        dublincore_dict["format"] = {"size_ratio": "4/3"}
+        dublincore_dict["dc:format"] = {"size_ratio": "4:3"}
 
         for row in range(self.digitise_table.rowCount()):
             combobox_text = self.digitise_table.cellWidget(row, 0).currentText()
@@ -255,9 +254,9 @@ class DigitiseWidget(QWidget):
 
             if widget_text_value is not "":
                 if combobox_text == "durée":
-                    dublincore_dict["format"]["duration"] = int(widget_text_value)
+                    dublincore_dict["dc:format"]["duration"] = int(widget_text_value)
                 elif combobox_text == "ratio":
-                    dublincore_dict["format"]["size_ratio"] = widget_text_value
+                    dublincore_dict["dc:format"]["size_ratio"] = widget_text_value
                 elif combobox_text == "dcterms:created":
                     dublincore_dict[combobox_text] = int(widget_text_value)
                 elif combobox_text == "dc:description":

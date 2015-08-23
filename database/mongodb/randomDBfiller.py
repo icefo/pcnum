@@ -26,7 +26,8 @@ for _ in range(0, 4000):
             'dc:language': random.choice(("en", "fr")),
             'dc:publisher': fake.company(),
             'dc:subject': [fake.sentence(nb_words=6, variable_nb_words=True), fake.sentence(nb_words=6, variable_nb_words=True)],
-            'dc:title': fake.sentence(nb_words=3, variable_nb_words=True)
+            'dc:title': fake.sentence(nb_words=3, variable_nb_words=True),
+            'files_path': {"h264": "/random/path"}
         }
     dublin_random_list.append(dublin_random)
     counter += 1
@@ -39,7 +40,7 @@ db = client['metadata']
 
 db['metadata'].drop()
 
-videos_metadata = db['videos_metadata']
+videos_metadata = db['videos_metadata_collection']
 
 dicto =\
     {
@@ -61,9 +62,9 @@ dicto =\
 
 # I'm just terribly lazy; this create an index for all the fields
 for key in dicto.keys():
-    db['videos_metadata'].create_index([(key, ASCENDING )])
+    db['videos_metadata_collection'].create_index([(key, ASCENDING )])
 
-db['videos_metadata'].create_index([("dc:identifier", ASCENDING )], unique=True)
+db['videos_metadata_collection'].create_index([("dc:identifier", ASCENDING )], unique=True)
 
 
 # Insert the metadata in the database

@@ -18,11 +18,11 @@ class StatusWidgetWorker(QObject):
         self.db_client = MongoClient("mongodb://localhost:27017/")
         log_database = self.db_client["log-database"]
         # self.complete_logs = log_database["run_ffmpeg_complete_logs"]
-        self.waiting_conversions = log_database["waiting_conversions"]
+        self.waiting_conversions = log_database["waiting_conversions_collection"]
         self.ongoing_conversions = log_database["run_ffmpeg_ongoing_conversions"]
 
-        self.waiting_conversions.drop()
-        self.ongoing_conversions.drop()
+        # self.waiting_conversions.drop()
+        # self.ongoing_conversions.drop()
 
         atexit.register(self.cleanup)
 

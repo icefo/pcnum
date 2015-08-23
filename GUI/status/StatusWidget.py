@@ -65,7 +65,7 @@ class StatusWidget(QWidget):
         self.ongoing_conversions.clearContents()
         self.ongoing_conversions.setRowCount(0)
         # for column in range(5):
-        #     self.ongoing_conversions.setCellWidget(0, column, QLabel("colonne" + str(column)))
+        #     self.ongoing_conversions_collection.setCellWidget(0, column, QLabel("colonne" + str(column)))
         for row in blup:
             row_count = self.ongoing_conversions.rowCount()
             self.ongoing_conversions.insertRow(row_count)
@@ -76,7 +76,7 @@ class StatusWidget(QWidget):
             self.ongoing_conversions.setCellWidget(row_count, 3, QLabel(start_date))
             try:
                 done = get_sec(row["log_data"]["time"])
-                total = row["duration"]
+                total = row["duration"] * 60  # minute to second
                 progress = (done / total)*100
                 progress = round(progress, 2)
                 self.ongoing_conversions.setCellWidget(row_count, 4, QLabel(str(progress)))

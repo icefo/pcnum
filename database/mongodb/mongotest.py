@@ -9,10 +9,10 @@ db = client['test-database']
 
 # db['videos'].drop()
 
-videos_metadata = db['videos_metadata']
+videos_metadata = db['videos_metadata_collection']
 
 
-# videos_metadata.update({"vuid": 0}, {"$set": {"producer": ["Updated !",], "date": "svdv"}})
+# videos_metadata_collection.update({"vuid": 0}, {"$set": {"producer": ["Updated !",], "date": "svdv"}})
 
 print(videos_metadata.find({'dcterms:created': {"$gt": 2000}}).sort([("dc:format.duration", ASCENDING)]).explain())
 

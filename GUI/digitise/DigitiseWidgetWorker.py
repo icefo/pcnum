@@ -17,9 +17,9 @@ class DigitiseWidgetWorker(QObject):
         print("DigitiseWidget Worker init")
         self.db_client = MongoClient("mongodb://localhost:27017/")
         metadata_db = self.db_client["metadata"]
-        self.videos_metadata = metadata_db["videos_metadata"]
+        self.videos_metadata = metadata_db["videos_metadata_collection"]
         log_database = self.db_client["log-database"]
-        self.waiting_conversions = log_database["waiting_conversions"]
+        self.waiting_conversions = log_database["waiting_conversions_collection"]
 
         atexit.register(self.cleanup)
 
@@ -27,15 +27,18 @@ class DigitiseWidgetWorker(QObject):
         self.db_client.close()
         print("DigitiseWidget Worker exit")
 
-    def get_new_vuid(self):
-        list_of_vuids = []
+    def get_and_lock_new_vuid(self):
+        list_of_vuids = [0]
         for post in self.videos_metadata.find({}, {"dc:identifier": True, "_id": False}):
             list_of_vuids.append(post["dc:identifier"])
-        return max(list_of_vuids) + 1
+        new_vuid = max(list_of_vuids) + 1
+        # Set this vuid as used so that an other acquisition don't use it and mess up the database
+        self.videos_metadata.insert({"dc:identifier": new_vuid})
+        return new_vuid
 
     def digitise(self, metadata):
         print("bridge digitize()")
-        vuid = self.get_new_vuid()
+        vuid = self.get_and_lock_new_vuid()
         metadata[1]["dc:identifier"] = vuid
 
         metadata = {"vuid": vuid, "metadata": metadata}

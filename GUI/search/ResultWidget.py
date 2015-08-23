@@ -70,7 +70,7 @@ class ResultWidget(QWidget):
                     item.setText(0, str(value))
                     dc_tree.addChild(item)
                 result_tree.addChild(dc_tree)
-            result_tree.setText(0, self.movie_title + " -- " + self.movie_creation_date)
+            result_tree.setText(0, self.movie_title[0] + " -- " + self.movie_creation_date)
             self.display_result.addTopLevelItem(result_tree)
         # 0 == column, 0 == sort_order // 1 to reverse_sort
         self.display_result.sortItems(0, 0)

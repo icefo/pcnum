@@ -14,8 +14,8 @@ class SearchWidgetWorker(QObject):
         super().__init__()
         print("SearchWidget Worker init")
         self.db_client = MongoClient('mongodb://localhost:27017/')
-        db = self.db_client['videos_metadata']
-        self.videos_metadata = db['videos_metadata']
+        db = self.db_client['metadata']
+        self.videos_metadata_collection = db['videos_metadata_collection']
         atexit.register(self.cleanup)
 
     def cleanup(self):
@@ -45,7 +45,7 @@ class SearchWidgetWorker(QObject):
 
         print(mongo_query)
         result_list = []
-        for post in self.videos_metadata.find(mongo_query, {'_id': False}).sort([("dc:format.duration", ASCENDING)]):
+        for post in self.videos_metadata_collection.find(mongo_query, {'_id': False}).sort([("dc:format.duration", ASCENDING)]):
             result_list.append(post)
             print(post)
 

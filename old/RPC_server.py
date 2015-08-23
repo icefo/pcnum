@@ -25,7 +25,7 @@ def launch_digitise(listo):
 def search(arg):
     db_client = MongoClient('mongodb://localhost:27017/')
     db = db_client['test-database']
-    videos_metadata = db['videos_metadata']
+    videos_metadata = db['videos_metadata_collection']
 
     mongo_query = {"$and": []}
     for dc_item, dict_query in arg.items():
