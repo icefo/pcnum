@@ -9,8 +9,6 @@ from functools import partial
 from collections import OrderedDict
 from GUI.search.SearchWidgetWorker import SearchWidgetWorker
 
-# todo double clic sur une video lance vlc avec un nice normal
-
 
 class SearchWidget(QWidget):
     show_result_widget_signal = pyqtSignal()

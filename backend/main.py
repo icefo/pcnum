@@ -35,8 +35,6 @@ def get_mkv_file_duration(file):
 
 
 def copy_file(src, dst, doc):
-    # todo verify that the destfile doesn't already exist
-    # todo launch cp command with ionice
     vuid = doc["metadata"][1]["dc:identifier"]
 
     db_client = MongoClient("mongodb://localhost:27017/")
