@@ -9,15 +9,13 @@ from PyQt5 import QtCore
 from GUI.digitise.DigitiseWidget import DigitiseWidget
 from GUI.search.MainSearchWidget import MainSearchWidget
 from GUI.status.StatusWidget import StatusWidget
+import setproctitle
 
 # very testable class (hint: you can use mock.Mock for the signals)
 # post corrected solution :
 # http://stackoverflow.com/questions/24820063/python-pyqt-how-to-call-a-gui-function-from-a-worker-thread
 # http://stackoverflow.com/questions/6783194/background-thread-with-qthread-in-pyqt
 # and thanks :-)
-# Ecrire des securitées qui disent si le backend tourne pas, bloquer le bouton pour eviter de flooder le backend
-# liberer le bouton quand le thread est terminé
-# Utiliser plusieurs fois la même classe ou réinitialer a chaque fois + une classe par fonction ? Nope...
 
 
 class MainWindow(QMainWindow):
@@ -56,8 +54,8 @@ class MainWindow(QMainWindow):
         tabs.set_statusbar_text_2.connect(statusbar.showMessage)
         self.setCentralWidget(tabs)
         
-        self.setGeometry(300, 300, 500, 600)
-        self.setWindowTitle('Main window')    
+        self.setGeometry(300, 300, 800, 600)
+        self.setWindowTitle('Logiciel Numérisation')
         self.show()
 
 
@@ -82,6 +80,7 @@ class Tabs(QTabWidget):
 
 
 if __name__ == '__main__':
+    setproctitle.setproctitle("digitize_gui")
     app = QApplication(sys.argv)
     ex = MainWindow()
     sys.exit(app.exec_())

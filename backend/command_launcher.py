@@ -22,6 +22,7 @@ def run_ffmpeg(shell_command, log_settings):
 
     :return:
     """
+
     pprint(shell_command)
     process = subprocess.Popen(shell_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
 
@@ -36,6 +37,7 @@ def run_ffmpeg(shell_command, log_settings):
                               "duration": log_settings["duration"],
                               "start_date": datetime.now(),
                               "pid": getpid(),
+                              "shell_command": shell_command,
                               "return_code": None,
                               "end_date": None,
                               "converted_file_path": None,
@@ -56,22 +58,26 @@ def run_ffmpeg(shell_command, log_settings):
                                     "converted_file_path": None,
                                     "log_data": {}
                                     }
+
+    if log_settings["decklink_id"]:
+        ongoing_conversions_document["decklink_id"] = log_settings["decklink_id"]
+
     ongoing_conversions_document_id = ongoing_conversions.insert(ongoing_conversions_document)
 
     while True:
         if process.poll() is not None:  # returns None while subprocess is running
             return_code = process.returncode
             complete_logs.find_and_modify(query={"_id": complete_logs_document_id},
-                                          update={"$set": {"end_date": datetime.now(), "return_code": return_code}})
+                                          update={"$set": {"end_date": datetime.now(), "return_code": return_code}}, fsync=True)
             ongoing_conversions.find_and_modify(query={"_id": ongoing_conversions_document_id},
-                                                update={"$set": {"end_date": datetime.now(), "return_code": return_code}})
+                                                update={"$set": {"end_date": datetime.now(), "return_code": return_code}}, fsync=True)
 
             if return_code is 0:
                 converted_file_path = shell_command[-1]
                 complete_logs.find_and_modify(query={"_id": complete_logs_document_id},
-                                              update={"$set": {"converted_file_path": converted_file_path}})
+                                              update={"$set": {"converted_file_path": converted_file_path}}, fsync=True)
                 ongoing_conversions.find_and_modify(query={"_id": ongoing_conversions_document_id},
-                                                    update={"$set": {"converted_file_path": converted_file_path}})
+                                                    update={"$set": {"converted_file_path": converted_file_path}}, fsync=True)
             else:
                 mongo_client.close()
                 raise ChildProcessError("FFMPEG process returned with a non zero code \"", str(return_code),
@@ -79,11 +85,12 @@ def run_ffmpeg(shell_command, log_settings):
             break
 
         # stdout_line example: frame=  288 fps= 16 q=32.0 size=    1172kB time=00:00:09.77 bitrate= 982.4kbits/s
-        stdout_line = process.stdout.readline()[:-5]
+        stdout_complete_line = process.stdout.readline()
 
         complete_logs.find_and_modify(query={"_id": complete_logs_document_id},
-                                      update={"$push": {"log_data": stdout_line}})
+                                      update={"$push": {"log_data": stdout_complete_line}})
 
+        stdout_line = stdout_complete_line[:-5]
         if stdout_line.startswith("frame="):
             list_of_characters = []
             counter = 0

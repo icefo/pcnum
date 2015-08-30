@@ -11,6 +11,7 @@ from time import sleep
 class StatusWidgetWorker(QObject):
 
     ongoing_conversions_transmit = pyqtSignal([list])
+    waiting_conversions_transmit = pyqtSignal([list])
 
     def __init__(self):
         super().__init__()
@@ -21,9 +22,6 @@ class StatusWidgetWorker(QObject):
         self.waiting_conversions = log_database["waiting_conversions_collection"]
         self.ongoing_conversions = log_database["run_ffmpeg_ongoing_conversions"]
 
-        # self.waiting_conversions.drop()
-        # self.ongoing_conversions.drop()
-
         atexit.register(self.cleanup)
 
     def cleanup(self):
@@ -33,17 +31,18 @@ class StatusWidgetWorker(QObject):
     def conversion_status(self):
 
         while True:
-            print("ongoing_conversions")
             ongoing_conversions_list = []
             for doc in self.ongoing_conversions.find({}, {'_id': False}).sort([("start_date", ASCENDING)]):
                 ongoing_conversions_list.append(doc)
             self.ongoing_conversions_transmit.emit(ongoing_conversions_list)
-            sleep(2)
 
-            print("waiting_conversions")
             waiting_conversion_list = []
             for doc in self.waiting_conversions.find({}, {'_id': False}):
-                waiting_conversion_list.append(doc)
-            sleep(2)
-            # pprint(waiting_conversion_list)
+                # elements in the ongoing_conversions_collection are in the waiting_conversions_collection too
+                # and I don't want to confuse the user, so I hide them
+                pprint(doc)
+                if not self.ongoing_conversions.find_one({"vuid": doc["metadata"][1]["dc:identifier"]}):
+                    waiting_conversion_list.append(doc)
+            self.waiting_conversions_transmit.emit(waiting_conversion_list)
 
+            sleep(3)

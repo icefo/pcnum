@@ -1,25 +1,88 @@
 __author__ = 'adrien'
 
 from PyQt5.QtCore import pyqtSignal
-from PyQt5.QtWidgets import QWidget, QPushButton, QGridLayout, QTreeWidget, QTreeWidgetItem, QTextBrowser
+from PyQt5.QtWidgets import QWidget, QPushButton, QGridLayout, QTreeWidget, QTreeWidgetItem, QTextBrowser, QMessageBox
 from PyQt5.QtGui import QFont
+import subprocess
+from pymongo import MongoClient
+import atexit
+import os
 
+# todo: enforce uniq indexes on all vuid fields
 class ResultWidget(QWidget):
     show_search_widget_signal = pyqtSignal()
+    request_refresh = pyqtSignal()
     receive_list = pyqtSignal([list])
 
     def __init__(self):
         super().__init__()
 
         self.display_result = QTreeWidget()
+
         self.result_font = QFont(QFont().defaultFamily(), 12)
         self.return_to_search_button = QPushButton('Back')
+        self.delete_video_button = QPushButton('Supprimer')
 
         # litle hack to set the label of each result; sort of global variable
         self.movie_title = ""
         self.movie_creation_date = ""
 
+        self.db_client = MongoClient('mongodb://localhost:27017/')
+        db = self.db_client['metadata']
+        self.videos_metadata_collection = db['videos_metadata_collection']
+
         self.tab_init()
+        atexit.register(self.cleanup)
+
+    def cleanup(self):
+        self.db_client.close()
+        print("ResultWidget db connection closed")
+
+    def launch_vlc(self):
+        selected_item = self.display_result.currentItem().text(0)
+
+        if selected_item.startswith("h264: ") or selected_item.startswith("unknown: "):
+            # unknown: /media/storage/imported/le beau fichier importé: -- 4.mkv
+            file_path = "".join(selected_item.split(": ")[1:])
+            print(file_path)
+            shell_command = ['vlc', '--quiet', file_path]
+            subprocess.Popen(shell_command, stdout=None)
+
+    def delete_video(self):
+
+        selected_item_parent = None
+        vuid = None
+        try:
+            selected_item = self.display_result.currentItem()
+            selected_item_parent = selected_item.parent().text(0)
+            vuid = int(selected_item.text(0))
+            if not selected_item_parent == "dc:identifier":
+                raise ValueError
+        except (AttributeError, ValueError):
+            error_box = QMessageBox()
+            error_message = "Vous devez sélectionner le chiffre sous dc:identifier"
+
+            error_box.setText(error_message)
+            error_box.setWindowTitle("Erreur")
+            error_box.exec_()
+
+        if selected_item_parent == "dc:identifier":
+            warning_box = QMessageBox()
+            warning_message = "Etes vous sûr de vouloir supprimer cette vidéo ?\n" + \
+                              "Cette action est irreversible"
+
+            reply = warning_box.warning(warning_box, 'Attention', warning_message, QMessageBox.Yes | QMessageBox.No,
+                                        QMessageBox.No)
+
+            if reply == QMessageBox.Yes and vuid:
+                video_metadata = self.videos_metadata_collection.find_one(spec_or_id={"dc:identifier": vuid})
+                try:
+                    file_path = video_metadata["files_path"]["h264"]
+                except KeyError:
+                    file_path = video_metadata["files_path"]["unknown"]
+                os.remove(file_path)
+                self.videos_metadata_collection.remove(spec_or_id={"dc:identifier": vuid}, fsync=True)
+                self.request_refresh.emit()
 
     def search_done(self, search_results):
         self.display_result.clear()
@@ -54,7 +117,10 @@ class ResultWidget(QWidget):
                 elif isinstance(value, dict):
                     for key1, value2 in value.items():
                         item = QTreeWidgetItem()
-                        blup = str(key1) + ": " + str(value2)
+                        if key1 == "duration":
+                            blup = str(key1) + ": " + str(value2/60)  # convert seconds to minutes
+                        else:
+                            blup = str(key1) + ": " + str(value2)
                         item.setText(0, blup)
                         dc_tree.addChild(item)
                 elif key == "dc:description":
@@ -83,7 +149,10 @@ class ResultWidget(QWidget):
         self.display_result.setHeaderLabel("")
 
         result_widget_layout.addWidget(self.display_result, 0, 0, 3, 2)
+        result_widget_layout.addWidget(self.delete_video_button, 4, 0)
         result_widget_layout.addWidget(self.return_to_search_button, 4, 1)
 
         self.return_to_search_button.clicked.connect(self.show_search_widget_signal.emit)
+        self.display_result.itemDoubleClicked.connect(self.launch_vlc)
+        self.delete_video_button.clicked.connect(self.delete_video)
         self.receive_list.connect(self.search_done)

@@ -9,8 +9,8 @@ from functools import partial
 from collections import OrderedDict
 from GUI.search.SearchWidgetWorker import SearchWidgetWorker
 
-# todo permettre de trouver les videos numérisées un certain jour, retour de Qcalendar
 # todo double clic sur une video lance vlc avec un nice normal
+
 
 class SearchWidget(QWidget):
     show_result_widget_signal = pyqtSignal()
@@ -32,12 +32,6 @@ class SearchWidget(QWidget):
         # answer table
         #########
         self.grid2 = None
-
-        #########
-
-        # Stacked layout
-        #########
-        # self.layout_stack = QStackedLayout()
 
         #########
 
