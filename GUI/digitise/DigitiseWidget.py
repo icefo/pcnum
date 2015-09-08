@@ -3,15 +3,17 @@ __author__ = 'adrien'
 from PyQt5.QtCore import pyqtSignal, Qt, QThread
 from PyQt5.QtWidgets import (QWidget,
                              QHeaderView, QGridLayout,
-                             QRadioButton, QTextEdit, QLabel, QLineEdit, QCheckBox, QTableWidget, QComboBox,
+                             QRadioButton, QTextEdit, QLabel, QLineEdit, QTableWidget, QComboBox,
                              QPushButton, QFileDialog, QMessageBox)
 from PyQt5.QtGui import QFont
 from collections import OrderedDict
 from datetime import datetime
-from functools import partial
 import os
 import shutil
 from GUI.digitise.DigitiseWidgetWorker import DigitiseWidgetWorker
+from pprint import pprint
+from pymongo import MongoClient
+import atexit
 
 
 class DigitiseWidget(QWidget):
@@ -23,37 +25,46 @@ class DigitiseWidget(QWidget):
         super().__init__()
 
         #########
-
         self.decklink_label = QLabel("Choisissez la source vidéo")
         self.decklink_radio_1 = QRadioButton("Decklink 1")
         self.decklink_radio_2 = QRadioButton("Decklink 2")
-        self.file_import = QRadioButton("importer fichier vidéo")
-        self.dvd_import = QRadioButton("importer dvd")
+        self.file_import_radio = QRadioButton("importer fichier vidéo")
+        self.dvd_import_radio = QRadioButton("importer dvd")
 
+        #########
         self.digitise_table = QTableWidget()
         self.table_font = QFont(QFont().defaultFamily(), 12)
-        self.new_table_row = QPushButton("Nouveau")
-        self.launch_digitise = QPushButton("Numériser")
-        self.result_digitise = QLabel("et patapon")
+        self.new_table_row_button = QPushButton("Nouveau")
+        self.launch_digitise_button = QPushButton("Numériser")
 
         #########
         # they have to be attached to the object, if not they are destroyed when the function exit
-        self.worker_thread_digitise = None
-        self.worker_object_digitise = None
-
         self.worker_thread_backend_status = None
         self.worker_object_backend_status = None
 
         #########
+        self.db_client = MongoClient("mongodb://localhost:27017/")
+        metadata_db = self.db_client["metadata"]
+        self.videos_metadata = metadata_db["videos_metadata_collection"]
+        log_database = self.db_client["log-database"]
+        self.waiting_conversions = log_database["waiting_conversions_collection"]
+        # This function is called when the DigitiseWidget class is about to be destroyed
+        atexit.register(self.cleanup)
 
+        #########
         self.raw_videos_path = "/media/storage/raw/"
         self.compressed_videos_path = "/media/storage/compressed/"
         self.imported_files_path = "/media/storage/imported/"
 
         #########
-
-        self.tab_init()
         self.backend_status_check()
+        self.tab_init()
+
+        self.set_statusbar_text_1.emit("blasdjsd")
+
+    def cleanup(self):
+        self.db_client.close()
+        print("DigitiseWidget Worker db connection closed")
 
     def backend_status_check(self):
 
@@ -70,7 +81,7 @@ class DigitiseWidget(QWidget):
         self.worker_object_backend_status.enable_decklink_2_radio.connect(self.decklink_radio_2.setCheckable)
         self.worker_object_backend_status.enable_decklink_2_radio.connect(self.decklink_radio_2.setEnabled)
 
-        self.worker_object_backend_status.enable_digitize_button.connect(self.launch_digitise.setEnabled)
+        self.worker_object_backend_status.enable_digitize_button.connect(self.launch_digitise_button.setEnabled)
         self.worker_thread_backend_status.start()
 
     def delete_table_row(self):
@@ -120,6 +131,11 @@ class DigitiseWidget(QWidget):
                 self.digitise_table.setCellWidget(row, 1, QComboBox())
                 self.digitise_table.setRowHeight(row, 30)
                 self.digitise_table.cellWidget(row, 1).addItems(["PAL", "SECAM", "NTSC"])
+            elif text == "dc:language":
+                self.digitise_table.removeCellWidget(row, 1)
+                self.digitise_table.setCellWidget(row, 1, QLineEdit())
+                self.digitise_table.setRowHeight(row, 30)
+                self.digitise_table.cellWidget(row, 1).setInputMask("AA")
             else:
                 self.digitise_table.removeCellWidget(row, 1)
                 self.digitise_table.setCellWidget(row, 1, QLineEdit())
@@ -127,7 +143,7 @@ class DigitiseWidget(QWidget):
 
     def add_row(self):
         """
-        This function add a new row (Hoho !) when the new_table_row button is pressed
+        This function add a new row (Hoho !) when the new_table_row_button button is pressed
         this function will fill the combobox with their name and a tooltip,
         link the combobox to the combobox_changed function,
         link the delete button with the delete_table_row function
@@ -165,9 +181,29 @@ class DigitiseWidget(QWidget):
         self.digitise_table.setCellWidget(row_count, 2, QPushButton("Delete"))
         self.digitise_table.cellWidget(row_count, 2).clicked.connect(self.delete_table_row)
 
-    def digitise_worker(self, action, data):
+    def launch_digitise(self, metadata):
+        def get_and_lock_new_vuid():
+            # set this so the first vuid will be 1
+            list_of_vuids = [0]
+            for post in self.videos_metadata.find({}, {"dc:identifier": True, "_id": False}):
+                list_of_vuids.append(post["dc:identifier"])
+            new_vuid = max(list_of_vuids) + 1
+            # Use this vuid so that an other acquisition don't use it and mess up the database
+            self.videos_metadata.insert({"dc:identifier": new_vuid}, fsync=True)
+            return new_vuid
+
+        print("launch digitize()")
+        vuid = get_and_lock_new_vuid()
+        metadata[1]["dc:identifier"] = vuid
+
+        metadata = {"vuid": vuid, "metadata": metadata}
+        pprint(metadata)
+        print(self.waiting_conversions.insert(metadata, fsync=True))
+        self.launch_digitise_button.setEnabled(True)
+
+    def digitise_checker(self, action, data):
         """
-        :param action: tell which action the digitise_worker function should launch
+        :param action: tell which action the digitise_checker function should launch
         :param data: the data can be a dictionary, a list, a sting, an integer
         if the chosen action is "digitise" the parameter will be : [digitise_infos, dublincore_dict]
         digitise_infos and dublincore_dict are dictionarys
@@ -178,58 +214,42 @@ class DigitiseWidget(QWidget):
         if action == "decklink" and "duration" in data[1].get('dc:format', {}) and data[1]["dc:title"] \
                 and data[1]["dcterms:created"] and self.check_remaining_space(duration=data[1]["dc:format"]["duration"]):
 
-            self.worker_thread_digitise = QThread()
-            self.worker_object_digitise = DigitiseWidgetWorker()
-            self.worker_object_digitise.moveToThread(self.worker_thread_digitise)
+            self.launch_digitise_button.setEnabled(False)
 
-            self.launch_digitise.setEnabled(False)
             if data[0]["source"] == "decklink_1":
                 self.decklink_radio_1.setEnabled(False)
-                self.worker_object_digitise.finished.connect(partial(self.decklink_radio_1.setEnabled, True))
             elif data[0]["source"] == "decklink_2":
                 self.decklink_radio_2.setEnabled(False)
-                self.worker_object_digitise.finished.connect(partial(self.decklink_radio_2.setEnabled, True))
             else:
                 raise ValueError
 
-            self.worker_thread_digitise.started.connect(partial(self.worker_object_digitise.digitise, metadata=data))
-            self.worker_object_digitise.finished.connect(self.worker_thread_digitise.quit)
-            self.worker_object_digitise.finished.connect(partial(self.launch_digitise.setEnabled, True))
-            self.worker_object_digitise.launch_digitise_done.connect(self.result_digitise.setText)
+            self.launch_digitise(metadata=data)
+            # set status bar temp text
+            self.set_statusbar_text_1.emit("Numérisation Decklink lancée")
 
-            self.worker_thread_digitise.start()
-            self.set_statusbar_text_1.emit("Decklink numérisation lancée")
+            if data[0]["source"] == "decklink_1":
+                self.decklink_radio_1.setEnabled(True)
+            elif data[0]["source"] == "decklink_2":
+                self.decklink_radio_2.setEnabled(True)
+            else:
+                raise ValueError
 
         elif action == "file" and data[0]["filename"] and data[1]["dc:title"] and data[1]["dcterms:created"] \
                 and self.check_remaining_space(import_filename=data[0]["filename"]):
 
-            self.worker_thread_digitise = QThread()
-            self.worker_object_digitise = DigitiseWidgetWorker()
-            self.worker_object_digitise.moveToThread(self.worker_thread_digitise)
+            self.launch_digitise_button.setEnabled(False)
 
-            self.launch_digitise.setEnabled(False)
+            self.launch_digitise(metadata=data)
 
-            self.worker_thread_digitise.started.connect(partial(self.worker_object_digitise.digitise, metadata=data))
-            self.worker_object_digitise.finished.connect(self.worker_thread_digitise.quit)
-            self.worker_object_digitise.finished.connect(partial(self.launch_digitise.setEnabled, True))
-            self.worker_object_digitise.launch_digitise_done.connect(self.result_digitise.setText)
-
-            self.worker_thread_digitise.start()
             self.set_statusbar_text_1.emit("Enregistrement du fichier lancé !")
 
         elif action == "DVD" and data[0]["filename"] and data[1]["dc:title"] and data[1]["dcterms:created"] \
                 and self.check_remaining_space(DVD_filename=data[0]["filename"]):
 
-            self.worker_thread_digitise = QThread()
-            self.worker_object_digitise = DigitiseWidgetWorker()
-            self.worker_object_digitise.moveToThread(self.worker_thread_digitise)
+            self.launch_digitise_button.setEnabled(False)
 
-            self.worker_thread_digitise.started.connect(partial(self.worker_object_digitise.digitise, metadata=data))
-            self.worker_object_digitise.finished.connect(self.worker_thread_digitise.quit)
-            self.worker_object_digitise.finished.connect(partial(self.launch_digitise.setEnabled, True))
-            self.worker_object_digitise.launch_digitise_done.connect(self.result_digitise.setText)
+            self.launch_digitise(metadata=data)
 
-            self.worker_thread_digitise.start()
             self.set_statusbar_text_1.emit("Enregistrement du DVD lancé !")
         else:
             warning_box = QMessageBox()
@@ -290,22 +310,18 @@ class DigitiseWidget(QWidget):
         # dc:identifier = id incremental pour chaque VHS
         # dc:format = {"size_ratio": "4/3", "duration": temps}
 
-        :return: nothing but call the digitise_worker function with the parameter [digitise_infos, dublincore_dict]
-
-        [{'H265': False, 'decklink_card': '2', 'H264': False, 'package_mediatheque': False},
-        {'dc:description': ['this is a general summary of the resource'], 'dc:contributor': ['great contributor'],
-        'dc:format': {'size_ratio': '4/3', 'duration': 165}}]
+        :return: nothing but call the digitise_checker function with the parameter [digitise_infos, dublincore_dict]
         """
         # prevent button hammering
-        self.launch_digitise.setEnabled(False)
+        self.launch_digitise_button.setEnabled(False)
 
         filename = None
-        if self.dvd_import.isChecked():
+        if self.dvd_import_radio.isChecked():
             file_dialog = QFileDialog(self)
             filename = file_dialog.getOpenFileName(directory="/media/storage", filter="MKV files (*.mkv)")
             filename = filename[0]
             print(filename)
-        elif self.file_import.isChecked():
+        elif self.file_import_radio.isChecked():
             file_dialog = QFileDialog(self)
             filename = file_dialog.getOpenFileName(directory="/media/storage")
             filename = filename[0]
@@ -354,10 +370,10 @@ class DigitiseWidget(QWidget):
         elif self.decklink_radio_2.isChecked():
             digitise_infos["source"] = "decklink_2"
             worker_action = "decklink"
-        elif self.file_import.isChecked():
+        elif self.file_import_radio.isChecked():
             digitise_infos["source"] = "file"
             worker_action = "file"
-        elif self.dvd_import.isChecked():
+        elif self.dvd_import_radio.isChecked():
             digitise_infos["source"] = "DVD"
             worker_action = "DVD"
 
@@ -367,12 +383,10 @@ class DigitiseWidget(QWidget):
         digitise_infos["filename"] = filename
         # digitise_infos["package_mediatheque"] = self.package_mediatheque.isChecked()
 
-        self.result_digitise.setText("Eyy digitapon")
-
         to_be_send = [digitise_infos, dublincore_dict]
         print(to_be_send)
 
-        self.digitise_worker(action=worker_action, data=to_be_send)
+        self.digitise_checker(action=worker_action, data=to_be_send)
 
     def tab_init(self):
         """
@@ -388,8 +402,8 @@ class DigitiseWidget(QWidget):
         grid.addWidget(self.decklink_label, 0, 0)
         grid.addWidget(self.decklink_radio_1, 0, 1)
         grid.addWidget(self.decklink_radio_2, 1, 1)
-        grid.addWidget(self.dvd_import, 0, 3)
-        grid.addWidget(self.file_import, 0, 2)
+        grid.addWidget(self.dvd_import_radio, 0, 3)
+        grid.addWidget(self.file_import_radio, 0, 2)
 
         # Compressed files to create
         # grid.addWidget(self.compressed_file_label, 1, 0)
@@ -410,10 +424,8 @@ class DigitiseWidget(QWidget):
         self.digitise_table.setHorizontalHeaderLabels(["", "", ""])
 
         grid.addWidget(self.digitise_table, 3, 0, 5, 2)
-        grid.addWidget(self.new_table_row, 3, 3)
-        grid.addWidget(self.launch_digitise, 5, 3)
-        grid.addWidget(self.result_digitise, 6, 3)
-        # grid.addWidget(self.error_label, 7, 3)
+        grid.addWidget(self.new_table_row_button, 3, 3)
+        grid.addWidget(self.launch_digitise_button, 5, 3)
 
-        self.new_table_row.clicked.connect(self.add_row)
-        self.launch_digitise.clicked.connect(self.digitise)
+        self.new_table_row_button.clicked.connect(self.add_row)
+        self.launch_digitise_button.clicked.connect(self.digitise)

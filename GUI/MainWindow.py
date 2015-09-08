@@ -10,6 +10,7 @@ from GUI.digitise.DigitiseWidget import DigitiseWidget
 from GUI.search.MainSearchWidget import MainSearchWidget
 from GUI.status.StatusWidget import StatusWidget
 import setproctitle
+from functools import partial
 
 # very testable class (hint: you can use mock.Mock for the signals)
 # post corrected solution :
@@ -38,7 +39,7 @@ class MainWindow(QMainWindow):
         exitAction.setStatusTip('Exit application')
         exitAction.triggered.connect(self.close)
 
-        statusbar = self.statusBar()
+        self.bidule = self.statusBar()
 
 
         menubar = self.menuBar()
@@ -51,12 +52,17 @@ class MainWindow(QMainWindow):
         # font = QFont(QFont().defaultFamily(), 12)
         # self.setFont(font)
         tabs = Tabs(self)
-        tabs.set_statusbar_text_2.connect(statusbar.showMessage)
+        tabs.set_statusbar_text_2.connect(self.set_status_bar_message)
         self.setCentralWidget(tabs)
         
         self.setGeometry(300, 300, 800, 600)
         self.setWindowTitle('Logiciel Numérisation')
         self.show()
+        #self.set_status_bar_message("sidfbsdf")
+
+    def set_status_bar_message(self, arg):
+        print("heyy message")
+        self.bidule.showMessage(arg, msecs=10000)
 
 
 class Tabs(QTabWidget):

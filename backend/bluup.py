@@ -1,8 +1,6 @@
 from pymongo import MongoClient
 from pprint import pprint
-from multiprocessing import Process
-
-from time import sleep
+import os
 
 db_client = MongoClient("mongodb://localhost:27017/")
 log_database = db_client["log-database"]
@@ -15,7 +13,7 @@ complete_logs = log_database["run_ffmpeg_complete_logs"]
 
 for doc in complete_logs.find({}):
     print("\ncomplete logs")
-    pprint(doc)
+    # pprint(doc)
 
 for doc in waiting_conversions_collection.find({}):
     print("\nwaiting conversions")
@@ -23,7 +21,7 @@ for doc in waiting_conversions_collection.find({}):
 
 for doc in videos_metadata_collection.find({}):
     print("\nvideos_metadata")
-    pprint(doc)
+    # pprint(doc)
 
 for doc in ongoing_conversions_collection.find({}):
     print("\nongoing_conversions")
@@ -34,16 +32,4 @@ for doc in ongoing_conversions_collection.find({}):
 # ongoing_conversions_collection.drop()
 # videos_metadata_collection.drop()
 
-
-def long_blocking_operation(param):
-    sleep(2)
-    print("first nap done")
-    sleep(2)
-    print("returning")
-    return True
-
-p = Process(target=long_blocking_operation, args=("hehehe",))
-p.start()
-print("joining")
-p.join()
-print("joined")
+os.remove("/media/storage/raw/j'ai plus d'idées -- 7.nut")

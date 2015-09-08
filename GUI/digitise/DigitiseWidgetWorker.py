@@ -4,14 +4,10 @@ from PyQt5.QtCore import QObject, pyqtSignal
 from time import sleep
 from pymongo import MongoClient
 import atexit
-from pprint import pprint
 import subprocess
 
 
 class DigitiseWidgetWorker(QObject):
-
-    launch_digitise_done = pyqtSignal([str])
-    finished = pyqtSignal()
 
     enable_decklink_1_radio = pyqtSignal([bool])
 
@@ -29,13 +25,15 @@ class DigitiseWidgetWorker(QObject):
         self.waiting_conversions = log_database["waiting_conversions_collection"]
         self.ongoing_conversions = log_database["run_ffmpeg_ongoing_conversions"]
 
+        # This function is called when the DigitiseWidgetWorker class is about to be destroyed
         atexit.register(self.cleanup)
 
     def cleanup(self):
         self.db_client.close()
-        print("DigitiseWidget Worker exit")
+        print("DigitiseWidget db connection closed")
 
     def backend_status_check(self):
+        backend_launch_count = 0
         while True:
             enable_decklink_1_checkbox = True
             enable_decklink_2_checkbox = True
@@ -64,29 +62,9 @@ class DigitiseWidgetWorker(QObject):
                 self.enable_digitize_button.emit(True)
             except subprocess.CalledProcessError:
                 self.enable_digitize_button.emit(False)
-
+                # if not backend_launch_count > 0:
+                #     print("starting backend")
+                #     shell_command = ['python3', '/home/mediatheque/Documents/PycharmProjects/pcnum/backend/main.py']
+                #     subprocess.Popen(shell_command, stdout=None)
+                #     print("backend starting done")
             sleep(2)
-
-    def get_and_lock_new_vuid(self):
-        list_of_vuids = [0]
-        for post in self.videos_metadata.find({}, {"dc:identifier": True, "_id": False}):
-            list_of_vuids.append(post["dc:identifier"])
-        new_vuid = max(list_of_vuids) + 1
-        # Set this vuid as used so that an other acquisition don't use it and mess up the database
-        self.videos_metadata.insert({"dc:identifier": new_vuid}, fsync=True)
-        return new_vuid
-
-    def digitise(self, metadata):
-        print("bridge digitize()")
-        vuid = self.get_and_lock_new_vuid()
-        metadata[1]["dc:identifier"] = vuid
-
-        metadata = {"vuid": vuid, "metadata": metadata}
-        pprint(metadata)
-        self.waiting_conversions.insert(metadata, fsync=True)
-
-        self.launch_digitise_done.emit("Okayyyyy")
-        self.finished.emit()
-
-    def check_decklink_button(self):
-        pass

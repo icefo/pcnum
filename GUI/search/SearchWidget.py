@@ -1,13 +1,13 @@
 __author__ = 'adrien'
 
-from PyQt5.QtCore import pyqtSignal, QThread, Qt
+from PyQt5.QtCore import pyqtSignal, Qt
 from PyQt5.QtWidgets import (QWidget,
                              QHeaderView, QGridLayout,
                              QTextEdit, QLineEdit, QTableWidget, QComboBox, QPushButton)
 from PyQt5.QtGui import QFont
-from functools import partial
 from collections import OrderedDict
-from GUI.search.SearchWidgetWorker import SearchWidgetWorker
+from pymongo import MongoClient, ASCENDING
+import atexit
 
 
 class SearchWidget(QWidget):
@@ -18,28 +18,26 @@ class SearchWidget(QWidget):
         # Initialize the parent class QWidget
         super().__init__()
 
-        # query table
         #########
         self.query_table = QTableWidget()
         self.table_font = QFont(QFont().defaultFamily(), 12)
+
+        #########
         self.add_row_button = QPushButton("ajouter")
         self.search_button = QPushButton("rechercher")
 
         #########
-
-        # answer table
-        #########
-        self.grid2 = None
-
-        #########
-
-        self.worker_thread_search = None
-        self.worker_object_search = None
-
-        # this variable will store the search results when they come
-        self.search_results = None
+        self.db_client = MongoClient('mongodb://localhost:27017/')
+        db = self.db_client['metadata']
+        self.videos_metadata_collection = db['videos_metadata_collection']
+        # This function is called when the SearchWidget class is about to be destroyed
+        atexit.register(self.cleanup)
 
         self.tab_init()
+
+    def cleanup(self):
+        self.db_client.close()
+        print("SearchWidget db connection closed")
 
     def delete_table_row(self):
         """
@@ -146,29 +144,37 @@ class SearchWidget(QWidget):
         self.query_table.setCellWidget(row_count, 3, QPushButton("Delete"))
         self.query_table.cellWidget(row_count, 3).clicked.connect(self.delete_table_row)
 
-    def search_worker(self, action, data):
-        """
-        :param action: tell which action the search_worker function should launch
-        :param data: the parameter can be a dictionary, a list, a sting, an integer
-        if the chosen action is "search" the parameter will be a dictionary.
+    def run_search_query(self, command):
+        print("run_search_query()")
 
-        :return: nothing, the function instantiate the DigitiseWidgetWorker class and then exit
-        """
+        mongo_query = {"$and": []}
+        for dc_item, dict_query in command.items():
+            print(dc_item, dict_query)
+            for query_type, query in dict_query.items():
+                if query_type == "equal":
+                    for query_item in query:
+                        if isinstance(query_item, str):
+                            mongo_query["$and"].append({dc_item: {"$regex": "^" + query_item + "$", "$options": "i"}})
+                        else:
+                            mongo_query["$and"].append({dc_item: query_item})
+                elif query_type == "contain":
+                    for query_item in query:
+                        mongo_query["$and"].append({dc_item: {"$regex": ".*" + query_item + ".*", "$options": "i"}})
+                elif query_type == "greater":
+                    mongo_query["$and"].append({dc_item: {"$gt": query[0]}})
+                elif query_type == "inferior":
+                    mongo_query["$and"].append({dc_item: {"$lt": query[0]}})
 
-        # toute la base de donnée est retournée si on fait une recherche sans arguments
-        if data and action == "search":
-            self.worker_thread_search = QThread()
-            self.worker_object_search = SearchWidgetWorker()
-            self.worker_object_search.moveToThread(self.worker_thread_search)
+        print(mongo_query)
+        result_list = []
+        for post in self.videos_metadata_collection.find(mongo_query, {'_id': False}).sort([("dc:format.duration",
+                                                                                             ASCENDING)]):
+            result_list.append(post)
+            print(post)
+        self.search_transmit.emit(result_list)
 
-            self.search_button.setEnabled(False)
-
-            self.worker_thread_search.started.connect(partial(self.worker_object_search.search, command=data))
-            self.worker_object_search.finished.connect(self.worker_thread_search.quit)
-            self.worker_object_search.finished.connect(partial(self.search_button.setEnabled, True))
-            self.worker_object_search.search_done.connect(self.search_transmit.emit)
-
-            self.worker_thread_search.start()
+        # re-enable button hammering
+        self.search_button.setEnabled(True)
 
     def search(self):
         """
@@ -178,7 +184,8 @@ class SearchWidget(QWidget):
 
         :return: nothing but call the search worker with the dictionary as parameter
         """
-
+        # Prevent button hammering
+        self.search_button.setEnabled(False)
         # Handle the dublincore metadata
         query_dict = {}
         for row in range(self.query_table.rowCount()):
@@ -211,7 +218,7 @@ class SearchWidget(QWidget):
                             query_dict[dc_combobox_text] = {query_type: [data_widget_text_value]}
 
         print(query_dict)
-        self.search_worker(action="search", data=query_dict)
+        self.run_search_query(command=query_dict)
 
     def tab_init(self):
         """

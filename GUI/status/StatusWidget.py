@@ -8,7 +8,6 @@ from GUI.status.StatusWidgetWorker import StatusWidgetWorker
 from pprint import pprint
 
 
-
 class StatusWidget(QWidget):
     def __init__(self):
         # Initialize the parent class QWidget
@@ -111,5 +110,3 @@ class StatusWidget(QWidget):
         self.waiting_conversions.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch)
         self.waiting_conversions.setFont(self.widget_font)
         self.waiting_conversions.setHorizontalHeaderLabels(["titre", "année", "vuid", "source"])
-
-

@@ -5,6 +5,7 @@
       <w>fsync</w>
       <w>nostdin</w>
       <w>setchecked</w>
+      <w>vuids</w>
     </words>
   </dictionary>
 </component>

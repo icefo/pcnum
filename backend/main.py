@@ -248,9 +248,10 @@ class Backend(object):
                     self.waiting_conversions_collection.find_and_modify(
                         query={"metadata.1.dc:identifier": vuid},
                         update={"$set": {"metadata.0.filename": converted_file_path,
-                                         "metadata.0.source": "decklink_raw"}})
-                    currently_processing[0].remove(vuid)
+                                         "metadata.0.source": "decklink_raw"}}, fsync=True)
+
                     self.ongoing_conversions_collection.remove(spec_or_id={"_id": doc["_id"]}, fsync=True)
+                    currently_processing[0].remove(vuid)
 
                 elif doc["action"] == "dvd_to_h264" and doc["return_code"] == 0:
 
