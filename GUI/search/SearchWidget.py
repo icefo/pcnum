@@ -110,8 +110,8 @@ class SearchWidget(QWidget):
         """
 
         dc_data = OrderedDict()
-        dc_data['dc:contributor'] = "entrer le nom des personnes ayant contribués au film"
-        dc_data['dc:creator'] = "maison d'édition, scénariste ou maitre de tournage"
+        dc_data['dc:contributor'] = "nom de acteurs"
+        dc_data['dc:creator'] = "maison d'édition, scénariste ou maître de tournage"
         dc_data['dc:description'] = "Description générale de la ressource"
         dc_data['dc:language'] = "langue de la vidéo"
         dc_data['dc:publisher'] = "entreprise qui publié le film, par exemple sony pictures"
@@ -119,7 +119,6 @@ class SearchWidget(QWidget):
         dc_data['dc:title'] = "titre du film"
         dc_data['dcterms:abstract'] = "résumé conci du film"
         dc_data['dcterms:isPartOf'] = "remplir si le film fait parti d'un ensemble, comme star wars"
-        dc_data['dcterms:tableOfContents'] = "remplir si le film se divise en parties"
         dc_data['dcterms:created'] = "année de sortie du film"
         dc_data['durée'] = "durée du film en minutes"
 
