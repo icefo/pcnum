@@ -5,7 +5,7 @@ from pymongo import MongoClient
 from time import sleep
 import subprocess
 from pprint import pprint
-import shutil
+import atexit
 from datetime import datetime, timedelta
 import os
 import setproctitle
@@ -116,15 +116,16 @@ class Backend(object):
         self.compressed_videos_path = "/media/storage/compressed/"
         self.imported_files_path = "/media/storage/imported/"
 
-        db_client = MongoClient("mongodb://localhost:27017/")
-        log_database = db_client["log-database"]
+        self.db_client = MongoClient("mongodb://localhost:27017/")
+        log_database = self.db_client["log-database"]
         self.waiting_conversions_collection = log_database["waiting_conversions_collection"]
         self.ongoing_conversions_collection = log_database["run_ffmpeg_ongoing_conversions"]
         self.complete_ffmpeg_logs_collection = log_database["run_ffmpeg_complete_logs"]
 
-        metadata_db = db_client["metadata"]
+        metadata_db = self.db_client["metadata"]
         self.videos_metadata_collection = metadata_db["videos_metadata_collection"]
         self.startup_cleanup()
+        atexit.register(self.exit_cleanup)
 
     def startup_cleanup(self):
         """
@@ -138,6 +139,10 @@ class Backend(object):
 
         one_week_ago = datetime.now() - timedelta(days=7)
         self.complete_ffmpeg_logs_collection.remove({"return_code": 0, "end_date": {"$lt": one_week_ago}})
+
+    def exit_cleanup(self):
+        self.db_client.close()
+        print("Backend db connection closed")
 
     def start_dvd_conversion(self, doc):
         filename = doc["metadata"][0]["filename"]

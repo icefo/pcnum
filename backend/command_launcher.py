@@ -26,8 +26,8 @@ def run_ffmpeg(shell_command, log_settings):
     pprint(shell_command)
     process = subprocess.Popen(shell_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
 
-    mongo_client = MongoClient("mongodb://localhost:27017/")
-    log_database = mongo_client["log-database"]
+    db_client = MongoClient("mongodb://localhost:27017/")
+    log_database = db_client["log-database"]
 
     complete_logs = log_database["run_ffmpeg_complete_logs"]
     complete_logs_document = {"vuid": log_settings["vuid"],
@@ -79,7 +79,7 @@ def run_ffmpeg(shell_command, log_settings):
                 ongoing_conversions.find_and_modify(query={"_id": ongoing_conversions_document_id},
                                                     update={"$set": {"converted_file_path": converted_file_path}}, fsync=True)
             else:
-                mongo_client.close()
+                db_client.close()
                 raise ChildProcessError("FFMPEG process returned with a non zero code \"", str(return_code),
                                         "\" , see complete log for details")
             break
