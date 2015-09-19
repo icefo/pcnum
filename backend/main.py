@@ -6,7 +6,7 @@ from time import sleep
 import subprocess
 from pprint import pprint
 import shutil
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 import setproctitle
 
@@ -120,6 +120,7 @@ class Backend(object):
         log_database = db_client["log-database"]
         self.waiting_conversions_collection = log_database["waiting_conversions_collection"]
         self.ongoing_conversions_collection = log_database["run_ffmpeg_ongoing_conversions"]
+        self.complete_ffmpeg_logs_collection = log_database["run_ffmpeg_complete_logs"]
 
         metadata_db = db_client["metadata"]
         self.videos_metadata_collection = metadata_db["videos_metadata_collection"]
@@ -127,13 +128,16 @@ class Backend(object):
 
     def startup_cleanup(self):
         """
-        the function remove unfinished decklink acquisitions at startup. This avoid launching an unwanted digitizing
+        the function remove unfinished decklink acquisitions at startup. This avoid launching an unwanted conversion
         when recovering from an power outage.
         """
         for doc in self.waiting_conversions_collection.find({}):
             if doc["metadata"][0]["source"] == "decklink_1" or "decklink_2":
-                self.waiting_conversions_collection.remove(spec_or_id={"metadata.1.dc:identifier": doc["_id"]}, fsync=True)
+                self.waiting_conversions_collection.remove({"metadata.1.dc:identifier": doc["_id"]}, fsync=True)
         self.ongoing_conversions_collection.drop()
+
+        one_week_ago = datetime.now() - timedelta(days=7)
+        self.complete_ffmpeg_logs_collection.remove({"return_code": 0, "end_date": {"$lt": one_week_ago}})
 
     def start_dvd_conversion(self, doc):
         filename = doc["metadata"][0]["filename"]
