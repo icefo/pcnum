@@ -13,20 +13,23 @@ class StatusWidget(QWidget):
         # Initialize the parent class QWidget
         super().__init__()
 
+        #########
         self.widget_font = QFont(QFont().defaultFamily(), 12)
 
+        #########
         self.ongoing_conversions = QTableWidget()
         self.waiting_conversions = QTableWidget()
 
+        #########
         self.ongoing_conversions_label = QLabel("Conversions en cours:")
-        self.ongoing_conversions_label.setFont(self.widget_font)
         self.waiting_conversions_label = QLabel("Conversions en attente:")
-        self.waiting_conversions_label.setFont(self.widget_font)
 
+        #########
         # they have to be attached to the object, if not they are destroyed when the function exit
         self.worker_thread_status = None
         self.worker_object_status = None
 
+        #########
         self.tab_init()
         self.status_worker()
 
@@ -37,8 +40,8 @@ class StatusWidget(QWidget):
         self.worker_object_status.moveToThread(self.worker_thread_status)
 
         self.worker_thread_status.started.connect(self.worker_object_status.conversion_status)
-        self.worker_object_status.ongoing_conversions_transmit.connect(self.ongoing_conversions_table_updater)
-        self.worker_object_status.waiting_conversions_transmit.connect(self.waiting_conversions_table_updater)
+        self.worker_object_status.ongoing_conversions_collection_transmit.connect(self.ongoing_conversions_table_updater)
+        self.worker_object_status.waiting_conversions_collection_transmit.connect(self.waiting_conversions_table_updater)
 
         self.worker_thread_status.start()
 
@@ -86,11 +89,12 @@ class StatusWidget(QWidget):
     def tab_init(self):
         grid = QGridLayout()
         self.setLayout(grid)
-        grid.addWidget(self.ongoing_conversions_label, 0, 0)
-        grid.addWidget(self.ongoing_conversions, 1, 0, 3, 2)
-        grid.addWidget(self.waiting_conversions_label, 4, 0)
-        grid.addWidget(self.waiting_conversions, 5, 0, 7, 2)
 
+        #########
+        self.ongoing_conversions_label.setFont(self.widget_font)
+        self.waiting_conversions_label.setFont(self.widget_font)
+
+        #########
         self.ongoing_conversions.setRowCount(0)
         self.ongoing_conversions.setColumnCount(6)
         self.ongoing_conversions.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
@@ -102,6 +106,7 @@ class StatusWidget(QWidget):
         self.ongoing_conversions.setFont(self.widget_font)
         self.ongoing_conversions.setHorizontalHeaderLabels(["titre", "année", "vuid", "date début", "action", "progès"])
 
+        #########
         self.waiting_conversions.setRowCount(0)
         self.waiting_conversions.setColumnCount(4)
         self.waiting_conversions.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
@@ -110,3 +115,9 @@ class StatusWidget(QWidget):
         self.waiting_conversions.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch)
         self.waiting_conversions.setFont(self.widget_font)
         self.waiting_conversions.setHorizontalHeaderLabels(["titre", "année", "vuid", "source"])
+
+        #########
+        grid.addWidget(self.ongoing_conversions_label, 0, 0)
+        grid.addWidget(self.ongoing_conversions, 1, 0, 3, 2)
+        grid.addWidget(self.waiting_conversions_label, 4, 0)
+        grid.addWidget(self.waiting_conversions, 5, 0, 7, 2)

@@ -10,40 +10,42 @@ from time import sleep
 
 class StatusWidgetWorker(QObject):
 
-    ongoing_conversions_transmit = pyqtSignal([list])
-    waiting_conversions_transmit = pyqtSignal([list])
+    ongoing_conversions_collection_transmit = pyqtSignal([list])
+    waiting_conversions_collection_transmit = pyqtSignal([list])
 
     def __init__(self):
         super().__init__()
         print("StatusWidget Worker init")
-        self.db_client = MongoClient("mongodb://localhost:27017/")
-        log_database = self.db_client["log-database"]
-        # self.complete_logs = log_database["run_ffmpeg_complete_logs"]
-        self.waiting_conversions = log_database["waiting_conversions_collection"]
-        self.ongoing_conversions = log_database["run_ffmpeg_ongoing_conversions"]
 
+        #########
+        self.db_client = MongoClient("mongodb://localhost:27017/")
+        ffmpeg_db = self.db_client["ffmpeg_conversions"]
+        self.waiting_conversions_collection = ffmpeg_db["waiting_conversions"]
+        self.ongoing_conversions_collection = ffmpeg_db["ongoing_conversions"]
+
+        #########
         atexit.register(self.cleanup)
 
     def cleanup(self):
         self.db_client.close()
-        print("StatusWidget Worker db connection closed")
+        print("StatusWidget Worker's db connection closed")
 
     def conversion_status(self):
 
         while True:
             ongoing_conversions_list = []
-            for doc in self.ongoing_conversions.find({}, {'_id': False}).sort([("start_date", ASCENDING)]):
+            for doc in self.ongoing_conversions_collection.find({}, {'_id': False}).sort([("start_date", ASCENDING)]):
                 ongoing_conversions_list.append(doc)
-            self.ongoing_conversions_transmit.emit(ongoing_conversions_list)
+            self.ongoing_conversions_collection_transmit.emit(ongoing_conversions_list)
 
             waiting_conversion_list = []
             print("waiting conversion")
-            for doc in self.waiting_conversions.find({}, {'_id': False}):
+            for doc in self.waiting_conversions_collection.find({}, {'_id': False}):
                 # elements in the ongoing_conversions_collection are in the waiting_conversions_collection too
                 # and I don't want to confuse the user, so I hide them
                 pprint(doc)
-                if not self.ongoing_conversions.find_one({"vuid": doc["metadata"][1]["dc:identifier"]}):
+                if not self.ongoing_conversions_collection.find_one({"vuid": doc["metadata"][1]["dc:identifier"]}):
                     waiting_conversion_list.append(doc)
-            self.waiting_conversions_transmit.emit(waiting_conversion_list)
+            self.waiting_conversions_collection_transmit.emit(waiting_conversion_list)
 
             sleep(3)

@@ -1,8 +1,6 @@
 import sys
 
-from PyQt5.QtWidgets import QMainWindow, QAction, QApplication, QTabWidget
-
-from PyQt5.QtGui import QIcon
+from PyQt5.QtWidgets import QMainWindow, QApplication, QTabWidget
 
 from PyQt5 import QtCore
 
@@ -10,7 +8,6 @@ from GUI.digitise.DigitiseWidget import DigitiseWidget
 from GUI.search.MainSearchWidget import MainSearchWidget
 from GUI.status.StatusWidget import StatusWidget
 import setproctitle
-from functools import partial
 
 # very testable class (hint: you can use mock.Mock for the signals)
 # post corrected solution :
@@ -23,46 +20,32 @@ class MainWindow(QMainWindow):
     
     def __init__(self):
         super().__init__()
-        
-        self.init_main_window()
 
-    def init_main_window(self):
+        #########
+        self.bar_statusbar = self.statusBar()
+
+        #########
+        self.main_window_init()
+
+    def main_window_init(self):
         """
-        this function init the main window
-        it set the status bar, menu bar and set the Tabs class as the central widget
+        This function init the main window
+        It sets the status bar, menu bar and set the Tabs class as the central widget
 
         :return: nothing
         """
-
-        exitAction = QAction(QIcon('exit.png'), 'Exit', self)
-        exitAction.setShortcut('Ctrl+Q')
-        exitAction.setStatusTip('Exit application')
-        exitAction.triggered.connect(self.close)
-
-        self.bidule = self.statusBar()
-
-
-        menubar = self.menuBar()
-        fileMenu = menubar.addMenu('&File')
-        fileMenu.addAction(exitAction)
-
-        #toolbar = self.addToolBar('Exit')
-        #toolbar.addAction(exitAction)
-
-        # font = QFont(QFont().defaultFamily(), 12)
-        # self.setFont(font)
         tabs = Tabs(self)
         tabs.set_statusbar_text_2.connect(self.set_status_bar_message)
         self.setCentralWidget(tabs)
-        
+
+        #########
         self.setGeometry(300, 300, 800, 600)
         self.setWindowTitle('Logiciel Numérisation')
         self.show()
-        #self.set_status_bar_message("sidfbsdf")
 
     def set_status_bar_message(self, arg):
         print("heyy message")
-        self.bidule.showMessage(arg, msecs=10000)
+        self.bar_statusbar.showMessage(arg, msecs=10000)
 
 
 class Tabs(QTabWidget):
@@ -78,15 +61,17 @@ class Tabs(QTabWidget):
         digitise_tab.set_statusbar_text_1.connect(self.set_statusbar_text_2)
         self.addTab(digitise_tab, "Numérisation")
 
+        #########
         search_tab = MainSearchWidget()
         self.addTab(search_tab, "Recherche")
 
+        #########
         status_tab = StatusWidget()
         self.addTab(status_tab, "Status")
 
 
 if __name__ == '__main__':
-    setproctitle.setproctitle("digitize_gui")
+    setproctitle.setproctitle("digitise_gui")
     app = QApplication(sys.argv)
     ex = MainWindow()
     sys.exit(app.exec_())

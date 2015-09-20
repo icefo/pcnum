@@ -3,13 +3,13 @@ from pprint import pprint
 import os
 
 db_client = MongoClient("mongodb://localhost:27017/")
-log_database = db_client["log-database"]
+ffmpeg_db = db_client["ffmpeg_conversions"]
 metadata_db = db_client["metadata"]
 
-videos_metadata_collection = metadata_db["videos_metadata_collection"]
-waiting_conversions_collection = log_database["waiting_conversions_collection"]
-ongoing_conversions_collection = log_database["run_ffmpeg_ongoing_conversions"]
-complete_logs = log_database["run_ffmpeg_complete_logs"]
+videos_metadata_collection = metadata_db["videos_metadata"]
+waiting_conversions_collection = ffmpeg_db["waiting_conversions"]
+ongoing_conversions_collection = ffmpeg_db["ongoing_conversions"]
+complete_logs = ffmpeg_db["complete_conversion_logs"]
 
 for doc in complete_logs.find({}):
     print("\ncomplete logs")

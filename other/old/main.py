@@ -6,7 +6,7 @@ import itertools
 
 class MetaHandler:
     def __init__(self):
-        self.db_path = "/home/adrien/Documents/PycharmProjects/Pc_num/other/old/bla.db"
+        self.db_path = "/home/adrien/Documents/PyCharm/PycharmProjects/Pc_num/other/old/bla.db"
         self.db_path_ro = "file:" + self.db_path + "?mode=ro"
         self.hourra = "Hourra !"
         print(self.hourra)
@@ -111,7 +111,7 @@ class MetaHandler:
                     self.tuple = (self.number,)
                     self.cur.execute('''select * from DublinCore where vuid=?''', self.tuple)
                     for self.tuplevalue in self.cur.fetchall():
-                        #print(self.tuplevalue)
+                        # print(self.tuplevalue)
                         try:
                             self.data_fetchall[self.tuplevalue[0]][self.tuplevalue[1]].append(self.tuplevalue[2])
                         except KeyError:
@@ -181,7 +181,7 @@ class MetaHandler:
 
             self.data_fetchall = list(itertools.chain.from_iterable(self.data_fetchall))
             print(self.data_fetchall)
-        self.con.close()
+        #self.con.close()
 
 
 
@@ -194,9 +194,9 @@ if a == 1:
     the_object.Search("FilePathByFormat", data=dict, vuid=10)
     # output [[(10, 'ffv1', '/this/is/a/path')]]
 elif a == 2:
-    dict = {"title": ("once upon a time...", "the Title")}
-    the_object.Search("DublinCore", data=dict)
+    dico = {"director": ("Jo", "adrien")}
+    the_object.Search("DublinCore", data=dico)
     # output [(16, 'actor', 'mario'), (16, 'actor', 'the hand')]
 elif a == 3:
-    dict = {"actor": ("mario", "the hand"), "director":("poulain", "Jo"), "title": ("the title",)}
+    dict = {"actor": ("mario", "the hand"), "director":("adrien",), "title": ("the title",)}
     the_object.New("DublinCore", dict)

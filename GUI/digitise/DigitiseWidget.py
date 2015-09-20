@@ -45,11 +45,9 @@ class DigitiseWidget(QWidget):
         #########
         self.db_client = MongoClient("mongodb://localhost:27017/")
         metadata_db = self.db_client["metadata"]
-        self.videos_metadata = metadata_db["videos_metadata_collection"]
-        log_database = self.db_client["log-database"]
-        self.waiting_conversions = log_database["waiting_conversions_collection"]
-        # This function is called when the DigitiseWidget class is about to be destroyed
-        atexit.register(self.cleanup)
+        self.videos_metadata = metadata_db["videos_metadata"]
+        ffmpeg_db = self.db_client["ffmpeg_conversions"]
+        self.waiting_conversions_collection = ffmpeg_db["waiting_conversions"]
 
         #########
         self.raw_videos_path = "/media/storage/raw/"
@@ -60,11 +58,12 @@ class DigitiseWidget(QWidget):
         self.backend_status_check()
         self.tab_init()
 
-        self.set_statusbar_text_1.emit("blasdjsd")
+        atexit.register(self.cleanup)
 
     def cleanup(self):
+        """This function is called when the DigitiseWidget class is about to be destroyed"""
         self.db_client.close()
-        print("DigitiseWidget Worker db connection closed")
+        print("DigitiseWidget's db connection closed")
 
     def backend_status_check(self):
 
@@ -196,7 +195,7 @@ class DigitiseWidget(QWidget):
 
         metadata = {"vuid": vuid, "metadata": metadata}
         pprint(metadata)
-        print(self.waiting_conversions.insert(metadata, fsync=True))
+        print(self.waiting_conversions_collection.insert(metadata, fsync=True))
         self.launch_digitise_button.setEnabled(True)
 
     def digitise_checker(self, action, data):
@@ -396,24 +395,7 @@ class DigitiseWidget(QWidget):
         grid = QGridLayout()
         self.setLayout(grid)
 
-        # Decklink card choice
-        grid.addWidget(self.decklink_label, 0, 0)
-        grid.addWidget(self.decklink_radio_1, 0, 1)
-        grid.addWidget(self.decklink_radio_2, 1, 1)
-        grid.addWidget(self.dvd_import_radio, 0, 3)
-        grid.addWidget(self.file_import_radio, 0, 2)
-
-        # Compressed files to create
-        # grid.addWidget(self.compressed_file_label, 1, 0)
-        # grid.addWidget(self.compressed_file_h264, 1, 1)
-        # grid.addWidget(self.compressed_file_h265, 1, 2)
-
-        # Package mediatheque
-        # grid.addWidget(self.package_mediatheque, 2, 0)
-
-        ###############
-
-        # Table
+        #########
         self.digitise_table.setRowCount(0)
         self.digitise_table.setColumnCount(3)
         self.digitise_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
@@ -421,9 +403,17 @@ class DigitiseWidget(QWidget):
         self.digitise_table.setFont(self.table_font)
         self.digitise_table.setHorizontalHeaderLabels(["", "", ""])
 
+        #########
+        grid.addWidget(self.decklink_label, 0, 0)
+        grid.addWidget(self.decklink_radio_1, 0, 1)
+        grid.addWidget(self.decklink_radio_2, 1, 1)
+        grid.addWidget(self.file_import_radio, 0, 2)
+        grid.addWidget(self.dvd_import_radio, 0, 3)
+
         grid.addWidget(self.digitise_table, 3, 0, 5, 2)
         grid.addWidget(self.new_table_row_button, 3, 3)
         grid.addWidget(self.launch_digitise_button, 5, 3)
 
+        #########
         self.new_table_row_button.clicked.connect(self.add_row)
         self.launch_digitise_button.clicked.connect(self.digitise)

@@ -23,7 +23,7 @@ def launch_digitise(listo):
     return "Okayyyyy"
 
 def search(arg):
-    db_client = MongoClient('mongodb://localhost:27017/')
+    db_client = MongoClient("mongodb://localhost:27017/")
     db = db_client['test-database']
     videos_metadata = db['videos_metadata_collection']
 

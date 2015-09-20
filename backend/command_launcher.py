@@ -27,9 +27,9 @@ def run_ffmpeg(shell_command, log_settings):
     process = subprocess.Popen(shell_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
 
     db_client = MongoClient("mongodb://localhost:27017/")
-    log_database = db_client["log-database"]
+    ffmpeg_db = db_client["ffmpeg_conversions"]
 
-    complete_logs = log_database["run_ffmpeg_complete_logs"]
+    complete_conversion_logs_collection = ffmpeg_db["complete_conversion_logs"]
     complete_logs_document = {"vuid": log_settings["vuid"],
                               "action": log_settings["action"],
                               "year": log_settings["year"],
@@ -43,9 +43,9 @@ def run_ffmpeg(shell_command, log_settings):
                               "converted_file_path": None,
                               "log_data": []
                               }
-    complete_logs_document_id = complete_logs.insert(complete_logs_document)
+    complete_logs_document_id = complete_conversion_logs_collection.insert(complete_logs_document)
 
-    ongoing_conversions = log_database["run_ffmpeg_ongoing_conversions"]
+    ongoing_conversions_collection = ffmpeg_db["ongoing_conversions"]
     ongoing_conversions_document = {"vuid": log_settings["vuid"],
                                     "action": log_settings["action"],
                                     "year": log_settings["year"],
@@ -62,21 +62,21 @@ def run_ffmpeg(shell_command, log_settings):
     if log_settings["decklink_id"]:
         ongoing_conversions_document["decklink_id"] = log_settings["decklink_id"]
 
-    ongoing_conversions_document_id = ongoing_conversions.insert(ongoing_conversions_document)
+    ongoing_conversions_document_id = ongoing_conversions_collection.insert(ongoing_conversions_document)
 
     while True:
         if process.poll() is not None:  # returns None while subprocess is running
             return_code = process.returncode
-            complete_logs.find_and_modify(query={"_id": complete_logs_document_id},
+            complete_conversion_logs_collection.find_and_modify(query={"_id": complete_logs_document_id},
                                           update={"$set": {"end_date": datetime.now(), "return_code": return_code}}, fsync=True)
-            ongoing_conversions.find_and_modify(query={"_id": ongoing_conversions_document_id},
+            ongoing_conversions_collection.find_and_modify(query={"_id": ongoing_conversions_document_id},
                                                 update={"$set": {"end_date": datetime.now(), "return_code": return_code}}, fsync=True)
 
             if return_code is 0:
                 converted_file_path = shell_command[-1]
-                complete_logs.find_and_modify(query={"_id": complete_logs_document_id},
+                complete_conversion_logs_collection.find_and_modify(query={"_id": complete_logs_document_id},
                                               update={"$set": {"converted_file_path": converted_file_path}}, fsync=True)
-                ongoing_conversions.find_and_modify(query={"_id": ongoing_conversions_document_id},
+                ongoing_conversions_collection.find_and_modify(query={"_id": ongoing_conversions_document_id},
                                                     update={"$set": {"converted_file_path": converted_file_path}}, fsync=True)
             else:
                 db_client.close()
@@ -87,7 +87,7 @@ def run_ffmpeg(shell_command, log_settings):
         # stdout_line example: frame=  288 fps= 16 q=32.0 size=    1172kB time=00:00:09.77 bitrate= 982.4kbits/s
         stdout_complete_line = process.stdout.readline()
 
-        complete_logs.find_and_modify(query={"_id": complete_logs_document_id},
+        complete_conversion_logs_collection.find_and_modify(query={"_id": complete_logs_document_id},
                                       update={"$push": {"log_data": stdout_complete_line}})
 
         stdout_line = stdout_complete_line[:-5]
@@ -109,5 +109,5 @@ def run_ffmpeg(shell_command, log_settings):
                 stdout_dictionary[a[0]] = a[1]
             # {'fps': '0.0', 'bitrate': '18.0kbits/s', 'frame': '16', 'time': '00:00:00.34', 'q': '0.0', 'size': '1kB'}
             # yield stdout_dictionary
-            ongoing_conversions.find_and_modify(query={"_id": ongoing_conversions_document_id},
+            ongoing_conversions_collection.find_and_modify(query={"_id": ongoing_conversions_document_id},
                                                 update={"$set": {"log_data": stdout_dictionary}})

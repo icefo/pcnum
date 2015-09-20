@@ -3,7 +3,7 @@ __author__ = 'adrien'
 from PyQt5.QtCore import pyqtSignal, Qt
 from PyQt5.QtWidgets import (QWidget,
                              QHeaderView, QGridLayout,
-                             QTextEdit, QLineEdit, QTableWidget, QComboBox, QPushButton)
+                             QTextEdit, QLineEdit, QTableWidget, QComboBox, QPushButton, QMessageBox)
 from PyQt5.QtGui import QFont
 from collections import OrderedDict
 from pymongo import MongoClient, ASCENDING
@@ -27,9 +27,9 @@ class SearchWidget(QWidget):
         self.search_button = QPushButton("rechercher")
 
         #########
-        self.db_client = MongoClient('mongodb://localhost:27017/')
-        db = self.db_client['metadata']
-        self.videos_metadata_collection = db['videos_metadata_collection']
+        self.db_client = MongoClient("mongodb://localhost:27017/")
+        metadata_db = self.db_client["metadata"]
+        self.videos_metadata_collection = metadata_db["videos_metadata"]
         # This function is called when the SearchWidget class is about to be destroyed
         atexit.register(self.cleanup)
 
@@ -37,7 +37,7 @@ class SearchWidget(QWidget):
 
     def cleanup(self):
         self.db_client.close()
-        print("SearchWidget db connection closed")
+        print("SearchWidget's db connection closed")
 
     def delete_table_row(self):
         """
@@ -215,8 +215,15 @@ class SearchWidget(QWidget):
                         else:
                             query_dict[dc_combobox_text] = {query_type: [data_widget_text_value]}
 
-        print(query_dict)
-        self.run_search_query(command=query_dict)
+        if query_dict:
+            print(query_dict)
+            self.run_search_query(command=query_dict)
+        else:
+            warning_box = QMessageBox()
+            warning_message = "Il faut entrer des informations à rechercher"
+
+            warning_box.warning(warning_box, "Attention", warning_message)
+            self.search_button.setEnabled(True)
 
     def tab_init(self):
         """
@@ -225,11 +232,10 @@ class SearchWidget(QWidget):
         set some link between functions and buttons
         :return: nothing
         """
+        grid = QGridLayout()
+        self.setLayout(grid)
 
-        query_widget_layout = QGridLayout()
-        self.setLayout(query_widget_layout)
-
-        # query Table
+        #########
         self.query_table.setRowCount(0)
         self.query_table.setColumnCount(4)
         self.query_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
@@ -238,10 +244,12 @@ class SearchWidget(QWidget):
         self.query_table.setFont(self.table_font)
         self.query_table.setHorizontalHeaderLabels(["", "", "", ""])
 
+        #########
+        grid.addWidget(self.query_table, 0, 0, 3, 3)
+        grid.addWidget(self.add_row_button, 0, 4)
+        grid.addWidget(self.search_button, 4, 4)
+
+        #########
         self.add_row_button.clicked.connect(self.add_row)
         self.search_button.clicked.connect(self.search)
         self.search_button.clicked.connect(self.show_result_widget_signal.emit)
-
-        query_widget_layout.addWidget(self.query_table, 0, 0, 3, 3)
-        query_widget_layout.addWidget(self.add_row_button, 0, 4)
-        query_widget_layout.addWidget(self.search_button, 4, 4)

@@ -18,19 +18,21 @@ class DigitiseWidgetWorker(QObject):
     def __init__(self):
         super().__init__()
         print("DigitiseWidget Worker init")
+
+        #########
         self.db_client = MongoClient("mongodb://localhost:27017/")
         metadata_db = self.db_client["metadata"]
-        self.videos_metadata = metadata_db["videos_metadata_collection"]
-        log_database = self.db_client["log-database"]
-        self.waiting_conversions = log_database["waiting_conversions_collection"]
-        self.ongoing_conversions = log_database["run_ffmpeg_ongoing_conversions"]
+        self.videos_metadata = metadata_db["videos_metadata"]
+        ffmpeg_db = self.db_client["ffmpeg_conversions"]
+        self.ongoing_conversions_collection = ffmpeg_db["ongoing_conversions"]
 
-        # This function is called when the DigitiseWidgetWorker class is about to be destroyed
+        #########
         atexit.register(self.cleanup)
 
     def cleanup(self):
+        """This function is called when the DigitiseWidgetWorker class is about to be destroyed"""
         self.db_client.close()
-        print("DigitiseWidget db connection closed")
+        print("DigitiseWidget Worker's db connection closed")
 
     def backend_status_check(self):
         backend_launch_count = 0
@@ -38,7 +40,7 @@ class DigitiseWidgetWorker(QObject):
             enable_decklink_1_checkbox = True
             enable_decklink_2_checkbox = True
 
-            for doc in self.ongoing_conversions.find({}, {"decklink_id": True, "_id": False}):
+            for doc in self.ongoing_conversions_collection.find({}, {"decklink_id": True, "_id": False}):
                 try:
                     decklink_id = doc["decklink_id"]
                     print(decklink_id)

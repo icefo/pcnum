@@ -8,9 +8,14 @@ except ImportError as import_error:
 
 try:
     mongo_client = MongoClient("mongodb://localhost:27017/")
-    log_database = mongo_client["log-database"]
-    complete_logs = log_database["run_ffmpeg_complete_logs"]
-    ongoing_conversions = log_database["run_ffmpeg_ongoing_conversions"]
+    ffmpeg_db = mongo_client["ffmpeg_conversions"]
+
+    complete_logs = ffmpeg_db["complete_conversion_logs"]
+    ongoing_conversions_collection = ffmpeg_db["ongoing_conversions"]
+    waiting_conversions_collection = ffmpeg_db["waiting_conversions"]
+
+    metadata_database = mongo_client["metadata"]
+    videos_metadata_collection = metadata_database["videos_metadata"]
 except Exception as e:
     print("Impossible de se connecter à la base de donnée")
     raise e

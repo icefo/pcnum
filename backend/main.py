@@ -38,8 +38,8 @@ def copy_file(src, dst, doc):
     vuid = doc["metadata"][1]["dc:identifier"]
 
     db_client = MongoClient("mongodb://localhost:27017/")
-    log_database = db_client["log-database"]
-    ongoing_conversions = log_database["run_ffmpeg_ongoing_conversions"]
+    ffmpeg_db = db_client["ffmpeg_conversions"]
+    ongoing_conversions_collection = ffmpeg_db["ongoing_conversions"]
 
     ongoing_conversions_document = {"vuid": vuid,
                                 "action": "file_import",
@@ -53,7 +53,7 @@ def copy_file(src, dst, doc):
                                 "log_data": {}
                                 }
 
-    ongoing_conversions_document_id = ongoing_conversions.insert(ongoing_conversions_document)
+    ongoing_conversions_document_id = ongoing_conversions_collection.insert(ongoing_conversions_document)
     print("copy function")
     shell_command = ["ionice", "-c", "2", "-n", "7", "cp", "-f", src, dst]
     process = subprocess.Popen(shell_command, stdout=None, stderr=None, universal_newlines=True)
@@ -61,7 +61,7 @@ def copy_file(src, dst, doc):
         if process.poll() is not None:  # returns None while subprocess is running
             return_code = process.returncode
 
-            ongoing_conversions.find_and_modify(query={"_id": ongoing_conversions_document_id},
+            ongoing_conversions_collection.find_and_modify(query={"_id": ongoing_conversions_document_id},
                                                 update={"$set": {"end_date": datetime.now(),
                                                                  "return_code": return_code,
                                                                  "converted_file_path": dst}}, fsync=True)
@@ -117,20 +117,20 @@ class Backend(object):
         self.imported_files_path = "/media/storage/imported/"
 
         self.db_client = MongoClient("mongodb://localhost:27017/")
-        log_database = self.db_client["log-database"]
-        self.waiting_conversions_collection = log_database["waiting_conversions_collection"]
-        self.ongoing_conversions_collection = log_database["run_ffmpeg_ongoing_conversions"]
-        self.complete_ffmpeg_logs_collection = log_database["run_ffmpeg_complete_logs"]
-
+        ffmpeg_db = self.db_client["ffmpeg_conversions"]
+        self.waiting_conversions_collection = ffmpeg_db["waiting_conversions"]
+        self.ongoing_conversions_collection = ffmpeg_db["ongoing_conversions"]
+        self.complete_conversion_logs_collection = ffmpeg_db["complete_conversion_logs"]
         metadata_db = self.db_client["metadata"]
-        self.videos_metadata_collection = metadata_db["videos_metadata_collection"]
+        self.videos_metadata_collection = metadata_db["videos_metadata"]
+
         self.startup_cleanup()
         atexit.register(self.exit_cleanup)
 
     def startup_cleanup(self):
         """
         the function remove unfinished decklink acquisitions at startup. This avoid launching an unwanted conversion
-        when recovering from an power outage.
+        when recovering from an power outage. This function also remove more than one week old logs.
         """
         for doc in self.waiting_conversions_collection.find({}):
             if doc["metadata"][0]["source"] == "decklink_1" or "decklink_2":
@@ -138,11 +138,11 @@ class Backend(object):
         self.ongoing_conversions_collection.drop()
 
         one_week_ago = datetime.now() - timedelta(days=7)
-        self.complete_ffmpeg_logs_collection.remove({"return_code": 0, "end_date": {"$lt": one_week_ago}})
+        self.complete_conversion_logs_collection.remove({"return_code": 0, "end_date": {"$lt": one_week_ago}})
 
     def exit_cleanup(self):
         self.db_client.close()
-        print("Backend db connection closed")
+        print("Backend's db connection closed")
 
     def start_dvd_conversion(self, doc):
         filename = doc["metadata"][0]["filename"]

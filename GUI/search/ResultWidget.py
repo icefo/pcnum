@@ -17,26 +17,31 @@ class ResultWidget(QWidget):
     def __init__(self):
         super().__init__()
 
+        #########
         self.display_result = QTreeWidget()
-
         self.result_font = QFont(QFont().defaultFamily(), 12)
+
+        #########
         self.return_to_search_button = QPushButton('Back')
         self.delete_video_button = QPushButton('Supprimer')
 
+        #########
         # litle hack to set the label of each result; sort of global variable
         self.movie_title = ""
         self.movie_creation_date = ""
 
-        self.db_client = MongoClient('mongodb://localhost:27017/')
-        db = self.db_client['metadata']
-        self.videos_metadata_collection = db['videos_metadata_collection']
+        #########
+        self.db_client = MongoClient("mongodb://localhost:27017/")
+        metadata_db = self.db_client["metadata"]
+        self.videos_metadata_collection = metadata_db["videos_metadata"]
 
+        #########
         self.tab_init()
         atexit.register(self.cleanup)
 
     def cleanup(self):
         self.db_client.close()
-        print("ResultWidget db connection closed")
+        print("ResultWidget's db connection closed")
 
     def launch_vlc(self):
         selected_item = self.display_result.currentItem().text(0)
@@ -142,16 +147,19 @@ class ResultWidget(QWidget):
         self.display_result.sortItems(0, 0)
 
     def tab_init(self):
-        result_widget_layout = QGridLayout()
-        self.setLayout(result_widget_layout)
+        grid = QGridLayout()
+        self.setLayout(grid)
 
+        #########
         self.display_result.setFont(self.result_font)
         self.display_result.setHeaderLabel("")
 
-        result_widget_layout.addWidget(self.display_result, 0, 0, 3, 2)
-        result_widget_layout.addWidget(self.delete_video_button, 4, 0)
-        result_widget_layout.addWidget(self.return_to_search_button, 4, 1)
+        #########
+        grid.addWidget(self.display_result, 0, 0, 3, 2)
+        grid.addWidget(self.delete_video_button, 4, 0)
+        grid.addWidget(self.return_to_search_button, 4, 1)
 
+        #########
         self.return_to_search_button.clicked.connect(self.show_search_widget_signal.emit)
         self.display_result.itemDoubleClicked.connect(self.launch_vlc)
         self.delete_video_button.clicked.connect(self.delete_video)
