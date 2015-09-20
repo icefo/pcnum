@@ -151,7 +151,7 @@ class DigitiseWidget(QWidget):
 
         dc_data = OrderedDict()
         dc_data['dc:contributor'] = "nom des acteurs"
-        dc_data['dc:creator'] = "maison d'édition ou scénariste"
+        dc_data['dc:creator'] = "maison d'édition, scénariste ou réalisateur"
         dc_data['dc:description'] = "résumé de la vidéo"
         dc_data['dc:language'] = "langue de la vidéo"
         dc_data['dc:publisher'] = "entreprise qui a publié le film, par exemple Sony Pictures"
@@ -208,8 +208,8 @@ class DigitiseWidget(QWidget):
         :return: nothing, the function instantiate the DigitiseTabWorker class and then exit
         """
         # this check if at least a duration, title, and creation date is set before sending the data to the back end
-        if action == "decklink" and "duration" in data[1].get('dc:format', {}) and data[1]["dc:title"] \
-                and data[1]["dcterms:created"] and self.check_remaining_space(duration=data[1]["dc:format"]["duration"]):
+        if action == "decklink" and "duration" in data[1].get('dc:format', {}) and "dc:title" in data[1] \
+                and "dcterms:created" in data[1] and self.check_remaining_space(duration=data[1]["dc:format"]["duration"]):
 
             self.launch_digitise_button.setEnabled(False)
 
@@ -231,7 +231,7 @@ class DigitiseWidget(QWidget):
             else:
                 raise ValueError
 
-        elif action == "file" and data[0]["filename"] and data[1]["dc:title"] and data[1]["dcterms:created"] \
+        elif action == "file" and "filename" in data[0] and "dc:title" in data[1] and "dcterms:created" in data[1] \
                 and self.check_remaining_space(import_filename=data[0]["filename"]):
 
             self.launch_digitise_button.setEnabled(False)
@@ -240,7 +240,7 @@ class DigitiseWidget(QWidget):
 
             self.set_statusbar_text_1.emit("Enregistrement du fichier lancé !")
 
-        elif action == "DVD" and data[0]["filename"] and data[1]["dc:title"] and data[1]["dcterms:created"] \
+        elif action == "DVD" and "filename" in data[0] and "dc:title" in data[1] and "dcterms:created" in data[1] \
                 and self.check_remaining_space(DVD_filename=data[0]["filename"]):
 
             self.launch_digitise_button.setEnabled(False)

@@ -111,7 +111,7 @@ class SearchWidget(QWidget):
 
         dc_data = OrderedDict()
         dc_data['dc:contributor'] = "nom de acteurs"
-        dc_data['dc:creator'] = "maison d'éditionou  scénariste"
+        dc_data['dc:creator'] = "maison d'édition, scénariste ou réalisateur"
         dc_data['dc:description'] = "résumé de la vidéo"
         dc_data['dc:language'] = "langue de la vidéo"
         dc_data['dc:publisher'] = "entreprise qui a publié le film, par exemple Sony Pictures"
