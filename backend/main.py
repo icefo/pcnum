@@ -170,7 +170,7 @@ class Backend(object):
 
         temp_decklink_to_raw = self.decklink_to_raw.copy()
         temp_decklink_to_raw[9] = decklink_card
-        temp_decklink_to_raw[11] = str(duration)  # convert minutes to seconds
+        temp_decklink_to_raw[11] = str(duration)
         temp_decklink_to_raw[-1] = self.raw_videos_path + doc["metadata"][1]["dc:title"][0] + " -- " +\
                                    str(doc["metadata"][1]["dc:identifier"]) + ".nut"
 
@@ -292,7 +292,7 @@ class Backend(object):
                     dublin_dict = video_metadata[0]["metadata"][1]
                     dublin_dict["files_path"] = {"unknown": converted_file_path}
                     dublin_dict["source"] = "File import"
-                    dublin_dict["format_video"] = "unknown"
+                    dublin_dict["dc:format"]["format"] = "unknown"
                     dublin_dict["dc:format"]["size_ratio"] = "unknown"
                     print("database part")
                     self.videos_metadata_collection.update(spec={"dc:identifier": vuid}, document={"$set": dublin_dict}, upsert=False, fsync=True)

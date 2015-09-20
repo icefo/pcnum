@@ -325,8 +325,7 @@ class DigitiseWidget(QWidget):
             print(filename)
 
         dublincore_dict = {}
-        dublincore_dict["dc:format"] = {"size_ratio": "4:3"}
-        dublincore_dict["format_video"] = "PAL"
+        dublincore_dict["dc:format"] = {"size_ratio": "4:3", "format": "PAL"}
 
         for row in range(self.digitise_table.rowCount()):
             combobox_text = self.digitise_table.cellWidget(row, 0).currentText()
@@ -374,11 +373,7 @@ class DigitiseWidget(QWidget):
             digitise_infos["source"] = "DVD"
             worker_action = "DVD"
 
-        # digitise_infos["H264"] = self.compressed_file_h264.isChecked()
-        # digitise_infos["H265"] = self.compressed_file_h265.isChecked()
-
         digitise_infos["filename"] = filename
-        # digitise_infos["package_mediatheque"] = self.package_mediatheque.isChecked()
 
         to_be_send = [digitise_infos, dublincore_dict]
         print(to_be_send)
