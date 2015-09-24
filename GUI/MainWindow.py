@@ -67,7 +67,7 @@ class Tabs(QTabWidget):
 
         #########
         status_tab = StatusWidget()
-        self.addTab(status_tab, "Status")
+        self.addTab(status_tab, "Statuts des conversions")
 
 
 if __name__ == '__main__':

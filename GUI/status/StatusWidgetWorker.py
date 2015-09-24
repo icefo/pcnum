@@ -39,10 +39,10 @@ class StatusWidgetWorker(QObject):
             self.ongoing_conversions_collection_transmit.emit(ongoing_conversions_list)
 
             waiting_conversion_list = []
-            print("waiting conversion")
             for doc in self.waiting_conversions_collection.find({}, {'_id': False}):
                 # elements in the ongoing_conversions_collection are in the waiting_conversions_collection too
                 # and I don't want to confuse the user, so I hide them
+                print("waiting conversion")
                 pprint(doc)
                 if not self.ongoing_conversions_collection.find_one({"vuid": doc["metadata"][1]["dc:identifier"]}):
                     waiting_conversion_list.append(doc)

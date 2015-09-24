@@ -8,9 +8,9 @@ except ImportError as import_error:
 
 try:
     mongo_client = MongoClient("mongodb://localhost:27017/")
-    ffmpeg_db = mongo_client["ffmpeg_conversions"]
 
-    complete_logs = ffmpeg_db["complete_conversion_logs"]
+    ffmpeg_db = mongo_client["ffmpeg_conversions"]
+    complete_conversions_logs_collection = ffmpeg_db["complete_conversion_logs"]
     ongoing_conversions_collection = ffmpeg_db["ongoing_conversions"]
     waiting_conversions_collection = ffmpeg_db["waiting_conversions"]
 

@@ -238,16 +238,15 @@ class SearchWidget(QWidget):
         #########
         self.query_table.setRowCount(0)
         self.query_table.setColumnCount(4)
-        self.query_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
         self.query_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
         self.query_table.setColumnWidth(0, 170)
         self.query_table.setFont(self.table_font)
         self.query_table.setHorizontalHeaderLabels(["", "", "", ""])
 
         #########
-        grid.addWidget(self.query_table, 0, 0, 3, 3)
-        grid.addWidget(self.add_row_button, 0, 4)
-        grid.addWidget(self.search_button, 4, 4)
+        grid.addWidget(self.query_table, 0, 0, 4, 5)
+        grid.addWidget(self.add_row_button, 0, 6)
+        grid.addWidget(self.search_button, 3, 6)
 
         #########
         self.add_row_button.clicked.connect(self.add_row)

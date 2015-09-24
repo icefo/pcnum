@@ -34,7 +34,7 @@ class DigitiseWidget(QWidget):
         #########
         self.digitise_table = QTableWidget()
         self.table_font = QFont(QFont().defaultFamily(), 12)
-        self.new_table_row_button = QPushButton("Nouveau")
+        self.new_table_row_button = QPushButton("Ajouter")
         self.launch_digitise_button = QPushButton("Numériser")
 
         #########
@@ -401,13 +401,13 @@ class DigitiseWidget(QWidget):
         #########
         grid.addWidget(self.decklink_label, 0, 0)
         grid.addWidget(self.decklink_radio_1, 0, 1)
+        grid.addWidget(self.file_import_radio, 0, 3)
         grid.addWidget(self.decklink_radio_2, 1, 1)
-        grid.addWidget(self.file_import_radio, 0, 2)
-        grid.addWidget(self.dvd_import_radio, 0, 3)
+        grid.addWidget(self.dvd_import_radio, 1, 3)
 
-        grid.addWidget(self.digitise_table, 3, 0, 5, 2)
-        grid.addWidget(self.new_table_row_button, 3, 3)
-        grid.addWidget(self.launch_digitise_button, 5, 3)
+        grid.addWidget(self.digitise_table, 2, 0, 7, 4)
+        grid.addWidget(self.new_table_row_button, 2, 5)
+        grid.addWidget(self.launch_digitise_button, 8, 5)
 
         #########
         self.new_table_row_button.clicked.connect(self.add_row)
