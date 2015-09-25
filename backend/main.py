@@ -134,6 +134,12 @@ class Backend(object):
         """
         for doc in self.waiting_conversions_collection.find({}):
             if doc["metadata"][0]["source"] == "decklink_1" or "decklink_2":
+                try:
+                    raw_file_path = self.raw_videos_path + doc["metadata"][1]["dc:title"][0] + " -- " +\
+                                str(doc["metadata"][1]["dc:identifier"]) + ".nut"
+                    os.remove(raw_file_path)
+                except (KeyError, FileNotFoundError):
+                    pass
                 self.waiting_conversions_collection.remove({"metadata.1.dc:identifier": doc["_id"]}, fsync=True)
         self.ongoing_conversions_collection.drop()
 
