@@ -1,6 +1,7 @@
 __author__ = 'adrien'
 from multiprocessing import Process
 from backend.ffmpeg_launcher import run_ffmpeg
+from backend.startup_check import startup_check
 from pymongo import MongoClient
 from time import sleep
 import subprocess
@@ -111,6 +112,9 @@ class Backend(object):
                     "duration": 1/6,
                     "decklink_id": None
                     }
+
+        # this function check that the mandatory modules are importable and the directories writable
+        startup_check()
 
         self.raw_videos_path = "/media/storage/raw/"
         self.compressed_videos_path = "/media/storage/compressed/"

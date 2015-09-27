@@ -8,6 +8,7 @@ from GUI.digitise.DigitiseWidget import DigitiseWidget
 from GUI.search.MainSearchWidget import MainSearchWidget
 from GUI.status.StatusWidget import StatusWidget
 import setproctitle
+from backend.startup_check import startup_check
 
 # very testable class (hint: you can use mock.Mock for the signals)
 # post corrected solution :
@@ -71,6 +72,9 @@ class Tabs(QTabWidget):
 
 
 if __name__ == '__main__':
+    # this function check that the mandatory modules are importable and the directories writable
+    startup_check()
+
     setproctitle.setproctitle("digitise_gui")
     app = QApplication(sys.argv)
     ex = MainWindow()
