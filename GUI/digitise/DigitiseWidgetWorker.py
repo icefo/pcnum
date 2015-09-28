@@ -30,11 +30,22 @@ class DigitiseWidgetWorker(QObject):
         atexit.register(self.cleanup)
 
     def cleanup(self):
-        """This function is called when the DigitiseWidgetWorker class is about to be destroyed"""
+        """
+        This function is called when the DigitiseWidgetWorker class is about to be destroyed
+
+        :return:
+        """
         self.db_client.close()
         print("DigitiseWidget Worker's db connection closed")
 
     def backend_status_check(self):
+        """
+        This function check if the backend is alive, if not the "Numériser" button is disabled
+
+        This function also check if the decklink 1 and 2 cards are digitising something atm and disable their button if
+        necessary
+        :return:
+        """
         backend_launch_count = 0
         while True:
             enable_decklink_1_checkbox = True

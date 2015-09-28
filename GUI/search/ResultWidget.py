@@ -8,7 +8,7 @@ from pymongo import MongoClient
 import atexit
 import os
 
-# todo: enforce uniq indexes on all vuid fields
+
 class ResultWidget(QWidget):
     show_search_widget_signal = pyqtSignal()
     request_refresh = pyqtSignal()
@@ -40,10 +40,20 @@ class ResultWidget(QWidget):
         atexit.register(self.cleanup)
 
     def cleanup(self):
+        """
+        This function is called when the DigitiseWidgetWorker class is about to be destroyed
+
+        :return:
+        """
         self.db_client.close()
         print("ResultWidget's db connection closed")
 
     def launch_vlc(self):
+        """
+        This function launch vlc in a separate process when the user double click on a file path
+
+        :return:
+        """
         selected_item = self.display_result.currentItem().text(0)
 
         if selected_item.startswith("h264: ") or selected_item.startswith("unknown: "):
@@ -54,7 +64,11 @@ class ResultWidget(QWidget):
             subprocess.Popen(shell_command, stdout=None)
 
     def delete_video(self):
+        """
+        This function delete a video after requesting user confirmation
 
+        :return:
+        """
         selected_item_parent = None
         vuid = None
         try:
@@ -90,6 +104,11 @@ class ResultWidget(QWidget):
                 self.request_refresh.emit()
 
     def search_done(self, search_results):
+        """
+        This function display the search results send by the SearchWidget
+        :param search_results: list of dictionary
+        :return:
+        """
         self.display_result.clear()
 
         for result in search_results:
@@ -147,6 +166,13 @@ class ResultWidget(QWidget):
         self.display_result.sortItems(0, 0)
 
     def tab_init(self):
+        """
+        This function is called when the DigitiseWidget class init
+        Its job is to put the widgets instantiated in the init function to their place and
+        set some link between functions and buttons
+
+        :return:
+        """
         grid = QGridLayout()
         self.setLayout(grid)
 

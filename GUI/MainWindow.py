@@ -2,7 +2,7 @@ import sys
 
 from PyQt5.QtWidgets import QMainWindow, QApplication, QTabWidget
 
-from PyQt5 import QtCore
+from PyQt5.QtCore import pyqtSignal
 
 from GUI.digitise.DigitiseWidget import DigitiseWidget
 from GUI.search.MainSearchWidget import MainSearchWidget
@@ -51,7 +51,7 @@ class MainWindow(QMainWindow):
 
 class Tabs(QTabWidget):
 
-    set_statusbar_text_2 = QtCore.pyqtSignal([str])
+    set_statusbar_text_2 = pyqtSignal([str])
 
     def __init__(self, parent):
         super().__init__(parent)
@@ -79,3 +79,4 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     ex = MainWindow()
     sys.exit(app.exec_())
+

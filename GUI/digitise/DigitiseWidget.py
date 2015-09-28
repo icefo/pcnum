@@ -61,11 +61,20 @@ class DigitiseWidget(QWidget):
         atexit.register(self.cleanup)
 
     def cleanup(self):
-        """This function is called when the DigitiseWidget class is about to be destroyed"""
+        """
+        This function is called when the DigitiseWidget class is about to be destroyed
+
+        :return:
+        """
         self.db_client.close()
         print("DigitiseWidget's db connection closed")
 
     def backend_status_check(self):
+        """
+        This function launch the backend and collection monitoring worker
+
+        :return:
+        """
 
         print("backend_status_check")
         self.worker_thread_backend_status = QThread()
@@ -87,7 +96,8 @@ class DigitiseWidget(QWidget):
         """
         This function is linked to the delete button when a row is added.
         When the delete button is pressed, the function look up its row and delete it
-        :return: nothing
+
+        :return:
         """
         sender = self.sender()
         index = self.digitise_table.indexAt(sender.pos())
@@ -99,8 +109,10 @@ class DigitiseWidget(QWidget):
         This function is linked to the combobox when a row is added
         When the combobox selected item changes (example: from dc:contributor to dc:description),
         this function is called to make the row fit its new usage. (example: enter text or a date)
+
         :param text: it's the selected combobox item name
-        :return: nothing
+
+        :return:
         """
         sender = self.sender()
         index = self.digitise_table.indexAt(sender.pos())
@@ -146,7 +158,8 @@ class DigitiseWidget(QWidget):
         this function will fill the combobox with their name and a tooltip,
         link the combobox to the combobox_changed function,
         link the delete button with the delete_table_row function
-        :return: nothing
+
+        :return:
         """
 
         dc_data = OrderedDict()
@@ -179,6 +192,13 @@ class DigitiseWidget(QWidget):
         self.digitise_table.cellWidget(row_count, 2).clicked.connect(self.delete_table_row)
 
     def launch_digitise(self, metadata):
+        """
+        This function put the metadata dictionary in the "waiting_conversions" collection so that the backend start
+        the conversion process.
+        :param metadata: dictionary containing the metadata gathered by the digitise function
+
+        :return:
+        """
         def get_and_lock_new_vuid():
             # set this so the first vuid will be 1
             list_of_vuids = [0]
@@ -201,11 +221,9 @@ class DigitiseWidget(QWidget):
     def digitise_checker(self, action, data):
         """
         :param action: tell which action the digitise_checker function should launch
-        :param data: the data can be a dictionary, a list, a sting, an integer
-        if the chosen action is "digitise" the parameter will be : [digitise_infos, dublincore_dict]
-        digitise_infos and dublincore_dict are dictionarys
+        :param data: [digitise_infos, dublincore_dict]
 
-        :return: nothing, the function instantiate the DigitiseTabWorker class and then exit
+        :return:
         """
         # this check if at least a duration, title, and creation date is set before sending the data to the back end
         if action == "decklink" and "duration" in data[1].get('dc:format', {}) and "dc:title" in data[1] \
@@ -288,7 +306,7 @@ class DigitiseWidget(QWidget):
         elif duration:
             free_space = shutil.disk_usage(self.compressed_videos_path)[2]
             file_size = duration * 6.6 * 1000000000
-            if free_space - file_size < 10000000000: # 10GB
+            if free_space - file_size < 100000000000: # 100GB
                 error_box = QMessageBox()
                 error_box.setText(error_text)
                 error_box.setWindowTitle("Erreur")
@@ -299,13 +317,12 @@ class DigitiseWidget(QWidget):
     def digitise(self):
         """
         This function wil gather all the metadata, add the constants listed below.
+        dublincore_dict["dc:rights"] = "usage libre pour l'éducation"
+        dublincore_dict["dc:type"] = "video"
+        dublincore_dict["dcterms:modified"] = datetime.now().replace(microsecond=0).isoformat()
 
-        # Handle the dublincore metadata
-        # dc:rights = usage libre pour l'éducation
-        # dc:type = "image"
-        # dcterms:modified = date de la numérisation
-        # dc:identifier = id incremental pour chaque VHS
-        # dc:format = {"size_ratio": "4/3", "duration": temps}
+        This function also set default values for this but It can be changed by the user
+        dublincore_dict["dc:format"] = {"size_ratio": "4:3", "format": "PAL"}
 
         :return: nothing but call the digitise_checker function with the parameter [digitise_infos, dublincore_dict]
         """
@@ -385,7 +402,8 @@ class DigitiseWidget(QWidget):
         This function is called when the DigitiseWidget class init
         Its job is to put the widgets instantiated in the init function to their place and
         set some link between functions and buttons
-        :return: nothing
+
+        :return:
         """
         grid = QGridLayout()
         self.setLayout(grid)

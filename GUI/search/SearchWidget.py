@@ -43,7 +43,8 @@ class SearchWidget(QWidget):
         """
         This function is linked to the delete button when a row is added.
         When the delete button is pressed, the function look up its row and delete it
-        :return: nothing
+
+        :return:
         """
         sender = self.sender()
         index = self.query_table.indexAt(sender.pos())
@@ -55,8 +56,10 @@ class SearchWidget(QWidget):
         This function is linked to the dublin core combobox when a row is added
         When the combobox selected item changes (example: from dc:contributor to dc:description),
         this function is called to make the row fit its new usage. (example: enter text or a date)
+
         :param text: it's the selected combobox item name
-        :return: nothing
+
+        :return:
         """
         sender = self.sender()
         index = self.query_table.indexAt(sender.pos())
@@ -106,7 +109,8 @@ class SearchWidget(QWidget):
         this function will fill the combobox with their name and a tooltip,
         link the dublin core combobox to the dc_combobox_changed function,
         link the delete button with the delete_table_row function
-        :return: nothing
+
+        :return:
         """
 
         dc_data = OrderedDict()
@@ -143,6 +147,18 @@ class SearchWidget(QWidget):
         self.query_table.cellWidget(row_count, 3).clicked.connect(self.delete_table_row)
 
     def run_search_query(self, command):
+        """
+        take the command parameter from the search function and transform it in the MongoDB syntax:
+        {'$and': [{'dc:creator': {'$options': 'i', '$regex': '^claire sougner$'}},
+        {'dc:description': {'$options': 'i', '$regex': ".*C'est l'histoire de.*"}},
+        {'dc:format.duration': {'$gt': 35}},
+        {'dc:format.duration': {'$lt': 75}},
+        {'dc:title': {'$options': 'i', '$regex': '.*La tour.*'}}]}
+
+        :param command: dictionary
+
+        :return:
+        """
         print("run_search_query()")
 
         mongo_query = {"$and": []}
@@ -177,10 +193,10 @@ class SearchWidget(QWidget):
     def search(self):
         """
         This function gather the search keys and put them in a dictionary similar to the one shown below:
-        {'dc:description': {'contain': ['some part of the description', 'an other part of the description']},
-        'dc:format.duration': {'inferior': [120]}, 'dc:contributor': {'equal': ['great contributor']}}
+        {'dc:creator': {'equal': ['claire sougner']}, 'dc:description': {'contain': ["C'est l'histoire de"]},
+        'dc:format.duration': {'greater': [35], 'inferior': [75]}, 'dc:title': {'contain': ['La tour']}}
 
-        :return: nothing but call the search worker with the dictionary as parameter
+        :return: nothing but call the run_search_query function with the dictionary as parameter
         """
         # Prevent button hammering
         self.search_button.setEnabled(False)
@@ -230,7 +246,8 @@ class SearchWidget(QWidget):
         This function is called when the SearchWidget class init
         Its job is to put the widgets instantiated in the init function to their place and
         set some link between functions and buttons
-        :return: nothing
+
+        :return:
         """
         grid = QGridLayout()
         self.setLayout(grid)

@@ -11,10 +11,6 @@ from datetime import datetime, timedelta
 import os
 import setproctitle
 
-# The last value give the final size of the file (audio + video + mux)
-# {'time': '00:00:10.00', 'bitrate': '2771.4kbits/s', 'fps': '8.0', 'q': '-1.0', 'Lsize': '3385kB', 'frame': '250'}
-# use Variable bitrate for the conversion!!!
-
 
 def get_mkv_file_duration(file):
     command = [  'ffprobe',
@@ -36,6 +32,15 @@ def get_mkv_file_duration(file):
 
 
 def copy_file(src, dst, doc):
+    """
+    copy files and ask for low I/O priority
+
+    :param src: string "/this/is/a/source/path.mkv"
+    :param dst: string "/this/is/a/destination/path.mkv"
+    :param doc: a document from the "waiting_conversions" collection
+
+    :return:
+    """
     vuid = doc["metadata"][1]["dc:identifier"]
 
     db_client = MongoClient("mongodb://localhost:27017/")
@@ -113,7 +118,7 @@ class Backend(object):
                     "decklink_id": None
                     }
 
-        # this function check that the mandatory modules are importable and the directories writable
+        # this function check that the the directories are writable
         startup_check()
 
         self.raw_videos_path = "/media/storage/raw/"
@@ -135,26 +140,43 @@ class Backend(object):
         """
         the function remove unfinished decklink acquisitions at startup. This avoid launching an unwanted conversion
         when recovering from an power outage. This function also remove more than one week old logs.
+
+        :return:
         """
         for doc in self.waiting_conversions_collection.find({}):
             if doc["metadata"][0]["source"] == "decklink_1" or "decklink_2":
                 try:
+                    # todo warn user that something went wrong
                     raw_file_path = self.raw_videos_path + doc["metadata"][1]["dc:title"][0] + " -- " +\
                                 str(doc["metadata"][1]["dc:identifier"]) + ".nut"
                     os.remove(raw_file_path)
                 except (KeyError, FileNotFoundError):
                     pass
                 self.waiting_conversions_collection.remove({"metadata.1.dc:identifier": doc["_id"]}, fsync=True)
+        # todo delete from waiting_conversions videos that returned with a non zéro code ?
+        # todo at least display an error message in the gui
         self.ongoing_conversions_collection.drop()
 
         one_week_ago = datetime.now() - timedelta(days=7)
         self.complete_conversion_logs_collection.remove({"return_code": 0, "end_date": {"$lt": one_week_ago}})
 
     def exit_cleanup(self):
+        """
+        This function is called when the Backend class is about to be destroyed
+
+        :return:
+        """
         self.db_client.close()
         print("Backend's db connection closed")
 
     def start_dvd_conversion(self, doc):
+        """
+        Gather necessary metadata and launch FFmpeg
+
+        :param doc: a document from the "waiting_conversions" collection
+
+        :return:
+        """
         filename = doc["metadata"][0]["filename"]
         duration = get_mkv_file_duration(filename)
         self.waiting_conversions_collection.find_and_modify(query={"_id": doc["_id"]},
@@ -176,6 +198,15 @@ class Backend(object):
         p.start()
 
     def start_decklink_to_raw(self, doc, decklink_card, decklink_id):
+        """
+        Gather necessary metadata and launch FFmpeg
+
+        :param doc: a document from the "waiting_conversions" collection
+        :param decklink_card: "Intensity Pro (1)@16" or "Intensity Pro (2)@16"
+        :param decklink_id: 1 or 2
+
+        :return:
+        """
         duration = doc["metadata"][1]["dc:format"]["duration"]
 
         temp_decklink_to_raw = self.decklink_to_raw.copy()
@@ -196,6 +227,13 @@ class Backend(object):
         p.start()
 
     def start_raw_to_h264(self, doc):
+        """
+        Gather necessary metadata and launch FFmpeg
+
+        :param doc: a document from the "waiting_conversions" collection
+
+        :return:
+        """
         duration = doc["metadata"][1]["dc:format"]["duration"]
         filename = doc["metadata"][0]["filename"]
         size_ratio = doc["metadata"][1]["dc:format"]["size_ratio"]
@@ -217,6 +255,13 @@ class Backend(object):
         p.start()
 
     def start_file_import(self, doc):
+        """
+        Gather necessary metadata and launch FFmpeg
+
+        :param doc: a document from the "waiting_conversions" collection
+
+        :return:
+        """
         print("start file import")
         filename = doc["metadata"][0]["filename"]
         dest_path = self.imported_files_path + doc["metadata"][1]["dc:title"][0] + " -- " + \
@@ -226,7 +271,7 @@ class Backend(object):
         p.start()
 
     def start_watch(self):
-        print("Night gathers, and now my watch begins. It shall not end until my death...")
+        print("Night gathers, and now my watch begins. It shall not end until my death... -- GOT --")
         currently_processing = [[], [], []]  # [decklink], [other_conversions], [file_import]
         while True:
             print(currently_processing)
@@ -278,7 +323,8 @@ class Backend(object):
                     dublin_dict["files_path"] = {"h264": converted_file_path}
                     dublin_dict["source"] = "DVD"
 
-                    self.videos_metadata_collection.update(spec={"dc:identifier": vuid}, document={"$set": dublin_dict}, upsert=False, fsync=True)
+                    self.videos_metadata_collection.update(spec={"dc:identifier": vuid}, document={"$set": dublin_dict},
+                                                           upsert=False, fsync=True)
                     self.waiting_conversions_collection.remove(spec_or_id={"metadata.1.dc:identifier": vuid}, fsync=True)
                     self.ongoing_conversions_collection.remove(spec_or_id={"vuid": vuid}, fsync=True)
                     currently_processing[1].remove(vuid)
@@ -289,7 +335,8 @@ class Backend(object):
                     dublin_dict = video_metadata[0]["metadata"][1]
                     dublin_dict["files_path"] = {"h264": converted_file_path}
                     dublin_dict["source"] = "Decklink"
-                    self.videos_metadata_collection.update(spec={"dc:identifier": vuid}, document={"$set": dublin_dict}, upsert=False, fsync=True)
+                    self.videos_metadata_collection.update(spec={"dc:identifier": vuid}, document={"$set": dublin_dict},
+                                                           upsert=False, fsync=True)
                     self.waiting_conversions_collection.remove(spec_or_id={"metadata.1.dc:identifier": vuid}, fsync=True)
                     self.ongoing_conversions_collection.remove(spec_or_id={"vuid": vuid}, fsync=True)
                     currently_processing[1].remove(vuid)
@@ -305,7 +352,8 @@ class Backend(object):
                     dublin_dict["dc:format"]["format"] = "unknown"
                     dublin_dict["dc:format"]["size_ratio"] = "unknown"
                     print("database part")
-                    self.videos_metadata_collection.update(spec={"dc:identifier": vuid}, document={"$set": dublin_dict}, upsert=False, fsync=True)
+                    self.videos_metadata_collection.update(spec={"dc:identifier": vuid}, document={"$set": dublin_dict},
+                                                           upsert=False, fsync=True)
                     self.waiting_conversions_collection.remove(spec_or_id={"metadata.1.dc:identifier": vuid}, fsync=True)
                     self.ongoing_conversions_collection.remove(spec_or_id={"vuid": vuid}, fsync=True)
                     print("removing vuid")
@@ -327,9 +375,3 @@ if __name__ == '__main__':
         backend.start_watch()
     except KeyboardInterrupt:
         pass
-
-
-
-
-
-print("knooooooooooookonk")

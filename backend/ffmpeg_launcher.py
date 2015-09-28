@@ -8,7 +8,7 @@ from pprint import pprint
 def run_ffmpeg(shell_command, log_settings):
     """
 
-    :param shell_command: list, order matter
+    :param shell_command: list because order matter
         example: ['nice', '-n', '19', "echo", "I like kiwis"]
     :param log_settings: dictionary
         example: {
