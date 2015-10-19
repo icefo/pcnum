@@ -47,7 +47,7 @@ class MainWindow(ApplicationSession, QMainWindow):
 
         @coroutine
         def call_it_baby():
-            print("he pushed !")
+            print("he pushed it !")
             res = yield from self.call('com.myapp.add2', 6, 4)
             print(res)
 
