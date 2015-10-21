@@ -5,13 +5,11 @@ import sys
 from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton, QWidget, QLineEdit, QGridLayout
 
-import setproctitle
+import asyncio
 from autobahn.asyncio.wamp import ApplicationRunner
 from autobahn.asyncio.wamp import ApplicationSession
-from asyncio import coroutine
-from quamash import QEventLoop, QThreadExecutor
-import asyncio
-from functools import partial
+
+from quamash import QEventLoop
 
 
 class MainWindow(ApplicationSession, QMainWindow):
@@ -21,49 +19,49 @@ class MainWindow(ApplicationSession, QMainWindow):
         QMainWindow.__init__(self)
 
         self.the_widget = MainWidget()
-
-        #########
+        self.statusBar()
         self.main_window_init()
 
-    @coroutine
+    def time_event_handler(self, time):
+        self.statusBar().showMessage("Time: " + time, msecs=2000)
+
+    @asyncio.coroutine
     def onJoin(self, details):
         print("session ready")
-        try:
-            res = yield from self.call('com.myapp.add2', 6, 3)
-            print("call result: {}".format(res))
-        except Exception as e:
-            print("call error: {0}".format(e))
+        yield from self.subscribe(self.time_event_handler, 'com.myapp.the_time')
+
+    def the_widget_add_numbers(self, list_of_number=None):
+        @asyncio.coroutine
+        def call_it_baby():
+            print("call it baby !")
+            result = yield from self.call('com.myapp.add2', list_of_number[0], list_of_number[1])
+            print("I called baby ! ", result)
+            self.the_widget.addition_result_signal.emit(str(result))
+
+        asyncio.async(call_it_baby())
 
     def main_window_init(self):
-
-        self.the_widget.push_button_clicked.connect(self.main_widget_button_clicked)
+        self.the_widget.add_the_numbers_signal.connect(self.the_widget_add_numbers)
         self.setCentralWidget(self.the_widget)
 
-        #########
         self.setGeometry(300, 300, 300, 200)
         self.setWindowTitle('gui_wamp_test')
         self.show()
 
-    def main_widget_button_clicked(self):
-
-        @coroutine
-        def call_it_baby():
-            print("call it baby !")
-            res = yield from self.call('com.myapp.add2', 6, 4)
-            print("I called baby ! ", res)
-
-            self.the_widget.push_button_answer.emit(str(res))
-
-        asyncio.async(call_it_baby())
-
 
 class MainWidget(QWidget):
 
-    push_button_clicked = pyqtSignal()
-    push_button_answer = pyqtSignal([str])
+    add_the_numbers_signal = pyqtSignal([list])
+    addition_result_signal = pyqtSignal([str])
 
     def __init__(self):
         QWidget.__init__(self)
+
+        self.number_1 = QLineEdit()
+        self.number_2 = QLineEdit()
+
+        self.addition_button = QPushButton("push to add !")
+        self.addition_result = QLineEdit()
 
         self.widget_init()
 
@@ -71,20 +69,39 @@ class MainWidget(QWidget):
         grid = QGridLayout()
         self.setLayout(grid)
 
-        push_button = QPushButton("push push push !")
-        push_button.clicked.connect(self.push_button_clicked)
+        self.number_1.setInputMask("0000")
+        self.number_2.setInputMask("0000")
 
-        line_edit = QLineEdit()
-        self.push_button_answer.connect(line_edit.setText)
+        self.addition_button.clicked.connect(self.collect_numbers)
+        self.addition_result_signal.connect(self.addition_result.setText)
 
-        grid.addWidget(push_button, 0, 0)
-        grid.addWidget(line_edit, 1, 0)
+        grid.addWidget(self.number_1, 0, 0)
+        grid.addWidget(self.number_2, 0, 3)
+        grid.addWidget(self.addition_button, 1, 2)
+        grid.addWidget(self.addition_result, 2, 2)
+
+    def collect_numbers(self):
+        number_1 = self.number_1.displayText()
+        try:
+            number_1 = int(number_1)
+        except ValueError:
+            number_1 = 0
+
+        number_2 = self.number_2.displayText()
+        try:
+            number_2 = int(number_2)
+        except ValueError:
+            number_2 = 0
+
+        print(number_1, number_2)
+        self.add_the_numbers_signal.emit([number_1, number_2])
+
 
 if __name__ == "__main__":
-    qapp = QApplication(sys.argv)
+    QT_app = QApplication(sys.argv)
 
-    loop = QEventLoop(qapp)
+    loop = QEventLoop(QT_app)
     asyncio.set_event_loop(loop)
 
-    runner = ApplicationRunner(url = "ws://127.0.0.1:8080/ws", realm = "realm1")
+    runner = ApplicationRunner(url="ws://127.0.0.1:8080/ws", realm="realm1")
     runner.run(MainWindow)
