@@ -1,0 +1,6 @@
+http://stackoverflow.com/questions/25299887/how-can-i-package-a-coroutine-as-normal-function-in-event-loop
+http://stackoverflow.com/questions/18499497/how-to-process-sigterm-signal-gracefully/31464349#31464349
+http://stackoverflow.com/questions/27796294/when-using-asyncio-how-do-you-allow-all-running-tasks-to-finish-before-shutting
+
+http://stackoverflow.com/questions/30765606/whats-the-correct-way-to-clean-up-after-an-interrupted-event-loop
+http://stackoverflow.com/questions/30765606/whats-the-correct-way-to-clean-up-after-an-interrupted-event-loop#comment49757547_30766124

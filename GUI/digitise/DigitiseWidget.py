@@ -14,6 +14,7 @@ from GUI.digitise.DigitiseWidgetWorker import DigitiseWidgetWorker
 from pprint import pprint
 from pymongo import MongoClient
 import atexit
+from backend.constants import FILES_PATHS
 
 
 class DigitiseWidget(QWidget):
@@ -50,9 +51,9 @@ class DigitiseWidget(QWidget):
         self.waiting_conversions_collection = ffmpeg_db["waiting_conversions"]
 
         #########
-        self.raw_videos_path = "/media/storage/raw/"
-        self.compressed_videos_path = "/media/storage/compressed/"
-        self.imported_files_path = "/media/storage/imported/"
+        self.raw_videos_path = FILES_PATHS["raw"]
+        self.compressed_videos_path = FILES_PATHS["compressed"]
+        self.imported_files_path = FILES_PATHS["imported"]
 
         #########
         self.backend_status_check()
@@ -332,12 +333,12 @@ class DigitiseWidget(QWidget):
         filename = None
         if self.dvd_import_radio.isChecked():
             file_dialog = QFileDialog(self)
-            filename = file_dialog.getOpenFileName(directory="/media/storage", filter="MKV files (*.mkv)")
+            filename = file_dialog.getOpenFileName(directory=FILES_PATHS["home_dir"], filter="MKV files (*.mkv)")
             filename = filename[0]
             print(filename)
         elif self.file_import_radio.isChecked():
             file_dialog = QFileDialog(self)
-            filename = file_dialog.getOpenFileName(directory="/media/storage")
+            filename = file_dialog.getOpenFileName(directory=FILES_PATHS["home_dir"])
             filename = filename[0]
             print(filename)
 

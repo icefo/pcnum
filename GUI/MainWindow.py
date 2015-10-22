@@ -10,6 +10,12 @@ from GUI.status.StatusWidget import StatusWidget
 import setproctitle
 from backend.startup_check import startup_check
 
+import asyncio
+from autobahn.asyncio.wamp import ApplicationRunner
+from autobahn.asyncio.wamp import ApplicationSession
+
+from quamash import QEventLoop
+
 # very testable class (hint: you can use mock.Mock for the signals)
 # post corrected solution :
 # http://stackoverflow.com/questions/24820063/python-pyqt-how-to-call-a-gui-function-from-a-worker-thread
@@ -76,6 +82,10 @@ if __name__ == '__main__':
     startup_check()
 
     setproctitle.setproctitle("digitise_gui")
-    app = QApplication(sys.argv)
-    ex = MainWindow()
-    sys.exit(app.exec_())
+    QT_app = QApplication(sys.argv)
+
+    loop = QEventLoop(QT_app)
+    asyncio.set_event_loop(loop)
+
+    runner = ApplicationRunner(url="ws://127.0.0.1:8080/ws", realm="realm1")
+    runner.run(MainWindow)

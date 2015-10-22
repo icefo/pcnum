@@ -48,6 +48,8 @@ class MyComponent(ApplicationSession):
 
         loopy = asyncio.get_event_loop()
         for task in asyncio.Task.all_tasks():
+            # this is to avoid the cancellation of this coroutine because this coroutine need to be the last one running
+            # to cancel all the others.
             if task is not asyncio.Task.current_task():
                 task.cancel()
 

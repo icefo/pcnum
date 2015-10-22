@@ -10,6 +10,7 @@ import atexit
 from datetime import datetime, timedelta
 import os
 import setproctitle
+from backend.constants import FILES_PATHS
 
 
 def get_mkv_file_duration(file):
@@ -121,9 +122,9 @@ class Backend(object):
         # this function check that the the directories are writable
         startup_check()
 
-        self.raw_videos_path = "/media/storage/raw/"
-        self.compressed_videos_path = "/media/storage/compressed/"
-        self.imported_files_path = "/media/storage/imported/"
+        self.raw_videos_path = FILES_PATHS["raw"]
+        self.compressed_videos_path = FILES_PATHS["compressed"]
+        self.imported_files_path = FILES_PATHS["imported"]
 
         self.db_client = MongoClient("mongodb://localhost:27017/")
         ffmpeg_db = self.db_client["ffmpeg_conversions"]
