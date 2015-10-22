@@ -2,6 +2,7 @@ from autobahn.asyncio.wamp import ApplicationSession, ApplicationRunner
 import asyncio
 from datetime import datetime
 import signal
+from autobahn import wamp
 
 CLOSING_TIME = False
 
@@ -11,6 +12,7 @@ class MyComponent(ApplicationSession):
     def __init__(self, config=None):
         ApplicationSession.__init__(self, config)
 
+    @wamp.register("com.myapp.add2")
     def add2(self, x, y):
         result = x + y
         print(str(x) + " + " + str(y) + " = " + str(result))
@@ -22,8 +24,8 @@ class MyComponent(ApplicationSession):
         print("session ready")
 
         try:
-            yield from self.register(self.add2, u'com.myapp.add2')
-            print("procedure registered")
+            res = yield from self.register(self)
+            print("{0} procedures registered".format(len(res)))
         except Exception as e:
             print("could not register procedure: {0}".format(e))
 

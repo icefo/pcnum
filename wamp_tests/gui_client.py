@@ -4,12 +4,20 @@ import sys
 
 from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton, QWidget, QLineEdit, QGridLayout
-
+import functools
 import asyncio
 from autobahn.asyncio.wamp import ApplicationRunner
 from autobahn.asyncio.wamp import ApplicationSession
 
 from quamash import QEventLoop
+
+
+def async_call(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kw):
+        res = func(*args, **kw)
+        asyncio.async(res)
+    return wrapper
 
 
 class MainWindow(ApplicationSession, QMainWindow):
@@ -30,15 +38,13 @@ class MainWindow(ApplicationSession, QMainWindow):
         print("session ready")
         yield from self.subscribe(self.time_event_handler, 'com.myapp.the_time')
 
+    @async_call
+    @asyncio.coroutine
     def the_widget_add_numbers(self, list_of_number=None):
-        @asyncio.coroutine
-        def call_it_baby():
-            print("call it baby !")
-            result = yield from self.call('com.myapp.add2', list_of_number[0], list_of_number[1])
-            print("I called baby ! ", result)
-            self.the_widget.addition_result_signal.emit(str(result))
-
-        asyncio.async(call_it_baby())
+        print("call it baby !")
+        result = yield from self.call('com.myapp.add2', list_of_number[0], list_of_number[1])
+        print("I called baby ! ", result)
+        self.the_widget.addition_result_signal.emit(str(result))
 
     def main_window_init(self):
         self.the_widget.add_the_numbers_signal.connect(self.the_widget_add_numbers)

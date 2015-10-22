@@ -10,6 +10,8 @@ from GUI.status.StatusWidget import StatusWidget
 import setproctitle
 from backend.startup_check import startup_check
 
+import functools
+
 import asyncio
 from autobahn.asyncio.wamp import ApplicationRunner
 from autobahn.asyncio.wamp import ApplicationSession
@@ -22,63 +24,64 @@ from quamash import QEventLoop
 # http://stackoverflow.com/questions/6783194/background-thread-with-qthread-in-pyqt
 # and thanks :-)
 
+def async_call(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kw):
+        res = func(*args, **kw)
+        asyncio.async(res)
+    return wrapper
 
-class MainWindow(QMainWindow):
-    
-    def __init__(self):
-        super().__init__()
+class MainWindow(ApplicationSession, QMainWindow):
 
-        #########
-        self.bar_statusbar = self.statusBar()
+    def __init__(self, config=None):
+        ApplicationSession.__init__(self, config)
+        QMainWindow.__init__(self)
 
-        #########
+        self.statusBar()
+
         self.main_window_init()
+
+    def tabs_init(self):
+        tabs = QTabWidget()
+        digitise_tab = DigitiseWidget()
+        digitise_tab.set_statusbar_text_signal.connect(self.set_status_bar_message)
+        digitise_tab.launch_digitise_signal.connect(self.launch_capture)
+        tabs.addTab(digitise_tab, "Numérisation")
+
+        search_tab = MainSearchWidget()
+        tabs.addTab(search_tab, "Recherche")
+
+        status_tab = StatusWidget()
+        tabs.addTab(status_tab, "Statuts des conversions")
+        return tabs
+
+    def set_status_bar_message(self, arg):
+        self.statusBar().showMessage(arg, msecs=10000)
+
+    @async_call
+    @asyncio.coroutine
+    def launch_capture(self, metadata):
+        result = yield from self.call('com.digitize_app.launch_capture', metadata)
+        # print("I called baby ! ", result)
+        # self.the_widget.addition_result_signal.emit(str(result))
 
     def main_window_init(self):
         """
         This function init the main window
-        It sets the status bar, menu bar and set the Tabs class as the central widget
+        It sets the status bar, menu bar and set the tabs class as central widget
 
         :return: nothing
         """
-        tabs = Tabs(self)
-        tabs.set_statusbar_text_2.connect(self.set_status_bar_message)
+        tabs = self.tabs_init()
         self.setCentralWidget(tabs)
 
-        #########
         self.setGeometry(300, 300, 800, 600)
         self.setWindowTitle('Logiciel Numérisation')
         self.show()
 
-    def set_status_bar_message(self, arg):
-        print("heyy message")
-        self.bar_statusbar.showMessage(arg, msecs=10000)
-
-
-class Tabs(QTabWidget):
-
-    set_statusbar_text_2 = pyqtSignal([str])
-
-    def __init__(self, parent):
-        super().__init__(parent)
-        self.tabs_init()
-
-    def tabs_init(self):
-        digitise_tab = DigitiseWidget()
-        digitise_tab.set_statusbar_text_1.connect(self.set_statusbar_text_2)
-        self.addTab(digitise_tab, "Numérisation")
-
-        #########
-        search_tab = MainSearchWidget()
-        self.addTab(search_tab, "Recherche")
-
-        #########
-        status_tab = StatusWidget()
-        self.addTab(status_tab, "Statuts des conversions")
-
 
 if __name__ == '__main__':
-    # this function check that the mandatory modules are importable and the directories writable
+    # this function check that the directories are writable
     startup_check()
 
     setproctitle.setproctitle("digitise_gui")
