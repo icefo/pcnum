@@ -14,11 +14,13 @@ from GUI.digitise.DigitiseWidgetWorker import DigitiseWidgetWorker
 from pprint import pprint
 from pymongo import MongoClient
 import atexit
+from backend.constants import FILES_PATHS
 
 
 class DigitiseWidget(QWidget):
 
-    set_statusbar_text_1 = pyqtSignal([str])
+    set_statusbar_text_signal = pyqtSignal([str])
+    launch_digitise_signal = pyqtSignal([list])
 
     def __init__(self):
         # Initialize the parent class QWidget
@@ -50,9 +52,9 @@ class DigitiseWidget(QWidget):
         self.waiting_conversions_collection = ffmpeg_db["waiting_conversions"]
 
         #########
-        self.raw_videos_path = "/media/storage/raw/"
-        self.compressed_videos_path = "/media/storage/compressed/"
-        self.imported_files_path = "/media/storage/imported/"
+        self.raw_videos_path = FILES_PATHS["raw"]
+        self.compressed_videos_path = FILES_PATHS["compressed"]
+        self.imported_files_path = FILES_PATHS["imported"]
 
         #########
         self.backend_status_check()
@@ -191,42 +193,26 @@ class DigitiseWidget(QWidget):
         self.digitise_table.setCellWidget(row_count, 2, QPushButton("Delete"))
         self.digitise_table.cellWidget(row_count, 2).clicked.connect(self.delete_table_row)
 
-    def launch_digitise(self, metadata):
+    def get_and_lock_new_vuid(self):
+        # TODO this function should be launched when the metadata is copied to the video metadata database
+        # set this so the first vuid will be 1
+        list_of_vuids = [0]
+        for post in self.videos_metadata.find({}, {"dc:identifier": True, "_id": False}):
+            list_of_vuids.append(post["dc:identifier"])
+        new_vuid = max(list_of_vuids) + 1
+        # Use this vuid so that an other acquisition don't use it and mess up the database
+        self.videos_metadata.insert({"dc:identifier": new_vuid}, fsync=True)
+        return new_vuid
+
+    def digitise_checker(self, capture_action, data):
         """
-        This function put the metadata dictionary in the "waiting_conversions" collection so that the backend start
-        the conversion process.
-        :param metadata: dictionary containing the metadata gathered by the digitise function
-
-        :return:
-        """
-        def get_and_lock_new_vuid():
-            # set this so the first vuid will be 1
-            list_of_vuids = [0]
-            for post in self.videos_metadata.find({}, {"dc:identifier": True, "_id": False}):
-                list_of_vuids.append(post["dc:identifier"])
-            new_vuid = max(list_of_vuids) + 1
-            # Use this vuid so that an other acquisition don't use it and mess up the database
-            self.videos_metadata.insert({"dc:identifier": new_vuid}, fsync=True)
-            return new_vuid
-
-        print("launch digitize()")
-        vuid = get_and_lock_new_vuid()
-        metadata[1]["dc:identifier"] = vuid
-
-        metadata = {"vuid": vuid, "metadata": metadata}
-        pprint(metadata)
-        print(self.waiting_conversions_collection.insert(metadata, fsync=True))
-        self.launch_digitise_button.setEnabled(True)
-
-    def digitise_checker(self, action, data):
-        """
-        :param action: tell which action the digitise_checker function should launch
+        :param capture_action: tell which capture_action the digitise_checker function should launch
         :param data: [digitise_infos, dublincore_dict]
 
         :return:
         """
         # this check if at least a duration, title, and creation date is set before sending the data to the back end
-        if action == "decklink" and "duration" in data[1].get('dc:format', {}) and "dc:title" in data[1] \
+        if capture_action == "decklink" and "duration" in data[1].get('dc:format', {}) and "dc:title" in data[1] \
                 and "dcterms:created" in data[1] and self.check_remaining_space(duration=data[1]["dc:format"]["duration"]):
 
             self.launch_digitise_button.setEnabled(False)
@@ -238,9 +224,10 @@ class DigitiseWidget(QWidget):
             else:
                 raise ValueError
 
-            self.launch_digitise(metadata=data)
+            self.launch_digitise_signal.emit(data)
+            self.launch_digitise_button.setEnabled(True)
             # set status bar temp text
-            self.set_statusbar_text_1.emit("Numérisation Decklink lancée")
+            self.set_statusbar_text_signal.emit("Numérisation Decklink lancée")
 
             if data[0]["source"] == "decklink_1":
                 self.decklink_radio_1.setEnabled(True)
@@ -249,23 +236,25 @@ class DigitiseWidget(QWidget):
             else:
                 raise ValueError
 
-        elif action == "file" and "filename" in data[0] and "dc:title" in data[1] and "dcterms:created" in data[1] \
-                and self.check_remaining_space(import_filename=data[0]["filename"]):
+        elif capture_action == "file" and "file_path" in data[0] and "dc:title" in data[1] and "dcterms:created" in data[1] \
+                and self.check_remaining_space(import_file_path=data[0]["file_path"]):
 
             self.launch_digitise_button.setEnabled(False)
 
-            self.launch_digitise(metadata=data)
+            self.launch_digitise_signal.emit(data)
+            self.launch_digitise_button.setEnabled(True)
 
-            self.set_statusbar_text_1.emit("Enregistrement du fichier lancé !")
+            self.set_statusbar_text_signal.emit("Enregistrement du fichier lancé !")
 
-        elif action == "DVD" and "filename" in data[0] and "dc:title" in data[1] and "dcterms:created" in data[1] \
-                and self.check_remaining_space(DVD_filename=data[0]["filename"]):
+        elif capture_action == "DVD" and "file_path" in data[0] and "dc:title" in data[1] and "dcterms:created" in data[1] \
+                and self.check_remaining_space(DVD_file_path=data[0]["file_path"]):
 
             self.launch_digitise_button.setEnabled(False)
 
-            self.launch_digitise(metadata=data)
+            self.launch_digitise_signal.emit(data)
+            self.launch_digitise_button.setEnabled(True)
 
-            self.set_statusbar_text_1.emit("Enregistrement du DVD lancé !")
+            self.set_statusbar_text_signal.emit("Enregistrement du DVD lancé !")
         else:
             warning_box = QMessageBox()
             warning_message = "Les informations suivantes sont necessaires:\n" + \
@@ -279,13 +268,13 @@ class DigitiseWidget(QWidget):
 
             warning_box.warning(warning_box, "Attention", warning_message)
 
-    def check_remaining_space(self, DVD_filename=None, import_filename=None, duration=None):
+    def check_remaining_space(self, DVD_file_path=None, import_file_path=None, duration=None):
         error_text = "L'espace disque est insuffisant pour enregistrer la vidéo, " + \
                      "veuillez contacter le responsable informatique."
 
-        if DVD_filename:
+        if DVD_file_path:
             free_space = shutil.disk_usage(self.compressed_videos_path)[2]
-            file_size = os.path.getsize(DVD_filename)
+            file_size = os.path.getsize(DVD_file_path)
             if free_space - file_size < 10000000000: # 10GB
                 error_box = QMessageBox()
                 error_box.setText(error_text)
@@ -293,9 +282,9 @@ class DigitiseWidget(QWidget):
                 error_box.exec_()
             else:
                 return True
-        elif import_filename:
+        elif import_file_path:
             free_space = shutil.disk_usage(self.imported_files_path)[2]
-            file_size = os.path.getsize(import_filename)
+            file_size = os.path.getsize(import_file_path)
             if free_space - file_size < 10000000000: # 10GB
                 error_box = QMessageBox()
                 error_box.setText(error_text)
@@ -329,17 +318,17 @@ class DigitiseWidget(QWidget):
         # prevent button hammering
         self.launch_digitise_button.setEnabled(False)
 
-        filename = None
+        file_path = None
         if self.dvd_import_radio.isChecked():
             file_dialog = QFileDialog(self)
-            filename = file_dialog.getOpenFileName(directory="/media/storage", filter="MKV files (*.mkv)")
-            filename = filename[0]
-            print(filename)
+            file_path = file_dialog.getOpenFileName(directory=FILES_PATHS["home_dir"], filter="MKV files (*.mkv)")
+            file_path = file_path[0]
+            print(file_path)
         elif self.file_import_radio.isChecked():
             file_dialog = QFileDialog(self)
-            filename = file_dialog.getOpenFileName(directory="/media/storage")
-            filename = filename[0]
-            print(filename)
+            file_path = file_dialog.getOpenFileName(directory=FILES_PATHS["home_dir"])
+            file_path = file_path[0]
+            print(file_path)
 
         dublincore_dict = {}
         dublincore_dict["dc:format"] = {"size_ratio": "4:3", "format": "PAL"}
@@ -375,27 +364,27 @@ class DigitiseWidget(QWidget):
         dublincore_dict["dcterms:modified"] = datetime.now().replace(microsecond=0).isoformat()
 
         # Handle the other infos
-        worker_action = None
+        capture_action = None
         digitise_infos = {}
         if self.decklink_radio_1.isChecked():
             digitise_infos["source"] = "decklink_1"
-            worker_action = "decklink"
+            capture_action = "decklink"
         elif self.decklink_radio_2.isChecked():
             digitise_infos["source"] = "decklink_2"
-            worker_action = "decklink"
+            capture_action = "decklink"
         elif self.file_import_radio.isChecked():
             digitise_infos["source"] = "file"
-            worker_action = "file"
+            capture_action = "file"
         elif self.dvd_import_radio.isChecked():
             digitise_infos["source"] = "DVD"
-            worker_action = "DVD"
+            capture_action = "DVD"
 
-        digitise_infos["filename"] = filename
+        digitise_infos["file_path"] = file_path
 
         to_be_send = [digitise_infos, dublincore_dict]
         print(to_be_send)
 
-        self.digitise_checker(action=worker_action, data=to_be_send)
+        self.digitise_checker(capture_action=capture_action, data=to_be_send)
 
     def tab_init(self):
         """

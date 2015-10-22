@@ -1,12 +1,15 @@
 __author__ = 'adrien'
 
+from backend.constants import FILES_PATHS
+import os
+
 
 def startup_check():
-    video_paths = ["/media/storage/raw/", "/media/storage/compressed", "/media/storage/imported/"]
-    for videos_path in video_paths:
+    for files_path in FILES_PATHS.values():
         try:
-            with open(videos_path + "testfile.txt", "w"):
-                kkll = True
+            with open(files_path + "testfile.txt", "w"):
+                pass
+            os.remove(files_path + "testfile.txt")
         except IOError as io_error:
-            print("Impossible d'écrire sur le dossier \"" + videos_path)
+            print("Impossible d'écrire sur le dossier \"" + files_path)
             raise io_error
