@@ -31,29 +31,19 @@ def async_call(func):
         asyncio.async(res)
     return wrapper
 
+
 class MainWindow(ApplicationSession, QMainWindow):
 
     def __init__(self, config=None):
         ApplicationSession.__init__(self, config)
         QMainWindow.__init__(self)
 
+        self.digitise_tab = DigitiseWidget()
+        self.search_tab = MainSearchWidget()
+        self.status_tab = StatusWidget()
+
         self.statusBar()
-
         self.main_window_init()
-
-    def tabs_init(self):
-        tabs = QTabWidget()
-        digitise_tab = DigitiseWidget()
-        digitise_tab.set_statusbar_text_signal.connect(self.set_status_bar_message)
-        digitise_tab.launch_digitise_signal.connect(self.launch_capture)
-        tabs.addTab(digitise_tab, "Numérisation")
-
-        search_tab = MainSearchWidget()
-        tabs.addTab(search_tab, "Recherche")
-
-        status_tab = StatusWidget()
-        tabs.addTab(status_tab, "Statuts des conversions")
-        return tabs
 
     def set_status_bar_message(self, arg):
         self.statusBar().showMessage(arg, msecs=10000)
@@ -61,9 +51,15 @@ class MainWindow(ApplicationSession, QMainWindow):
     @async_call
     @asyncio.coroutine
     def launch_capture(self, metadata):
-        result = yield from self.call('com.digitize_app.launch_capture', metadata)
-        # print("I called baby ! ", result)
-        # self.the_widget.addition_result_signal.emit(str(result))
+        yield from self.call('com.digitize_app.launch_capture', metadata)
+
+    def backend_is_alive_beacon(self):
+        self.digitise_tab.backend_is_alive_signal.emit(3000)
+
+    @asyncio.coroutine
+    def onJoin(self, details):
+        print("session ready")
+        yield from self.subscribe(self.backend_is_alive_beacon, 'com.digitize_app.backend_is_alive_beacon')
 
     def main_window_init(self):
         """
@@ -72,7 +68,15 @@ class MainWindow(ApplicationSession, QMainWindow):
 
         :return: nothing
         """
-        tabs = self.tabs_init()
+        tabs = QTabWidget()
+        self.digitise_tab.set_statusbar_text_signal.connect(self.set_status_bar_message)
+        self.digitise_tab.launch_digitise_signal.connect(self.launch_capture)
+        tabs.addTab(self.digitise_tab, "Numérisation")
+
+        tabs.addTab(self.search_tab, "Recherche")
+
+        tabs.addTab(self.status_tab, "Statuts des conversions")
+
         self.setCentralWidget(tabs)
 
         self.setGeometry(300, 300, 800, 600)

@@ -46,7 +46,6 @@ class DigitiseWidgetWorker(QObject):
         necessary
         :return:
         """
-        backend_launch_count = 0
         while True:
             enable_decklink_1_checkbox = True
             enable_decklink_2_checkbox = True
@@ -69,15 +68,3 @@ class DigitiseWidgetWorker(QObject):
             if enable_decklink_2_checkbox:
                 self.enable_decklink_2_radio.emit(True)
 
-            shell_command = ["ps", "-C", "digitize_backend"]
-            try:
-                subprocess.check_output(shell_command)
-                self.enable_digitize_button.emit(True)
-            except subprocess.CalledProcessError:
-                self.enable_digitize_button.emit(False)
-                # if not backend_launch_count > 0:
-                #     print("starting backend")
-                #     shell_command = ['python3', '/home/mediatheque/Documents/PycharmProjects/pcnum/backend/main.py']
-                #     subprocess.Popen(shell_command, stdout=None)
-                #     print("backend starting done")
-            sleep(2)

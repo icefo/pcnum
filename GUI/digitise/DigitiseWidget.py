@@ -1,6 +1,6 @@
 __author__ = 'adrien'
 
-from PyQt5.QtCore import pyqtSignal, Qt, QThread
+from PyQt5.QtCore import pyqtSignal, Qt, QThread, QTimer
 from PyQt5.QtWidgets import (QWidget,
                              QHeaderView, QGridLayout,
                              QRadioButton, QTextEdit, QLabel, QLineEdit, QTableWidget, QComboBox,
@@ -12,7 +12,7 @@ import os
 import shutil
 from GUI.digitise.DigitiseWidgetWorker import DigitiseWidgetWorker
 from pprint import pprint
-from pymongo import MongoClient
+from functools import partial
 import atexit
 from backend.constants import FILES_PATHS
 
@@ -21,6 +21,7 @@ class DigitiseWidget(QWidget):
 
     set_statusbar_text_signal = pyqtSignal([str])
     launch_digitise_signal = pyqtSignal([list])
+    backend_is_alive_signal = pyqtSignal([int])
 
     def __init__(self):
         # Initialize the parent class QWidget
@@ -45,19 +46,15 @@ class DigitiseWidget(QWidget):
         self.worker_object_backend_status = None
 
         #########
-        self.db_client = MongoClient("mongodb://localhost:27017/")
-        metadata_db = self.db_client["metadata"]
-        self.videos_metadata = metadata_db["videos_metadata"]
-        ffmpeg_db = self.db_client["ffmpeg_conversions"]
-        self.waiting_conversions_collection = ffmpeg_db["waiting_conversions"]
-
-        #########
         self.raw_videos_path = FILES_PATHS["raw"]
         self.compressed_videos_path = FILES_PATHS["compressed"]
         self.imported_files_path = FILES_PATHS["imported"]
 
         #########
-        self.backend_status_check()
+        self.backend_is_alive_timer = QTimer()
+
+        #########
+        # self.backend_status_check()
         self.tab_init()
 
         atexit.register(self.cleanup)
@@ -68,8 +65,7 @@ class DigitiseWidget(QWidget):
 
         :return:
         """
-        self.db_client.close()
-        print("DigitiseWidget's db connection closed")
+        pass
 
     def backend_status_check(self):
         """
@@ -193,16 +189,16 @@ class DigitiseWidget(QWidget):
         self.digitise_table.setCellWidget(row_count, 2, QPushButton("Delete"))
         self.digitise_table.cellWidget(row_count, 2).clicked.connect(self.delete_table_row)
 
-    def get_and_lock_new_vuid(self):
-        # TODO this function should be launched when the metadata is copied to the video metadata database
-        # set this so the first vuid will be 1
-        list_of_vuids = [0]
-        for post in self.videos_metadata.find({}, {"dc:identifier": True, "_id": False}):
-            list_of_vuids.append(post["dc:identifier"])
-        new_vuid = max(list_of_vuids) + 1
-        # Use this vuid so that an other acquisition don't use it and mess up the database
-        self.videos_metadata.insert({"dc:identifier": new_vuid}, fsync=True)
-        return new_vuid
+    # def get_and_lock_new_vuid(self):
+    #     # TODO this function should be launched when the metadata is copied to the video metadata database
+    #     # set this so the first vuid will be 1
+    #     list_of_vuids = [0]
+    #     for post in self.videos_metadata.find({}, {"dc:identifier": True, "_id": False}):
+    #         list_of_vuids.append(post["dc:identifier"])
+    #     new_vuid = max(list_of_vuids) + 1
+    #     # Use this vuid so that an other acquisition don't use it and mess up the database
+    #     self.videos_metadata.insert({"dc:identifier": new_vuid}, fsync=True)
+    #     return new_vuid
 
     def digitise_checker(self, capture_action, data):
         """
@@ -217,24 +213,10 @@ class DigitiseWidget(QWidget):
 
             self.launch_digitise_button.setEnabled(False)
 
-            if data[0]["source"] == "decklink_1":
-                self.decklink_radio_1.setEnabled(False)
-            elif data[0]["source"] == "decklink_2":
-                self.decklink_radio_2.setEnabled(False)
-            else:
-                raise ValueError
-
             self.launch_digitise_signal.emit(data)
             self.launch_digitise_button.setEnabled(True)
             # set status bar temp text
             self.set_statusbar_text_signal.emit("Numérisation Decklink lancée")
-
-            if data[0]["source"] == "decklink_1":
-                self.decklink_radio_1.setEnabled(True)
-            elif data[0]["source"] == "decklink_2":
-                self.decklink_radio_2.setEnabled(True)
-            else:
-                raise ValueError
 
         elif capture_action == "file" and "file_path" in data[0] and "dc:title" in data[1] and "dcterms:created" in data[1] \
                 and self.check_remaining_space(import_file_path=data[0]["file_path"]):
@@ -415,6 +397,11 @@ class DigitiseWidget(QWidget):
         grid.addWidget(self.digitise_table, 2, 0, 7, 4)
         grid.addWidget(self.new_table_row_button, 2, 5)
         grid.addWidget(self.launch_digitise_button, 8, 5)
+
+        #########
+        self.backend_is_alive_timer.start(3000)
+        self.backend_is_alive_signal.connect(self.backend_is_alive_timer.setInterval)
+        self.backend_is_alive_timer.timeout.connect(partial(self.launch_digitise_button.setDisabled, True))
 
         #########
         self.new_table_row_button.clicked.connect(self.add_row)

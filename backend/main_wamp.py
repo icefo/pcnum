@@ -74,6 +74,13 @@ class Backend(ApplicationSession):
             print("could not register procedure: {0}".format(e))
 
         asyncio.async(self.exit_cleanup())
+        asyncio.async(self.backend_is_alive_beacon_sender())
+
+    @asyncio.coroutine
+    def backend_is_alive_beacon_sender(self):
+        while True:
+            self.publish('com.digitize_app.backend_is_alive_beacon')
+            yield from asyncio.async(asyncio.sleep(2))
 
     @wamp.register("com.digitize_app.launch_capture")
     def launch_capture(self, metadata):
