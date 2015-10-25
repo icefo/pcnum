@@ -1,6 +1,6 @@
 __author__ = 'adrien'
 from multiprocessing import Process
-from backend.ffmpeg_launcher import run_ffmpeg
+from backend.FFmpegSupervisor import run_ffmpeg
 from backend.startup_check import startup_check
 from pymongo import MongoClient
 from time import sleep

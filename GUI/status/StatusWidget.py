@@ -7,6 +7,8 @@ from PyQt5.QtGui import QFont
 from GUI.status.StatusWidgetWorker import StatusWidgetWorker
 from pprint import pprint
 
+# todo check the ffmpeg_complete_logs collection at startup and warn the user that something went wrong if the return code != 0
+
 
 class StatusWidget(QWidget):
     def __init__(self):

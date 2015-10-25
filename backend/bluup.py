@@ -1,10 +1,11 @@
-from pymongo import MongoClient
+#from pymongo import MongoClient
 from pprint import pprint
 from time import sleep
 import os
+import subprocess
+import signal
 
 # db_client = MongoClient("mongodb://localhost:27017/")
-# print(db_client.drop_database("log-database"))
 # ffmpeg_db = db_client["ffmpeg_conversions"]
 # metadata_db = db_client["metadata"]
 #
@@ -14,32 +15,43 @@ import os
 # complete_logs = ffmpeg_db["complete_conversion_logs"]
 
 
-# while True:
-#     for doc in complete_logs.find({}):
-#         print("\ncomplete logs")
-#         #pprint(doc)
-#
-#     for doc in waiting_conversions_collection.find({}):
-#         print("\nwaiting conversions")
-#         pprint(doc)
-#
-#     for doc in videos_metadata_collection.find({}):
-#         print("\nvideos_metadata")
-#         pprint(doc)
-#
-#     for doc in ongoing_conversions_collection.find({}):
-#         print("\nongoing_conversions")
-#         pprint(doc)
-#     sleep(5)
 
-# complete_logs.drop()
+# for doc in complete_logs.find({}):
+#     print("\ncomplete logs")
+#     pprint(doc)
+
+
+#complete_logs.drop()
 # waiting_conversions_collection.drop()
 # ongoing_conversions_collection.drop()
 # videos_metadata_collection.drop()
 
 # os.remove("/media/storage/raw/j'ai plus d'idées -- 7.nut")
 
-from backend.constants import FILES_PATHS
+CLOSING_TIME = False
 
-for x in FILES_PATHS.values():
-    print(x)
+
+class GracefulKiller:
+
+    def __init__(self):
+        signal.signal(signal.SIGINT, self.exit_gracefully)
+        signal.signal(signal.SIGTERM, self.exit_gracefully)
+
+    @staticmethod
+    def exit_gracefully(signum, frame):
+        print("CLOSING TIME for FFmpeg supervisor")
+        global CLOSING_TIME
+        CLOSING_TIME = True
+
+GracefulKiller()
+
+ffmpeg_command = ['nice', '-n', '19', 'ffmpeg', '-y', '-nostdin', '-i', '/home/adrien/Vidéos/piere.webm', '-map', '0', '-c:s', 'copy', '-c:v', 'libx264', '-crf', '22', '-preset', 'slow', '-c:a', 'libfdk_aac', '-vbr', '4', '/home/adrien/Documents/tm/compressed/cvbvc -- 2158 -- 3d6a628d-d41d-4d58-afca-b58f2686557a.mkv']
+
+ffmpeg_process = subprocess.Popen(ffmpeg_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                               universal_newlines=True)
+while True:
+    if ffmpeg_process.poll() is not None:  # returns None while subprocess is running
+        print(ffmpeg_process.returncode)
+        break
+    line = ffmpeg_process.stdout.readline()
+    print(line)

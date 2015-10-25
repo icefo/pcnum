@@ -303,7 +303,7 @@ class DigitiseWidget(QWidget):
         file_path = None
         if self.dvd_import_radio.isChecked():
             file_dialog = QFileDialog(self)
-            file_path = file_dialog.getOpenFileName(directory=FILES_PATHS["home_dir"], filter="MKV files (*.mkv)")
+            file_path = file_dialog.getOpenFileName(directory=FILES_PATHS["home_dir"])  # ,filter="MKV files (*.mkv)"
             file_path = file_path[0]
             print(file_path)
         elif self.file_import_radio.isChecked():
@@ -325,7 +325,7 @@ class DigitiseWidget(QWidget):
             elif widget_type == "QComboBox":
                 widget_text_value = self.digitise_table.cellWidget(row, 1).currentText()
 
-            if widget_text_value is not "":
+            if widget_text_value != "":
                 if combobox_text == "durée":
                     dublincore_dict["dc:format"]["duration"] = int(widget_text_value) * 60  # convert minutes to seconds
                 elif combobox_text == "ratio":
@@ -399,7 +399,7 @@ class DigitiseWidget(QWidget):
         grid.addWidget(self.launch_digitise_button, 8, 5)
 
         #########
-        self.backend_is_alive_timer.start(3000)
+        self.backend_is_alive_timer.start(100000)
         self.backend_is_alive_signal.connect(self.backend_is_alive_timer.setInterval)
         self.backend_is_alive_timer.timeout.connect(partial(self.launch_digitise_button.setDisabled, True))
 

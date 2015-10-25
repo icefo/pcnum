@@ -211,7 +211,7 @@ class SearchWidget(QWidget):
                 data_widget_text_value = self.query_table.cellWidget(row, 2).toPlainText()
             query_type = self.query_table.cellWidget(row, 1).currentText()
 
-            if data_widget_text_value is not "":
+            if data_widget_text_value != "":
                 if dc_combobox_text == "durée":
                     dc_combobox_text = "dc:format.duration"
                 try:

@@ -24,11 +24,11 @@ from quamash import QEventLoop
 # http://stackoverflow.com/questions/6783194/background-thread-with-qthread-in-pyqt
 # and thanks :-)
 
+
 def async_call(func):
     @functools.wraps(func)
-    def wrapper(*args, **kw):
-        res = func(*args, **kw)
-        asyncio.async(res)
+    def wrapper(*args, **kwargs):
+        asyncio.async(func(*args, **kwargs))
     return wrapper
 
 
@@ -54,12 +54,16 @@ class MainWindow(ApplicationSession, QMainWindow):
         yield from self.call('com.digitize_app.launch_capture', metadata)
 
     def backend_is_alive_beacon(self):
-        self.digitise_tab.backend_is_alive_signal.emit(3000)
+        self.digitise_tab.backend_is_alive_signal.emit(1000000)
+
+    def ffmpeg_supervisor_ongoing_conversion(self, report):
+        print(report)
 
     @asyncio.coroutine
     def onJoin(self, details):
         print("session ready")
         yield from self.subscribe(self.backend_is_alive_beacon, 'com.digitize_app.backend_is_alive_beacon')
+        yield from self.subscribe(self.ffmpeg_supervisor_ongoing_conversion, 'com.digitize_app.ongoing_conversion')
 
     def main_window_init(self):
         """
