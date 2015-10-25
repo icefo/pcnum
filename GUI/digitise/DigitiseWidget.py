@@ -287,7 +287,7 @@ class DigitiseWidget(QWidget):
 
     def digitise(self):
         """
-        This function wil gather all the metadata, add the constants listed below.
+        This function wil gather all the metadata and add the constants listed below.
         dublincore_dict["dc:rights"] = "usage libre pour l'éducation"
         dublincore_dict["dc:type"] = "video"
         dublincore_dict["dcterms:modified"] = datetime.now().replace(microsecond=0).isoformat()

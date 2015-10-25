@@ -17,7 +17,7 @@ CLOSING_TIME = False
 
 class FFmpegWampSupervisor(ApplicationSession):
 
-    def __init__(self, config, ffmpeg_command, log_settings):
+    def __init__(self, config, ffmpeg_command, log_settings, video_metadata):
         ApplicationSession.__init__(self, config)
 
         self.ffmpeg_process = None
@@ -25,8 +25,11 @@ class FFmpegWampSupervisor(ApplicationSession):
         db_client = MongoClient("mongodb://localhost:27017/")
         ffmpeg_db = db_client["ffmpeg_conversions"]
         self.complete_conversion_logs_collection = ffmpeg_db["complete_conversion_logs"]
+        metadata_db = db_client["metadata"]
+        self.videos_metadata = metadata_db["videos_metadata"]
+
         asyncio.async(self.exit_cleanup())
-        asyncio.async(self.run_ffmpeg(ffmpeg_command, log_settings))
+        asyncio.async(self.run_ffmpeg(ffmpeg_command, log_settings, video_metadata))
 
     @asyncio.coroutine
     def exit_cleanup(self):
@@ -52,11 +55,11 @@ class FFmpegWampSupervisor(ApplicationSession):
         print("FFmpeg supervisor has gracefully exited")
 
     @asyncio.coroutine
-    def run_ffmpeg(self, command, log_settings):
+    def run_ffmpeg(self, command, log_settings, video_metadata):
         """
 
         :param command: list because order matter
-            example: ['nice', '-n 19', 'echo', 'I like kiwis']
+            example: ['nice', '-n',  '19', 'echo', 'I like kiwis']
         :param log_settings: dictionary
             example: {
                 "action": "raw_to_h264",
@@ -111,11 +114,15 @@ class FFmpegWampSupervisor(ApplicationSession):
                                                                          )
                 converted_file_path = command[-1]
 
-                if return_code == 0:
+                if return_code == 0 and video_metadata[0]['source'] == 'DVD':
 
                     self.complete_conversion_logs_collection.find_and_modify(query={"_id": complete_logs_document_id},
                                                                              update={"$set": {"converted_file_path": converted_file_path}},
                                                                              fsync=True)
+                    dublincore_dict = video_metadata[1]
+                    dublincore_dict['files_path'] = {'h264': converted_file_path}
+                    dublincore_dict['source'] = video_metadata[0]['source']
+                    self.videos_metadata.insert(dublincore_dict, fsync=True)
                 else:
                     os.remove(converted_file_path)
                     raise ChildProcessError("FFMPEG process returned with a non zero code \"", str(return_code),
@@ -168,10 +175,10 @@ class GracefulKiller:
         CLOSING_TIME = True
 
 
-def start_supervisor(ffmpeg_command, log_settings):
+def start_supervisor(ffmpeg_command, log_settings, video_metadata):
     print("FFmpeg wamp service")
     setproctitle("FFmpeg wamp service")
     GracefulKiller()
     runner = ApplicationRunner(url="ws://127.0.0.1:8080/ws", realm="realm1")
     # todo do a pull request for *args, **kwargs, print_exc() addition
-    runner.run(FFmpegWampSupervisor, args=(ffmpeg_command, log_settings))
+    runner.run(FFmpegWampSupervisor, args=(ffmpeg_command, log_settings, video_metadata))

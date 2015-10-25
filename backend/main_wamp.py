@@ -95,29 +95,34 @@ class Backend(ApplicationSession):
             yield from asyncio.async(asyncio.sleep(2))
 
     @wamp.register("com.digitize_app.launch_capture")
-    def launch_capture(self, metadata):
-        print(metadata)
+    def launch_capture(self, video_metadata):
+        """
+        this function dispatch the incoming captures request to the correct functions
+        :param video_metadata : [digitise_infos, dublincore_dict]
+        """
+
+        print(video_metadata)
         # todo ajouter les conversions qui doivent attendre dans une liste d'attente et publier cette liste toutes les 2 secondes
-        metadata[1]['dc:identifier'] = str(uuid4())
-        if metadata[0]["source"] == "decklink_1":
-            start_decklink_to_raw(metadata, "Intensity Pro (1)@16", 1)
+        video_metadata[1]['dc:identifier'] = str(uuid4())
+        if video_metadata[0]["source"] == "decklink_1":
+            start_decklink_to_raw(video_metadata, "Intensity Pro (1)@16", 1)
 
-        elif metadata[0]["source"] == "decklink_2":
-            start_decklink_to_raw(metadata, "Intensity Pro (2)@16", 2)
+        elif video_metadata[0]["source"] == "decklink_2":
+            start_decklink_to_raw(video_metadata, "Intensity Pro (2)@16", 2)
 
-        elif metadata[0]["source"] == "DVD":
-            process = start_dvd_conversion(metadata=metadata, ffmpeg_command=self.default_dvd_to_h264,
+        elif video_metadata[0]["source"] == "DVD":
+            process = start_dvd_conversion(video_metadata=video_metadata, ffmpeg_command=self.default_dvd_to_h264,
                                            log_settings=self.default_log_settings)
             self.ffmpeg_supervisor_processes.append(process)
 
-        elif metadata[0]["source"] == "decklink_raw":
-            start_raw_to_h264(metadata)
+        elif video_metadata[0]["source"] == "decklink_raw":
+            start_raw_to_h264(video_metadata)
 
-        elif metadata[0]["source"] == "file":
-            start_file_import(metadata)
+        elif video_metadata[0]["source"] == "file":
+            start_file_import(video_metadata)
 
         else:
-            raise ValueError("This is not a valid capture request\n" + metadata)
+            raise ValueError("This is not a valid capture request\n" + video_metadata)
 
     @asyncio.coroutine
     def exit_cleanup(self):
@@ -128,7 +133,7 @@ class Backend(ApplicationSession):
             if CLOSING_TIME and len(self.ffmpeg_supervisor_processes) != 0:
                 print("waiting for subprocess to terminate")
             elif CLOSING_TIME and len(self.ffmpeg_supervisor_processes) == 0:
-                print("CLOSING_TIME = True")
+                print("CLOSING_TIME = True for backend")
                 break
 
         loopy = asyncio.get_event_loop()
@@ -209,32 +214,32 @@ def copy_file(src, dst, doc):
     db_client.close()
 
 
-def start_dvd_conversion(metadata, ffmpeg_command, log_settings):
+def start_dvd_conversion(video_metadata, ffmpeg_command, log_settings):
     """
     Gather necessary metadata and launch FFmpeg
 
-    :param metadata: a document from the "waiting_conversions" collection
+    :param video_metadata: [digitise_infos, dublincore_dict]
 
-    :return:
+    :return: p: the launched FFmpeg supervisor process
     """
-    duration = get_mkv_file_duration(file_path=metadata[0]["file_path"])
+    duration = get_mkv_file_duration(file_path=video_metadata[0]["file_path"])
 
-    metadata[1]["dc:format"]["duration"] = duration
-    ffmpeg_command['input'] = (metadata[0]["file_path"],)
-    ffmpeg_command['output'] = (FILES_PATHS['compressed'] + metadata[1]["dc:title"][0] + " -- " + \
-        str(metadata[1]["dcterms:created"]) + " -- " + metadata[1]['dc:identifier'] + ".mkv",)
+    video_metadata[1]["dc:format"]["duration"] = duration
+    ffmpeg_command['input'] = (video_metadata[0]["file_path"],)
+    ffmpeg_command['output'] = (FILES_PATHS['compressed'] + video_metadata[1]["dc:title"][0] + " -- " + \
+        str(video_metadata[1]["dcterms:created"]) + " -- " + video_metadata[1]['dc:identifier'] + ".mkv",)
 
     log_settings["action"] = "dvd_to_h264"
-    log_settings["dc:identifier"] = metadata[1]["dc:identifier"]
-    log_settings["year"] = metadata[1]["dcterms:created"]
-    log_settings["title"] = metadata[1]["dc:title"]
+    log_settings["dc:identifier"] = video_metadata[1]["dc:identifier"]
+    log_settings["year"] = video_metadata[1]["dcterms:created"]
+    log_settings["title"] = video_metadata[1]["dc:title"]
     log_settings["duration"] = duration
 
     ffmpeg_command = [value for value in ffmpeg_command.values()]
     ffmpeg_command = list(itertools.chain(*ffmpeg_command))
     print(ffmpeg_command)
 
-    p = Process(target=start_supervisor, args=(ffmpeg_command, log_settings))
+    p = Process(target=start_supervisor, args=(ffmpeg_command, log_settings, video_metadata))
     p.start()
     return p
 

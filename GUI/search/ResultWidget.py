@@ -70,16 +70,17 @@ class ResultWidget(QWidget):
         :return:
         """
         selected_item_parent = None
-        vuid = None
+        dc_identifier = None
         try:
             selected_item = self.display_result.currentItem()
             selected_item_parent = selected_item.parent().text(0)
-            vuid = int(selected_item.text(0))
+            dc_identifier = selected_item.text(0)
+            print(dc_identifier)
             if not selected_item_parent == "dc:identifier":
                 raise ValueError
         except (AttributeError, ValueError):
             error_box = QMessageBox()
-            error_message = "Vous devez sélectionner le chiffre sous dc:identifier"
+            error_message = "Vous devez sélectionner l'identifiant sous dc:identifier"
 
             error_box.setText(error_message)
             error_box.setWindowTitle("Erreur")
@@ -93,14 +94,14 @@ class ResultWidget(QWidget):
             reply = warning_box.warning(warning_box, 'Attention', warning_message, QMessageBox.Yes | QMessageBox.No,
                                         QMessageBox.No)
 
-            if reply == QMessageBox.Yes and vuid:
-                video_metadata = self.videos_metadata_collection.find_one(spec_or_id={"dc:identifier": vuid})
+            if reply == QMessageBox.Yes and dc_identifier:
+                video_metadata = self.videos_metadata_collection.find_one({"dc:identifier": dc_identifier})
                 try:
                     file_path = video_metadata["files_path"]["h264"]
                 except KeyError:
                     file_path = video_metadata["files_path"]["unknown"]
                 os.remove(file_path)
-                self.videos_metadata_collection.remove(spec_or_id={"dc:identifier": vuid}, fsync=True)
+                self.videos_metadata_collection.remove(spec_or_id={"dc:identifier": dc_identifier}, fsync=True)
                 self.request_refresh.emit()
 
     def search_done(self, search_results):
