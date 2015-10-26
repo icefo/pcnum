@@ -1,8 +1,8 @@
 __author__ = 'adrien'
+
 from backend.shared import FILES_PATHS
 from backend.CaptureSupervisor import start_supervisor
 from backend.startup_check import startup_check
-from pymongo import MongoClient
 import setproctitle
 from time import sleep
 from autobahn import wamp

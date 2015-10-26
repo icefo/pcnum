@@ -55,10 +55,9 @@ class FFmpegWampSupervisor(ApplicationSession):
         self.ffmpeg_process = None
 
         db_client = MongoClient("mongodb://localhost:27017/")
-        ffmpeg_db = db_client["ffmpeg_conversions"]
-        self.complete_conversion_logs_collection = ffmpeg_db["complete_conversion_logs"]
-        metadata_db = db_client["metadata"]
-        self.videos_metadata = metadata_db["videos_metadata"]
+        digitize_app = db_client['digitize_app']
+        self.videos_metadata_collection = digitize_app['videos_metadata']
+        self.complete_ffmpeg_logs_collection = digitize_app['complete_ffmpeg_logs']
 
         asyncio.async(self.exit_cleanup())
         asyncio.async(self.run_ffmpeg(ffmpeg_command, log_settings, video_metadata))
@@ -109,13 +108,13 @@ class FFmpegWampSupervisor(ApplicationSession):
         self.ffmpeg_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                                universal_newlines=True)
 
-        complete_logs_document_id = self.complete_conversion_logs_collection.insert(complete_logs_document)
+        complete_logs_document_id = self.complete_ffmpeg_logs_collection.insert(complete_logs_document)
 
         while True:
             if self.ffmpeg_process.poll() is not None:  # returns None while subprocess is running
                 return_code = self.ffmpeg_process.returncode
                 converted_file_path = command[-1]
-                self.complete_conversion_logs_collection.find_and_modify(query={"_id": complete_logs_document_id},
+                self.complete_ffmpeg_logs_collection.find_and_modify(query={"_id": complete_logs_document_id},
                                                                          update={"$set": {"end_date": str(datetime.now()),
                                                                                           "return_code": return_code,
                                                                                           "converted_file_path": converted_file_path}},
@@ -126,7 +125,7 @@ class FFmpegWampSupervisor(ApplicationSession):
                     dublincore_dict = video_metadata[1]
                     dublincore_dict['files_path'] = {'h264': converted_file_path}
                     dublincore_dict['source'] = video_metadata[0]['source']
-                    self.videos_metadata.insert(dublincore_dict, fsync=True)
+                    self.videos_metadata_collection.insert(dublincore_dict, fsync=True)
                 elif return_code == 0 and log_settings['action'] == 'decklink_to_raw':
                     video_metadata[0]["file_path"] = converted_file_path
 
@@ -140,7 +139,7 @@ class FFmpegWampSupervisor(ApplicationSession):
                     dublincore_dict = video_metadata[1]
                     dublincore_dict['files_path'] = {'h264': converted_file_path}
                     dublincore_dict['source'] = video_metadata[0]['source']
-                    self.videos_metadata.insert(dublincore_dict, fsync=True)
+                    self.videos_metadata_collection.insert(dublincore_dict, fsync=True)
 
                 else:
                     os.remove(converted_file_path)
@@ -154,7 +153,7 @@ class FFmpegWampSupervisor(ApplicationSession):
             # stdout_line example: frame=  288 fps= 16 q=32.0 size=    1172kB time=00:00:09.77 bitrate= 982.4kbits/s
             stdout_complete_line = self.ffmpeg_process.stdout.readline()
 
-            self.complete_conversion_logs_collection.find_and_modify(query={"_id": complete_logs_document_id},
+            self.complete_ffmpeg_logs_collection.find_and_modify(query={"_id": complete_logs_document_id},
                                                                      update={"$push": {"log_data": stdout_complete_line}}
                                                                      )
 

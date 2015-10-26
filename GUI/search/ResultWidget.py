@@ -32,8 +32,8 @@ class ResultWidget(QWidget):
 
         #########
         self.db_client = MongoClient("mongodb://localhost:27017/")
-        metadata_db = self.db_client["metadata"]
-        self.videos_metadata_collection = metadata_db["videos_metadata"]
+        digitize_app = self.db_client['digitize_app']
+        self.videos_metadata_collection = digitize_app['videos_metadata']
 
         #########
         self.tab_init()
