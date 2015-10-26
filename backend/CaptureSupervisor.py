@@ -114,29 +114,33 @@ class FFmpegWampSupervisor(ApplicationSession):
         while True:
             if self.ffmpeg_process.poll() is not None:  # returns None while subprocess is running
                 return_code = self.ffmpeg_process.returncode
+                converted_file_path = command[-1]
                 self.complete_conversion_logs_collection.find_and_modify(query={"_id": complete_logs_document_id},
                                                                          update={"$set": {"end_date": str(datetime.now()),
-                                                                                          "return_code": return_code}},
+                                                                                          "return_code": return_code,
+                                                                                          "converted_file_path": converted_file_path}},
                                                                          fsync=True
                                                                          )
-                converted_file_path = command[-1]
 
-                if return_code == 0 and video_metadata[0]['source'] == 'DVD':
-
-                    self.complete_conversion_logs_collection.find_and_modify(query={"_id": complete_logs_document_id},
-                                                                             update={"$set": {"converted_file_path": converted_file_path}},
-                                                                             fsync=True)
+                if return_code == 0 and log_settings['action'] == 'dvd_to_h264':
                     dublincore_dict = video_metadata[1]
                     dublincore_dict['files_path'] = {'h264': converted_file_path}
                     dublincore_dict['source'] = video_metadata[0]['source']
                     self.videos_metadata.insert(dublincore_dict, fsync=True)
-                elif return_code == 0 and video_metadata[0]['source'].startswith("decklink_"):
+                elif return_code == 0 and log_settings['action'] == 'decklink_to_raw':
+                    video_metadata[0]["file_path"] = converted_file_path
+
                     @async_call
                     @asyncio.coroutine
                     def call_start_raw_to_h264():
                         yield from self.call('com.digitize_app.start_raw_to_h264', video_metadata)
                         # block until completition so that the task is not cancelled
                     asyncio.wait_for(call_start_raw_to_h264)
+                elif return_code == 0 and log_settings['action'] == 'raw_to_h264':
+                    dublincore_dict = video_metadata[1]
+                    dublincore_dict['files_path'] = {'h264': converted_file_path}
+                    dublincore_dict['source'] = video_metadata[0]['source']
+                    self.videos_metadata.insert(dublincore_dict, fsync=True)
 
                 else:
                     os.remove(converted_file_path)

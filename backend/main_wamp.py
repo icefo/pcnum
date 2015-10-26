@@ -151,7 +151,7 @@ class Backend(ApplicationSession):
             self.start_decklink_to_raw(video_metadata, "Intensity Pro (2)@16", 2)
 
         elif video_metadata[0]["source"] == "DVD":
-            self.start_dvd_conversion(video_metadata)
+            self.start_dvd_to_h264(video_metadata)
 
         elif video_metadata[0]["source"] == "file":
             self.start_file_import(video_metadata)
@@ -223,7 +223,7 @@ class Backend(ApplicationSession):
         p.start()
         self.ffmpeg_supervisor_processes.append(p)
 
-    def start_dvd_conversion(self, video_metadata):
+    def start_dvd_to_h264(self, video_metadata):
         """
         Gather necessary metadata and launch FFmpeg
 
