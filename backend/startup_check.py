@@ -1,6 +1,6 @@
 __author__ = 'adrien'
 
-from backend.constants import FILES_PATHS
+from backend.shared import FILES_PATHS
 import os
 
 

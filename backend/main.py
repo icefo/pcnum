@@ -1,6 +1,6 @@
 __author__ = 'adrien'
 from multiprocessing import Process
-from backend.FFmpegSupervisor import run_ffmpeg
+from backend.CaptureSupervisor import run_ffmpeg
 from backend.startup_check import startup_check
 from pymongo import MongoClient
 from time import sleep
@@ -10,7 +10,7 @@ import atexit
 from datetime import datetime, timedelta
 import os
 import setproctitle
-from backend.constants import FILES_PATHS
+from backend.shared import FILES_PATHS
 
 
 def get_mkv_file_duration(file):

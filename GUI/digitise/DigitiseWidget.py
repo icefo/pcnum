@@ -14,7 +14,7 @@ from GUI.digitise.DigitiseWidgetWorker import DigitiseWidgetWorker
 from pprint import pprint
 from functools import partial
 import atexit
-from backend.constants import FILES_PATHS
+from backend.shared import FILES_PATHS
 
 
 class DigitiseWidget(QWidget):
@@ -293,7 +293,7 @@ class DigitiseWidget(QWidget):
         dublincore_dict["dcterms:modified"] = datetime.now().replace(microsecond=0).isoformat()
 
         This function also set default values for this but It can be changed by the user
-        dublincore_dict["dc:format"] = {"size_ratio": "4:3", "format": "PAL"}
+        dublincore_dict["dc:format"] = {"aspect_ratio": "4:3", "format": "PAL"}
 
         :return: nothing but call the digitise_checker function with the parameter [digitise_infos, dublincore_dict]
         """
@@ -313,7 +313,7 @@ class DigitiseWidget(QWidget):
             print(file_path)
 
         dublincore_dict = {}
-        dublincore_dict["dc:format"] = {"size_ratio": "4:3", "format": "PAL"}
+        dublincore_dict["dc:format"] = {"aspect_ratio": "4:3", "format": "PAL"}
 
         for row in range(self.digitise_table.rowCount()):
             combobox_text = self.digitise_table.cellWidget(row, 0).currentText()
@@ -329,7 +329,7 @@ class DigitiseWidget(QWidget):
                 if combobox_text == "durée":
                     dublincore_dict["dc:format"]["duration"] = int(widget_text_value) * 60  # convert minutes to seconds
                 elif combobox_text == "ratio":
-                    dublincore_dict["dc:format"]["size_ratio"] = widget_text_value
+                    dublincore_dict["dc:format"]["aspect_ratio"] = widget_text_value
                 elif combobox_text == "format_video":
                     dublincore_dict["dc:format"]["format"] = widget_text_value
                 elif combobox_text == "dcterms:created":

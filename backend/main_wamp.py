@@ -1,6 +1,6 @@
 __author__ = 'adrien'
-from backend.constants import FILES_PATHS
-from backend.FFmpegSupervisor import start_supervisor
+from backend.shared import FILES_PATHS
+from backend.CaptureSupervisor import start_supervisor
 from backend.startup_check import startup_check
 from pymongo import MongoClient
 import setproctitle
@@ -24,6 +24,25 @@ import multiprocessing
 CLOSING_TIME = False
 
 
+def get_mkv_file_duration(file_path):
+    command = [  'ffprobe',
+                 '-v',
+                 'error',
+                 '-select_streams',
+                 'v:0',
+                 '-show_entries',
+                 'format=duration',
+                 '-of',
+                 'default=noprint_wrappers=1:nokey=1',
+                 file_path
+               ]
+
+    output = subprocess.check_output(command)
+    output = float(output)
+    print(output)
+    return output
+
+
 class Backend(ApplicationSession):
 
     def __init__(self, config=None):
@@ -40,23 +59,20 @@ class Backend(ApplicationSession):
         self.default_dvd_to_h264['output'] = '/this/is/a/path/video_file.mkv'
 
         self.default_decklink_to_raw = OrderedDict()
-        self.default_decklink_to_raw['nice'] = '-n 19'
-        self.default_decklink_to_raw['ffmpeg'] = '-y -nostdin -f decklink'
-        self.default_decklink_to_raw['-i'] = "'Intensity Pro (1)'@16"
-        self.default_decklink_to_raw['-t'] = '10'
-        self.default_decklink_to_raw['-acodec'] = 'copy'
-        self.default_decklink_to_raw['-vcodec'] = 'copy'
-        self.default_decklink_to_raw['-r'] = '25'
-        self.default_decklink_to_raw[' '] = '/this/is/a/path/video_file.mkv'
+        self.default_decklink_to_raw['part1'] = ['nice', '-n', '19', 'ffmpeg', '-y', '-nostdin', '-f', 'decklink']
+        self.default_decklink_to_raw['input'] = "'Intensity Pro (1)'@16"
+        self.default_decklink_to_raw['recording_duration'] = '-t 10'
+        self.default_decklink_to_raw['part2'] = ['-acodec', 'copy', '-vcodec', 'copy']
+        self.default_decklink_to_raw['frame_rate'] = '-r 25'
+        self.default_decklink_to_raw['output'] = '/this/is/a/path/video_file.mkv'
 
         self.default_raw_to_h264 = OrderedDict()
-        self.default_raw_to_h264['nice'] = '-n 19'
-        self.default_raw_to_h264['ffmpeg'] = '-y -nostdin'
-        self.default_raw_to_h264['-i'] = '/this/is/a/path/video_file.mkv'
-        self.default_raw_to_h264['-aspect'] = '4:3'
-        self.default_raw_to_h264['-c:v'] = 'libx264 -crf 25 -preset slow -filter:v hqdn3d=3:2:2:3'
-        self.default_raw_to_h264['-c:a'] = '-c:a libfdk_aac -vbr 3',
-        self.default_raw_to_h264[' '] = '/this/is/a/path/video_file.mkv'
+        self.default_raw_to_h264['part1'] = ['nice', '-n', '19', 'ffmpeg', '-y', '-nostdin', '-i']
+        self.default_raw_to_h264['input'] = '/this/is/a/path/video_file.mkv'
+        self.default_raw_to_h264['aspect_ratio'] = '-aspect 4:3'
+        self.default_raw_to_h264['part2'] = ['-c:v', 'libx264', '-crf 25', '-preset', 'slow', '-filter:v', 'hqdn3d=3:2:2:3'
+                                             '-c:a', 'libfdk_aac', '-vbr', '3']
+        self.default_raw_to_h264['output'] = '/this/is/a/path/video_file.mkv'
 
         self.default_log_settings = {
             'action': 'raw_to_h264',
@@ -89,42 +105,6 @@ class Backend(ApplicationSession):
         asyncio.async(self.backend_is_alive_beacon_sender())
 
     @asyncio.coroutine
-    def backend_is_alive_beacon_sender(self):
-        while True:
-            self.publish('com.digitize_app.backend_is_alive_beacon')
-            yield from asyncio.async(asyncio.sleep(2))
-
-    @wamp.register("com.digitize_app.launch_capture")
-    def launch_capture(self, video_metadata):
-        """
-        this function dispatch the incoming captures request to the correct functions
-        :param video_metadata : [digitise_infos, dublincore_dict]
-        """
-
-        print(video_metadata)
-        # todo ajouter les conversions qui doivent attendre dans une liste d'attente et publier cette liste toutes les 2 secondes
-        video_metadata[1]['dc:identifier'] = str(uuid4())
-        if video_metadata[0]["source"] == "decklink_1":
-            start_decklink_to_raw(video_metadata, "Intensity Pro (1)@16", 1)
-
-        elif video_metadata[0]["source"] == "decklink_2":
-            start_decklink_to_raw(video_metadata, "Intensity Pro (2)@16", 2)
-
-        elif video_metadata[0]["source"] == "DVD":
-            process = start_dvd_conversion(video_metadata=video_metadata, ffmpeg_command=self.default_dvd_to_h264,
-                                           log_settings=self.default_log_settings)
-            self.ffmpeg_supervisor_processes.append(process)
-
-        elif video_metadata[0]["source"] == "decklink_raw":
-            start_raw_to_h264(video_metadata)
-
-        elif video_metadata[0]["source"] == "file":
-            start_file_import(video_metadata)
-
-        else:
-            raise ValueError("This is not a valid capture request\n" + video_metadata)
-
-    @asyncio.coroutine
     def exit_cleanup(self):
         while True:
             yield from asyncio.sleep(2)
@@ -148,176 +128,153 @@ class Backend(ApplicationSession):
 
         loopy.stop()
 
+    @asyncio.coroutine
+    def backend_is_alive_beacon_sender(self):
+        while True:
+            self.publish('com.digitize_app.backend_is_alive_beacon')
+            yield from asyncio.async(asyncio.sleep(2))
 
-def get_mkv_file_duration(file_path):
-    command = [  'ffprobe',
-                 '-v',
-                 'error',
-                 '-select_streams',
-                 'v:0',
-                 '-show_entries',
-                 'format=duration',
-                 '-of',
-                 'default=noprint_wrappers=1:nokey=1',
-                 file_path
-               ]
+    @wamp.register("com.digitize_app.launch_capture")
+    def launch_capture(self, video_metadata):
+        """
+        this function dispatch the incoming captures request to the correct functions
+        :param video_metadata : [digitise_infos, dublincore_dict]
+        """
 
-    output = subprocess.check_output(command)
-    output = float(output)
-    print(output)
-    return output
+        print(video_metadata)
+        # todo ajouter les conversions qui doivent attendre dans une liste d'attente et publier cette liste toutes les 2 secondes
+        video_metadata[1]['dc:identifier'] = str(uuid4())
+        if video_metadata[0]["source"] == "decklink_1":
+            self.start_decklink_to_raw(video_metadata, "Intensity Pro (1)@16", 1)
 
+        elif video_metadata[0]["source"] == "decklink_2":
+            self.start_decklink_to_raw(video_metadata, "Intensity Pro (2)@16", 2)
 
-def copy_file(src, dst, doc):
-    """
-    copy files and ask for low I/O priority
+        elif video_metadata[0]["source"] == "DVD":
+            self.start_dvd_conversion(video_metadata)
 
-    :param src: string "/this/is/a/source/path.mkv"
-    :param dst: string "/this/is/a/destination/path.mkv"
-    :param doc: a document from the "waiting_conversions" collection
+        elif video_metadata[0]["source"] == "file":
+            self.start_file_import(video_metadata)
 
-    :return:
-    """
-    vuid = doc["metadata"][1]["dc:identifier"]
+        else:
+            raise ValueError("This is not a valid capture request\n" + video_metadata)
 
-    db_client = MongoClient("mongodb://localhost:27017/")
-    ffmpeg_db = db_client["ffmpeg_conversions"]
-    ongoing_conversions_collection = ffmpeg_db["ongoing_conversions"]
+    def start_decklink_to_raw(self, video_metadata, decklink_card, decklink_id):
+        """
+        Gather necessary metadata and launch FFmpeg
 
-    ongoing_conversions_document = {"vuid": vuid,
-                                "action": "file_import",
-                                "year": doc["metadata"][1]["dcterms:created"],
-                                "title": doc["metadata"][1]["dc:title"],
-                                "start_date": datetime.now(),
-                                "pid": os.getpid(),
-                                "return_code": None,
-                                "end_date": None,
-                                "converted_file_path": None,
-                                "log_data": {}
-                                }
+        :param video_metadata : [digitise_infos, dublincore_dict]
+        :param decklink_card: "Intensity Pro (1)@16" or "Intensity Pro (2)@16"
+        :param decklink_id: 1 or 2
+        """
+        duration = video_metadata[1]["dc:format"]["duration"]
 
-    ongoing_conversions_document_id = ongoing_conversions_collection.insert(ongoing_conversions_document)
-    print("copy function")
-    shell_command = ["ionice", "-c", "2", "-n", "7", "cp", "-f", src, dst]
-    process = subprocess.Popen(shell_command, stdout=None, stderr=None, universal_newlines=True)
-    while True:
-        if process.poll() is not None:  # returns None while subprocess is running
-            return_code = process.returncode
+        ffmpeg_command = self.default_decklink_to_raw.copy()
+        ffmpeg_command['input'] = (decklink_card,)
+        ffmpeg_command['recording_duration'] = ('-t ' + str(duration),)
+        ffmpeg_command['output'] = (FILES_PATHS['raw'] + video_metadata[1]["dc:title"][0] + " -- " +
+            str(video_metadata[1]["dcterms:created"]) + " -- " + video_metadata[1]['dc:identifier'] + ".mkv",)
 
-            ongoing_conversions_collection.find_and_modify(query={"_id": ongoing_conversions_document_id},
-                                                update={"$set": {"end_date": datetime.now(),
-                                                                 "return_code": return_code,
-                                                                 "converted_file_path": dst}}, fsync=True)
-            break
-        sleep(1)
+        log_settings = self.default_log_settings.copy()
+        log_settings["action"] = "decklink_to_raw"
+        log_settings["dc:identifier"] = video_metadata[1]["dc:identifier"]
+        log_settings["year"] = video_metadata[1]["dcterms:created"]
+        log_settings["title"] = video_metadata[1]["dc:title"]
+        log_settings["duration"] = duration
+        log_settings["decklink_id"] = decklink_id
 
-    db_client.close()
+        ffmpeg_command = [value for value in ffmpeg_command.values()]
+        ffmpeg_command = list(itertools.chain(*ffmpeg_command))
 
+        p = Process(target=start_supervisor, args=(log_settings, video_metadata),
+                    kwargs={'ffmpeg_command': ffmpeg_command})
+        p.start()
+        self.ffmpeg_supervisor_processes.append(p)
 
-def start_dvd_conversion(video_metadata, ffmpeg_command, log_settings):
-    """
-    Gather necessary metadata and launch FFmpeg
+    @wamp.register("com.digitize_app.start_raw_to_h264")
+    def start_raw_to_h264(self, video_metadata):
+        """
+        Gather necessary metadata and launch FFmpeg
 
-    :param video_metadata: [digitise_infos, dublincore_dict]
+        :param video_metadata : [digitise_infos, dublincore_dict]
+        """
+        duration = video_metadata[1]["dc:format"]["duration"]
+        file_path = video_metadata[0]["file_path"]
+        aspect_ratio = video_metadata[1]["dc:format"]["aspect_ratio"]
 
-    :return: p: the launched FFmpeg supervisor process
-    """
-    duration = get_mkv_file_duration(file_path=video_metadata[0]["file_path"])
-
-    video_metadata[1]["dc:format"]["duration"] = duration
-    ffmpeg_command['input'] = (video_metadata[0]["file_path"],)
-    ffmpeg_command['output'] = (FILES_PATHS['compressed'] + video_metadata[1]["dc:title"][0] + " -- " + \
+        ffmpeg_command = self.default_raw_to_h264.copy()
+        ffmpeg_command['input'] = (file_path,)
+        ffmpeg_command['aspect_ratio'] = ('-aspect ' + aspect_ratio,)
+        ffmpeg_command['output'] = (FILES_PATHS['compressed'] + video_metadata[1]["dc:title"][0] + " -- " +
         str(video_metadata[1]["dcterms:created"]) + " -- " + video_metadata[1]['dc:identifier'] + ".mkv",)
+        ffmpeg_command = [value for value in ffmpeg_command.values()]
+        ffmpeg_command = list(itertools.chain(*ffmpeg_command))
+        print(ffmpeg_command)
 
-    log_settings["action"] = "dvd_to_h264"
-    log_settings["dc:identifier"] = video_metadata[1]["dc:identifier"]
-    log_settings["year"] = video_metadata[1]["dcterms:created"]
-    log_settings["title"] = video_metadata[1]["dc:title"]
-    log_settings["duration"] = duration
+        log_settings = self.default_log_settings.copy()
+        log_settings["action"] = "raw_to_h264"
+        log_settings["dc:identifier"] = video_metadata[1]["dc:identifier"]
+        log_settings["year"] = video_metadata[1]["dcterms:created"]
+        log_settings["title"] = video_metadata[1]["dc:title"]
+        log_settings["duration"] = duration
 
-    ffmpeg_command = [value for value in ffmpeg_command.values()]
-    ffmpeg_command = list(itertools.chain(*ffmpeg_command))
-    print(ffmpeg_command)
+        p = Process(target=start_supervisor, args=(log_settings, video_metadata),
+                    kwargs={'ffmpeg_command': ffmpeg_command})
+        p.start()
+        self.ffmpeg_supervisor_processes.append(p)
 
-    p = Process(target=start_supervisor, args=(ffmpeg_command, log_settings, video_metadata))
-    p.start()
-    return p
+    def start_dvd_conversion(self, video_metadata):
+        """
+        Gather necessary metadata and launch FFmpeg
 
+        :param video_metadata: [digitise_infos, dublincore_dict]
+        """
+        duration = get_mkv_file_duration(file_path=video_metadata[0]["file_path"])
+        video_metadata[1]["dc:format"]["duration"] = duration
 
-def start_decklink_to_raw(doc, decklink_card, decklink_id):
-    """
-    Gather necessary metadata and launch FFmpeg
+        ffmpeg_command = self.default_dvd_to_h264.copy()
+        ffmpeg_command['input'] = (video_metadata[0]["file_path"],)
+        ffmpeg_command['output'] = (FILES_PATHS['compressed'] + video_metadata[1]["dc:title"][0] + " -- " +
+            str(video_metadata[1]["dcterms:created"]) + " -- " + video_metadata[1]['dc:identifier'] + ".mkv",)
+        ffmpeg_command = [value for value in ffmpeg_command.values()]
+        ffmpeg_command = list(itertools.chain(*ffmpeg_command))
+        print(ffmpeg_command)
 
-    :param doc: a document from the "waiting_conversions" collection
-    :param decklink_card: "Intensity Pro (1)@16" or "Intensity Pro (2)@16"
-    :param decklink_id: 1 or 2
+        log_settings = self.default_log_settings.copy()
+        log_settings["action"] = "dvd_to_h264"
+        log_settings["dc:identifier"] = video_metadata[1]["dc:identifier"]
+        log_settings["year"] = video_metadata[1]["dcterms:created"]
+        log_settings["title"] = video_metadata[1]["dc:title"]
+        log_settings["duration"] = duration
 
-    :return:
-    """
-    duration = doc["metadata"][1]["dc:format"]["duration"]
+        p = Process(target=start_supervisor, args=(log_settings, video_metadata),
+                    kwargs={'ffmpeg_command': ffmpeg_command})
+        p.start()
+        self.ffmpeg_supervisor_processes.append(p)
 
-    temp_decklink_to_raw = self.decklink_to_raw.copy()
-    temp_decklink_to_raw[9] = decklink_card
-    temp_decklink_to_raw[11] = str(duration)
-    temp_decklink_to_raw[-1] = self.raw_videos_path + doc["metadata"][1]["dc:title"][0] + " -- " +\
-                               str(doc["metadata"][1]["dc:identifier"]) + ".nut"
+    def start_file_import(self, video_metadata):
+        """
+        Gather necessary metadata and launch the copy_file function
 
-    temp_log_settings = self.log_settings.copy()
-    temp_log_settings["action"] = "decklink_to_raw"
-    temp_log_settings["vuid"] = doc["metadata"][1]["dc:identifier"]
-    temp_log_settings["year"] = doc["metadata"][1]["dcterms:created"]
-    temp_log_settings["title"] = doc["metadata"][1]["dc:title"]
-    temp_log_settings["duration"] = duration
-    temp_log_settings["decklink_id"] = decklink_id
+        :param video_metadata: [digitise_infos, dublincore_dict]
 
-    p = Process(target=run_ffmpeg, args=(temp_decklink_to_raw, temp_log_settings))
-    p.start()
+        :return:
+        """
+        log_settings = self.default_log_settings.copy()
+        log_settings["action"] = "file_import"
+        log_settings["dc:identifier"] = video_metadata[1]["dc:identifier"]
+        log_settings["year"] = video_metadata[1]["dcterms:created"]
+        log_settings["title"] = video_metadata[1]["dc:title"]
 
+        src = video_metadata[0]["file_path"]
+        dst = FILES_PATHS['imported'] + video_metadata[1]["dc:title"][0] + " -- " + \
+              str(video_metadata[1]["dcterms:created"]) + " -- " + video_metadata[1]['dc:identifier'] +\
+              "." + src.split(sep=".")[-1]  # to put the same extension back
 
-def start_raw_to_h264(doc):
-    """
-    Gather necessary metadata and launch FFmpeg
-
-    :param doc: a document from the "waiting_conversions" collection
-
-    :return:
-    """
-    duration = doc["metadata"][1]["dc:format"]["duration"]
-    filename = doc["metadata"][0]["filename"]
-    size_ratio = doc["metadata"][1]["dc:format"]["size_ratio"]
-
-    temp_raw_to_h264 = self.raw_to_h264.copy()
-    temp_raw_to_h264[7] = filename
-    temp_raw_to_h264[9] = size_ratio
-    temp_raw_to_h264[-1] = self.compressed_videos_path + doc["metadata"][1]["dc:title"][0] + " -- " +\
-                           str(doc["metadata"][1]["dc:identifier"]) + ".mkv"
-
-    temp_log_settings = self.log_settings.copy()
-    temp_log_settings["action"] = "raw_to_h264"
-    temp_log_settings["vuid"] = doc["metadata"][1]["dc:identifier"]
-    temp_log_settings["year"] = doc["metadata"][1]["dcterms:created"]
-    temp_log_settings["title"] = doc["metadata"][1]["dc:title"]
-    temp_log_settings["duration"] = duration
-
-    p = Process(target=run_ffmpeg, args=(temp_raw_to_h264, temp_log_settings))
-    p.start()
-
-
-def start_file_import(doc):
-    """
-    Gather necessary metadata and launch the copy_file function
-
-    :param doc: a document from the "waiting_conversions" collection
-
-    :return:
-    """
-    print("start file import")
-    filename = doc["metadata"][0]["filename"]
-    dest_path = self.imported_files_path + doc["metadata"][1]["dc:title"][0] + " -- " + \
-                str(doc["metadata"][1]["dc:identifier"]) + "." + filename.split(sep=".")[-1]
-
-    p = Process(target=copy_file, args=(filename, dest_path, doc))
-    p.start()
+        p = Process(target=start_supervisor, args=(log_settings, video_metadata),
+                    kwargs={'src_dst': [src, dst]})
+        p.start()
+        self.ffmpeg_supervisor_processes.append(p)
 
 
 class GracefulKiller:

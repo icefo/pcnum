@@ -28,30 +28,5 @@ import signal
 
 # os.remove("/media/storage/raw/j'ai plus d'idées -- 7.nut")
 
-CLOSING_TIME = False
-
-
-class GracefulKiller:
-
-    def __init__(self):
-        signal.signal(signal.SIGINT, self.exit_gracefully)
-        signal.signal(signal.SIGTERM, self.exit_gracefully)
-
-    @staticmethod
-    def exit_gracefully(signum, frame):
-        print("CLOSING TIME for FFmpeg supervisor")
-        global CLOSING_TIME
-        CLOSING_TIME = True
-
-GracefulKiller()
-
-ffmpeg_command = ['nice', '-n', '19', 'ffmpeg', '-y', '-nostdin', '-i', '/home/adrien/Vidéos/piere.webm', '-map', '0', '-c:s', 'copy', '-c:v', 'libx264', '-crf', '22', '-preset', 'slow', '-c:a', 'libfdk_aac', '-vbr', '4', '/home/adrien/Documents/tm/compressed/cvbvc -- 2158 -- 3d6a628d-d41d-4d58-afca-b58f2686557a.mkv']
-
-ffmpeg_process = subprocess.Popen(ffmpeg_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                               universal_newlines=True)
-while True:
-    if ffmpeg_process.poll() is not None:  # returns None while subprocess is running
-        print(ffmpeg_process.returncode)
-        break
-    line = ffmpeg_process.stdout.readline()
-    print(line)
+if "dfgsdg".startswith("df"):
+    print("Jibni")

@@ -1,18 +1,50 @@
 import subprocess
 from pymongo import MongoClient
 from datetime import datetime
-from os import getpid
 from pprint import pprint
 from setproctitle import setproctitle
 from autobahn import wamp
+from backend.shared import async_call
 import asyncio
 from autobahn.asyncio.wamp import ApplicationSession, ApplicationRunner
 import signal
 import os
-from functools import partial
+import functools
 
 
 CLOSING_TIME = False
+
+
+def get_complete_logs_document(command, log_settings):
+    complete_logs_document = {"dc:identifier": log_settings["dc:identifier"],
+                              "action": log_settings["action"],
+                              "year": log_settings["year"],
+                              "title": log_settings["title"],
+                              "duration": log_settings["duration"],
+                              "start_date": str(datetime.now()),
+                              "pid": os.getpid(),
+                              "command": command,
+                              "return_code": None,
+                              "end_date": None,
+                              "converted_file_path": None,
+                              "log_data": []
+                              }
+    return complete_logs_document
+
+
+def get_ongoing_conversion_document(log_settings):
+    ongoing_conversion_document = {"dc:identifier": log_settings["dc:identifier"],
+                                   "action": log_settings["action"],
+                                   "year": log_settings["year"],
+                                   "title": log_settings["title"],
+                                   "duration": log_settings["duration"],
+                                   "start_date": str(datetime.now()),
+                                   "pid": os.getpid(),
+                                   "log_data": {}
+                                   }
+    if log_settings.get("decklink_id", None):
+        ongoing_conversion_document["decklink_id"] = log_settings["decklink_id"]
+    return ongoing_conversion_document
 
 
 class FFmpegWampSupervisor(ApplicationSession):
@@ -68,36 +100,11 @@ class FFmpegWampSupervisor(ApplicationSession):
                 "title": "the killer cactus' story",
                 "duration": 2 (min)
                 }
-
+        :param video_metadata: [digitise_infos, dublincore_dict]
         :return:
         """
-
-        complete_logs_document = {"dc:identifier": log_settings["dc:identifier"],
-                                  "action": log_settings["action"],
-                                  "year": log_settings["year"],
-                                  "title": log_settings["title"],
-                                  "duration": log_settings["duration"],
-                                  "start_date": str(datetime.now()),
-                                  "pid": getpid(),
-                                  "command": command,
-                                  "return_code": None,
-                                  "end_date": None,
-                                  "converted_file_path": None,
-                                  "log_data": []
-                                  }
-
-        ongoing_conversion_document = {"dc:identifier": log_settings["dc:identifier"],
-                                       "action": log_settings["action"],
-                                       "year": log_settings["year"],
-                                       "title": log_settings["title"],
-                                       "duration": log_settings["duration"],
-                                       "start_date": str(datetime.now()),
-                                       "pid": getpid(),
-                                       "log_data": {}
-                                       }
-
-        if log_settings.get("decklink_id", None):
-            ongoing_conversion_document["decklink_id"] = log_settings["decklink_id"]
+        complete_logs_document = get_complete_logs_document(command, log_settings)
+        ongoing_conversion_document = get_ongoing_conversion_document(log_settings)
 
         self.ffmpeg_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                                universal_newlines=True)
@@ -123,6 +130,14 @@ class FFmpegWampSupervisor(ApplicationSession):
                     dublincore_dict['files_path'] = {'h264': converted_file_path}
                     dublincore_dict['source'] = video_metadata[0]['source']
                     self.videos_metadata.insert(dublincore_dict, fsync=True)
+                elif return_code == 0 and video_metadata[0]['source'].startswith("decklink_"):
+                    @async_call
+                    @asyncio.coroutine
+                    def call_start_raw_to_h264():
+                        yield from self.call('com.digitize_app.start_raw_to_h264', video_metadata)
+                        # block until completition so that the task is not cancelled
+                    asyncio.wait_for(call_start_raw_to_h264)
+
                 else:
                     os.remove(converted_file_path)
                     raise ChildProcessError("FFMPEG process returned with a non zero code \"", str(return_code),
@@ -162,6 +177,67 @@ class FFmpegWampSupervisor(ApplicationSession):
                 self.publish('com.digitize_app.ongoing_conversion', ongoing_conversion_document)
 
 
+class CopyFileSupervisor(ApplicationSession):
+    def __init__(self, config, src_dst, log_settings, video_metadata):
+        ApplicationSession.__init__(self, config)
+        self.rsync_process = None
+
+        db_client = MongoClient("mongodb://localhost:27017/")
+        ffmpeg_db = db_client["ffmpeg_conversions"]
+        self.complete_conversion_logs_collection = ffmpeg_db["complete_conversion_logs"]
+        metadata_db = db_client["metadata"]
+        self.videos_metadata = metadata_db["videos_metadata"]
+
+        asyncio.async(self.exit_cleanup())
+        asyncio.async(self.run_rsync(src_dst, log_settings, video_metadata))
+
+    @asyncio.coroutine
+    def exit_cleanup(self):
+        while True:
+            yield from asyncio.sleep(2)
+            if CLOSING_TIME and self.rsync_process.poll() is None:
+                print("Waiting for copy to terminate")
+            if CLOSING_TIME and self.rsync_process.poll() is not None:
+                print("CLOSING_TIME = True for rsync supervisor")
+                break
+
+        loopy = asyncio.get_event_loop()
+        for task in asyncio.Task.all_tasks():
+            # this is to avoid the cancellation of this coroutine because this coroutine need to be the last one running
+            # to cancel all the others.
+            if task is not asyncio.Task.current_task():
+                task.cancel()
+
+        # little trick to allow the event loop to process the cancel events
+        yield from asyncio.sleep(1)
+
+        loopy.stop()
+        print("rsync supervisor has gracefully exited")
+
+    @asyncio.coroutine
+    def run_rsync(self, src_dst, log_settings, video_metadata):
+        """
+        copy files and ask for low I/O priority
+
+        :param src_dst: list ["/this/is/a/source/path.mkv" "/this/is/a/destination/path.mkv"]
+        :param video_metadata: [digitise_infos, dublincore_dict]
+
+        :return:
+        """
+        src = src_dst[0]
+        dst = src_dst[1]
+
+        ongoing_conversion_document = get_ongoing_conversion_document(log_settings)
+        shell_command = ["ionice", "-c", "2", "-n", "7", "rsync", "-ah", '--progress', src, dst]
+        rsync_process = subprocess.Popen(shell_command, stdout=None, stderr=None, universal_newlines=True)
+        while True:
+            if rsync_process.poll() is not None:  # returns None while subprocess is running
+                return_code = rsync_process.returncode
+                break
+            stdout_complete_line = self.rsync_process.stdout.readline()
+            # todo send the progress and not the duration, same for run_ffmpeg
+
+
 class GracefulKiller:
 
     def __init__(self):
@@ -175,10 +251,15 @@ class GracefulKiller:
         CLOSING_TIME = True
 
 
-def start_supervisor(ffmpeg_command, log_settings, video_metadata):
+def start_supervisor(log_settings, video_metadata, ffmpeg_command=None, src_dst=None):
     print("FFmpeg wamp service")
     setproctitle("FFmpeg wamp service")
     GracefulKiller()
     runner = ApplicationRunner(url="ws://127.0.0.1:8080/ws", realm="realm1")
     # todo do a pull request for *args, **kwargs, print_exc() addition
-    runner.run(FFmpegWampSupervisor, args=(ffmpeg_command, log_settings, video_metadata))
+    if ffmpeg_command:
+        runner.run(FFmpegWampSupervisor, args=(ffmpeg_command, log_settings, video_metadata))
+    elif src_dst:
+        runner.run(CopyFileSupervisor, args=(src_dst, log_settings, video_metadata))
+    else:
+        raise ValueError("Both parameters ffmpeg_command and src_dst are None, this shouldn't happen")

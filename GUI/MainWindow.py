@@ -10,7 +10,7 @@ from GUI.status.StatusWidget import StatusWidget
 import setproctitle
 from backend.startup_check import startup_check
 
-import functools
+from backend.shared import async_call
 
 import asyncio
 from autobahn.asyncio.wamp import ApplicationRunner
@@ -23,13 +23,6 @@ from quamash import QEventLoop
 # http://stackoverflow.com/questions/24820063/python-pyqt-how-to-call-a-gui-function-from-a-worker-thread
 # http://stackoverflow.com/questions/6783194/background-thread-with-qthread-in-pyqt
 # and thanks :-)
-
-
-def async_call(func):
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        asyncio.async(func(*args, **kwargs))
-    return wrapper
 
 
 class MainWindow(ApplicationSession, QMainWindow):
