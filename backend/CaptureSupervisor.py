@@ -9,7 +9,7 @@ import asyncio
 from autobahn.asyncio.wamp import ApplicationSession, ApplicationRunner
 import signal
 import os
-import functools
+import re
 
 
 CLOSING_TIME = False
@@ -20,15 +20,16 @@ def get_complete_logs_document(command, log_settings):
                               "action": log_settings["action"],
                               "year": log_settings["year"],
                               "title": log_settings["title"],
-                              "duration": log_settings["duration"],
                               "start_date": str(datetime.now()),
                               "pid": os.getpid(),
                               "command": command,
                               "return_code": None,
                               "end_date": None,
-                              "converted_file_path": None,
                               "log_data": []
                               }
+
+    if not log_settings['action'] == 'file_import':
+        complete_logs_document["duration"] = log_settings["duration"]
     return complete_logs_document
 
 
@@ -37,14 +38,18 @@ def get_ongoing_conversion_document(log_settings):
                                    "action": log_settings["action"],
                                    "year": log_settings["year"],
                                    "title": log_settings["title"],
-                                   "duration": log_settings["duration"],
                                    "start_date": str(datetime.now()),
-                                   "pid": os.getpid(),
-                                   "log_data": {}
+                                   "progress": None
                                    }
+
     if log_settings.get("decklink_id", None):
         ongoing_conversion_document["decklink_id"] = log_settings["decklink_id"]
     return ongoing_conversion_document
+
+
+def get_sec(s):
+    l = s.split(':')
+    return float(l[0]) * 3600 + float(l[1]) * 60 + float(l[2])
 
 
 class FFmpegWampSupervisor(ApplicationSession):
@@ -105,21 +110,21 @@ class FFmpegWampSupervisor(ApplicationSession):
         complete_logs_document = get_complete_logs_document(command, log_settings)
         ongoing_conversion_document = get_ongoing_conversion_document(log_settings)
 
+        complete_logs_document_id = self.complete_ffmpeg_logs_collection.insert(complete_logs_document)
+
         self.ffmpeg_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                                universal_newlines=True)
-
-        complete_logs_document_id = self.complete_ffmpeg_logs_collection.insert(complete_logs_document)
 
         while True:
             if self.ffmpeg_process.poll() is not None:  # returns None while subprocess is running
                 return_code = self.ffmpeg_process.returncode
                 converted_file_path = command[-1]
                 self.complete_ffmpeg_logs_collection.find_and_modify(query={"_id": complete_logs_document_id},
-                                                                         update={"$set": {"end_date": str(datetime.now()),
-                                                                                          "return_code": return_code,
-                                                                                          "converted_file_path": converted_file_path}},
-                                                                         fsync=True
-                                                                         )
+                                                                     update={"$set": {"end_date": str(datetime.now()),
+                                                                                      "return_code": return_code}
+                                                                             },
+                                                                     fsync=True
+                                                                     )
 
                 if return_code == 0 and log_settings['action'] == 'dvd_to_h264':
                     dublincore_dict = video_metadata[1]
@@ -142,6 +147,7 @@ class FFmpegWampSupervisor(ApplicationSession):
                     self.videos_metadata_collection.insert(dublincore_dict, fsync=True)
 
                 else:
+                    # todo warn user that something went wrong
                     os.remove(converted_file_path)
                     raise ChildProcessError("FFMPEG process returned with a non zero code \"", str(return_code),
                                             "\" , see complete log for details")
@@ -154,17 +160,16 @@ class FFmpegWampSupervisor(ApplicationSession):
             stdout_complete_line = self.ffmpeg_process.stdout.readline()
 
             self.complete_ffmpeg_logs_collection.find_and_modify(query={"_id": complete_logs_document_id},
-                                                                     update={"$push": {"log_data": stdout_complete_line}}
-                                                                     )
+                                                                 update={"$push": {"log_data": stdout_complete_line}}
+                                                                 )
 
-            stdout_line = stdout_complete_line[:-5]
+            stdout_line = stdout_complete_line.strip()
             if stdout_line.startswith("frame="):
+                stdout_line = re.sub(' +', ' ', stdout_line)
                 list_of_characters = []
                 counter = 0
                 for character in stdout_line:
-                    if not character == " ":
-                        list_of_characters.append(character)
-                    elif not stdout_line[counter - 1] == "=" and not stdout_line[counter - 1] == " ":
+                    if not stdout_line[counter - 1] == "=":
                         list_of_characters.append(character)
                     counter += 1
 
@@ -175,8 +180,12 @@ class FFmpegWampSupervisor(ApplicationSession):
                     a = key_value.split("=")
                     stdout_dictionary[a[0]] = a[1]
                 # {'fps': '0.0', 'bitrate': '18.0kbits/s', 'frame': '16', 'time': '00:00:00.34', 'q': '0.0', 'size': '1kB'}
-                # yield stdout_dictionary
-                ongoing_conversion_document["log_data"] = stdout_dictionary
+                done = get_sec(stdout_dictionary["time"])
+                total = log_settings["duration"]
+                progress = (done / total)*100
+                progress = round(progress)
+
+                ongoing_conversion_document['progress'] = progress
                 self.publish('com.digitize_app.ongoing_conversion', ongoing_conversion_document)
 
 
@@ -186,10 +195,9 @@ class CopyFileSupervisor(ApplicationSession):
         self.rsync_process = None
 
         db_client = MongoClient("mongodb://localhost:27017/")
-        ffmpeg_db = db_client["ffmpeg_conversions"]
-        self.complete_conversion_logs_collection = ffmpeg_db["complete_conversion_logs"]
-        metadata_db = db_client["metadata"]
-        self.videos_metadata = metadata_db["videos_metadata"]
+        digitize_app = db_client['digitize_app']
+        self.videos_metadata_collection = digitize_app['videos_metadata']
+        self.complete_rsync_logs_collection = digitize_app['complete_rsync_logs']
 
         asyncio.async(self.exit_cleanup())
         asyncio.async(self.run_rsync(src_dst, log_settings, video_metadata))
@@ -230,15 +238,33 @@ class CopyFileSupervisor(ApplicationSession):
         src = src_dst[0]
         dst = src_dst[1]
 
+        command = ["ionice", "-c", "2", "-n", "7", "rsync", "-ah", '--progress', src, dst]
+
+        complete_logs_document = get_complete_logs_document(command, log_settings)
         ongoing_conversion_document = get_ongoing_conversion_document(log_settings)
-        shell_command = ["ionice", "-c", "2", "-n", "7", "rsync", "-ah", '--progress', src, dst]
-        rsync_process = subprocess.Popen(shell_command, stdout=None, stderr=None, universal_newlines=True)
+
+        complete_logs_document_id = self.complete_rsync_logs_collection.insert(complete_logs_document)
+
+        self.rsync_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                              universal_newlines=True)
         while True:
-            if rsync_process.poll() is not None:  # returns None while subprocess is running
-                return_code = rsync_process.returncode
-                break
+            if self.rsync_process.poll() is not None:  # returns None while subprocess is running
+                return_code = self.rsync_process.returncode
+                converted_file_path = command[-1]
+                self.complete_rsync_logs_collection.find_and_modify(query={"_id": complete_logs_document_id},
+                                                                    update={"$set": {"end_date": str(datetime.now()),
+                                                                                     "return_code": return_code}
+                                                                            },
+                                                                    fsync=True
+                                                                    )
             stdout_complete_line = self.rsync_process.stdout.readline()
-            # todo send the progress and not the duration, same for run_ffmpeg
+            stdout_line = stdout_complete_line.strip()
+            stdout_list = re.sub(' +', ' ', stdout_line).split(' ')
+            for elem in stdout_list:
+                if '%' in elem:
+                    ongoing_conversion_document['progress'] = elem[:-1]
+                    self.publish('com.digitize_app.ongoing_conversion', ongoing_conversion_document)
+                    break
 
 
 class GracefulKiller:

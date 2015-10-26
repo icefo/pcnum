@@ -4,7 +4,7 @@ from backend.shared import FILES_PATHS
 from backend.CaptureSupervisor import start_supervisor
 from backend.startup_check import startup_check
 import setproctitle
-from time import sleep
+from pymongo import MongoClient
 from autobahn import wamp
 from autobahn.asyncio.wamp import ApplicationSession, ApplicationRunner
 import asyncio
@@ -25,16 +25,16 @@ CLOSING_TIME = False
 
 
 def get_mkv_file_duration(file_path):
-    command = [  'ffprobe',
-                 '-v',
-                 'error',
-                 '-select_streams',
-                 'v:0',
-                 '-show_entries',
-                 'format=duration',
-                 '-of',
-                 'default=noprint_wrappers=1:nokey=1',
-                 file_path
+    command = ['ffprobe',
+               '-v',
+               'error',
+               '-select_streams',
+               'v:0',
+               '-show_entries',
+               'format=duration',
+               '-of',
+               'default=noprint_wrappers=1:nokey=1',
+               file_path
                ]
 
     output = subprocess.check_output(command)
@@ -81,9 +81,6 @@ class Backend(ApplicationSession):
             'title': 'the holloway',
             'duration': 1/6,
             }
-
-        # this function check that the the directories are writable
-        startup_check()
 
         self.raw_videos_path = FILES_PATHS["raw"]
         self.compressed_videos_path = FILES_PATHS["compressed"]
@@ -277,6 +274,22 @@ class Backend(ApplicationSession):
         self.ffmpeg_supervisor_processes.append(p)
 
 
+def startup_cleanup():
+    """
+    This function remove more than one week old capture logs.
+
+    :return:
+    """
+    db_client = MongoClient("mongodb://localhost:27017/")
+    digitize_app = db_client['digitize_app']
+    complete_ffmpeg_logs_collection = digitize_app['complete_ffmpeg_logs']
+    complete_rsync_logs_collection = digitize_app['complete_rsync_logs']
+
+    one_week_ago = datetime.now() - timedelta(days=7)
+    complete_ffmpeg_logs_collection.remove({"return_code": 0, "end_date": {"$lt": one_week_ago}})
+    complete_rsync_logs_collection.remove({"return_code": 0, "end_date": {"$lt": one_week_ago}})
+
+
 class GracefulKiller:
 
     def __init__(self):
@@ -292,6 +305,9 @@ class GracefulKiller:
 if __name__ == "__main__":
     multiprocessing.set_start_method('spawn')
     setproctitle.setproctitle("digitize_backend")
+    # this function check that the the directories are writable
+    startup_check()
+    startup_cleanup()
     killer = GracefulKiller()
     runner = ApplicationRunner(url="ws://127.0.0.1:8080/ws", realm="realm1")
     runner.run(Backend)
