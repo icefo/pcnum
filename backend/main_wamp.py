@@ -16,6 +16,7 @@ from pprint import pprint
 import atexit
 import itertools
 from datetime import datetime, timedelta
+from time import sleep
 import os
 from uuid import uuid4
 import multiprocessing
@@ -372,10 +373,18 @@ class GracefulKiller:
 if __name__ == "__main__":
     multiprocessing.set_start_method('spawn')
     setproctitle.setproctitle("digitize_backend")
+    print(os.getpid())
     # this function check that the the directories are writable
     startup_check()
     startup_cleanup()
     killer = GracefulKiller()
+    # run crossbar init --template default --appdir "appdir" to generate the default config
+    # you have to install libffi-dev to make crossbar installation success
+    p = subprocess.Popen(['/usr/local/bin/crossbar', "start", "--cbdir",
+                          FILES_PATHS['home_dir'] + '.config/crossbar/default/'])
+    sleep(12)
     runner = ApplicationRunner(url="ws://127.0.0.1:8080/ws", realm="realm1")
     runner.run(Backend)
+    p.terminate()
+    p.wait()
     print("backend has gracefully exited")
