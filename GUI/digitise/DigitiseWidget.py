@@ -399,7 +399,7 @@ class DigitiseWidget(QWidget):
         grid.addWidget(self.launch_digitise_button, 8, 5)
 
         #########
-        self.backend_is_alive_timer.start(100000)
+        self.backend_is_alive_timer.start(3000)
         self.backend_is_alive_signal.connect(self.backend_is_alive_timer.setInterval)
         self.backend_is_alive_timer.timeout.connect(partial(self.launch_digitise_button.setDisabled, True))
 

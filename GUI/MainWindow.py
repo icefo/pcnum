@@ -47,16 +47,20 @@ class MainWindow(ApplicationSession, QMainWindow):
         yield from self.call('com.digitize_app.launch_capture', metadata)
 
     def backend_is_alive_beacon(self):
-        self.digitise_tab.backend_is_alive_signal.emit(1000000)
+        self.digitise_tab.backend_is_alive_signal.emit(3000)
 
-    def ffmpeg_supervisor_ongoing_conversion(self, report):
-        print(report)
+    def ongoing_capture(self, status):
+        self.status_tab.ongoing_capture_status_update.emit(status)
+
+    def waiting_captures(self, list_of_waiting_captures):
+        self.status_tab.waiting_captures_status_update.emit(list_of_waiting_captures)
 
     @asyncio.coroutine
     def onJoin(self, details):
         print("session ready")
         yield from self.subscribe(self.backend_is_alive_beacon, 'com.digitize_app.backend_is_alive_beacon')
-        yield from self.subscribe(self.ffmpeg_supervisor_ongoing_conversion, 'com.digitize_app.ongoing_conversion')
+        yield from self.subscribe(self.ongoing_capture, 'com.digitize_app.ongoing_capture')
+        yield from self.subscribe(self.waiting_captures, 'com.digitize_app.waiting_captures')
 
     def main_window_init(self):
         """

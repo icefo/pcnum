@@ -22,6 +22,7 @@ import multiprocessing
 
 
 CLOSING_TIME = False
+CLOSE_SIGNAL = None
 
 
 def get_mkv_file_duration(file_path):
@@ -87,6 +88,8 @@ class Backend(ApplicationSession):
         self.imported_files_path = FILES_PATHS["imported"]
 
         self.ffmpeg_supervisor_processes = list()
+        self.waiting_captures_list = list()
+        self.waiting_captures_queue = asyncio.Queue()
 
     @asyncio.coroutine
     def onJoin(self, details):
@@ -100,16 +103,46 @@ class Backend(ApplicationSession):
 
         asyncio.async(self.exit_cleanup())
         asyncio.async(self.backend_is_alive_beacon_sender())
+        asyncio.async(self.waiting_conversions_handler())
 
     @asyncio.coroutine
     def exit_cleanup(self):
         while True:
-            yield from asyncio.sleep(2)
             self.ffmpeg_supervisor_processes = [process for process in self.ffmpeg_supervisor_processes
                                                 if process.is_alive()]
-            if CLOSING_TIME and len(self.ffmpeg_supervisor_processes) != 0:
-                print("waiting for subprocess to terminate")
-            elif CLOSING_TIME and len(self.ffmpeg_supervisor_processes) == 0:
+
+            len_ffmpeg_supervisor_processes_1 = len(self.ffmpeg_supervisor_processes)
+            len_waiting_captures_list_1 = len(self.waiting_captures_list)
+
+            # if there is only one waiting_capture left, it my disappear for a brief time before coming back as a process
+            # the sleep ensure that the exit loop don't miss it and terminate the program early.
+            yield from asyncio.sleep(3)
+
+            self.ffmpeg_supervisor_processes = [process for process in self.ffmpeg_supervisor_processes
+                                                if process.is_alive()]
+
+            len_ffmpeg_supervisor_processes_2 = len(self.ffmpeg_supervisor_processes)
+            len_waiting_captures_list_2 = len(self.waiting_captures_list)
+
+            len_ffmpeg_supervisor_processes = max(len_ffmpeg_supervisor_processes_1, len_ffmpeg_supervisor_processes_2)
+            len_waiting_captures_list = max(len_waiting_captures_list_1, len_waiting_captures_list_2)
+
+            if CLOSING_TIME and len_ffmpeg_supervisor_processes != 0 and len_waiting_captures_list != 0:
+                print("waiting for {0} subprocess to terminate"
+                      "and on {1} captures to start".format(len_ffmpeg_supervisor_processes, len_waiting_captures_list))
+
+            elif CLOSING_TIME and len_ffmpeg_supervisor_processes != 0 and CLOSE_SIGNAL == 2:
+                print("cancellation of {0} subprocess".format(len_ffmpeg_supervisor_processes))
+            elif CLOSING_TIME and len_ffmpeg_supervisor_processes != 0:
+                print("waiting for {0} subprocess to complete".format(len_ffmpeg_supervisor_processes))
+
+            elif CLOSING_TIME and len_waiting_captures_list != 0 and CLOSE_SIGNAL == 2:
+                print("cancellation of {0} queued conversions".format(len_waiting_captures_list))
+                break
+            elif CLOSING_TIME and len_waiting_captures_list != 0:
+                print("waiting on {0} conversions to start".format(len_waiting_captures_list))
+
+            elif CLOSING_TIME and len_ffmpeg_supervisor_processes == 0 and len_waiting_captures_list == 0:
                 print("CLOSING_TIME = True for backend")
                 break
 
@@ -129,7 +162,28 @@ class Backend(ApplicationSession):
     def backend_is_alive_beacon_sender(self):
         while True:
             self.publish('com.digitize_app.backend_is_alive_beacon')
-            yield from asyncio.async(asyncio.sleep(2))
+            yield from asyncio.sleep(2)
+
+    @asyncio.coroutine
+    def waiting_conversions_handler(self):
+        """
+        This function get a video_metadata dictionary from the waiting queue and call the launch_capture function with it.
+        Just like a RPC call from the frontend would do. If the video can still not get captured, it will get back in the queue
+        The function also send the waiting_captures_list for the GUI.
+        :return:
+        """
+        while True:
+            if CLOSE_SIGNAL == 2:
+                break
+            try:
+                video_metadata = self.waiting_captures_queue.get_nowait()
+                self.waiting_captures_list.remove(video_metadata)
+                self.launch_capture(video_metadata)
+            except asyncio.QueueEmpty:
+                pass
+            self.publish('com.digitize_app.waiting_captures', self.waiting_captures_list)
+
+            yield from asyncio.sleep(5)
 
     @wamp.register("com.digitize_app.launch_capture")
     def launch_capture(self, video_metadata):
@@ -137,9 +191,10 @@ class Backend(ApplicationSession):
         this function dispatch the incoming captures request to the correct functions
         :param video_metadata : [digitise_infos, dublincore_dict]
         """
-
+        temp_ffmpeg_supervisor_processes = self.ffmpeg_supervisor_processes.copy()
+        ongoing_captures = [p.name for p in temp_ffmpeg_supervisor_processes]
+        print(ongoing_captures)
         print(video_metadata)
-        # todo ajouter les conversions qui doivent attendre dans une liste d'attente et publier cette liste toutes les 2 secondes
         video_metadata[1]['dc:identifier'] = str(uuid4())
         if video_metadata[0]["source"] == "decklink_1":
             self.start_decklink_to_raw(video_metadata, "Intensity Pro (1)@16", 1)
@@ -148,10 +203,21 @@ class Backend(ApplicationSession):
             self.start_decklink_to_raw(video_metadata, "Intensity Pro (2)@16", 2)
 
         elif video_metadata[0]["source"] == "DVD":
-            self.start_dvd_to_h264(video_metadata)
+            if 'dvd_to_h264' not in ongoing_captures:
+                self.start_dvd_to_h264(video_metadata)
+            else:
+                print("nope back in the queue")
+                self.waiting_captures_list.append(video_metadata)
+                self.waiting_captures_queue.put_nowait(video_metadata)
 
         elif video_metadata[0]["source"] == "file":
-            self.start_file_import(video_metadata)
+            if 'file_import' not in ongoing_captures:
+                self.start_file_import(video_metadata)
+            else:
+                print("nope back in the queue")
+                self.waiting_captures_list.append(video_metadata)
+                self.waiting_captures_queue.put_nowait(video_metadata)
+
 
         else:
             raise ValueError("This is not a valid capture request\n" + video_metadata)
@@ -184,7 +250,7 @@ class Backend(ApplicationSession):
         ffmpeg_command = list(itertools.chain(*ffmpeg_command))
 
         p = Process(target=start_supervisor, args=(log_settings, video_metadata),
-                    kwargs={'ffmpeg_command': ffmpeg_command})
+                    kwargs={'ffmpeg_command': ffmpeg_command}, name='decklink_to_raw')
         p.start()
         self.ffmpeg_supervisor_processes.append(p)
 
@@ -216,7 +282,7 @@ class Backend(ApplicationSession):
         log_settings["duration"] = duration
 
         p = Process(target=start_supervisor, args=(log_settings, video_metadata),
-                    kwargs={'ffmpeg_command': ffmpeg_command})
+                    kwargs={'ffmpeg_command': ffmpeg_command}, name='raw_to_h264')
         p.start()
         self.ffmpeg_supervisor_processes.append(p)
 
@@ -245,7 +311,7 @@ class Backend(ApplicationSession):
         log_settings["duration"] = duration
 
         p = Process(target=start_supervisor, args=(log_settings, video_metadata),
-                    kwargs={'ffmpeg_command': ffmpeg_command})
+                    kwargs={'ffmpeg_command': ffmpeg_command}, name='dvd_to_h264')
         p.start()
         self.ffmpeg_supervisor_processes.append(p)
 
@@ -257,19 +323,20 @@ class Backend(ApplicationSession):
 
         :return:
         """
-        log_settings = self.default_log_settings.copy()
-        log_settings["action"] = "file_import"
-        log_settings["dc:identifier"] = video_metadata[1]["dc:identifier"]
-        log_settings["year"] = video_metadata[1]["dcterms:created"]
-        log_settings["title"] = video_metadata[1]["dc:title"]
 
         src = video_metadata[0]["file_path"]
         dst = FILES_PATHS['imported'] + video_metadata[1]["dc:title"][0] + " -- " + \
               str(video_metadata[1]["dcterms:created"]) + " -- " + video_metadata[1]['dc:identifier'] +\
               "." + src.split(sep=".")[-1]  # to put the same extension back
 
+        log_settings = self.default_log_settings.copy()
+        log_settings["action"] = "file_import"
+        log_settings["dc:identifier"] = video_metadata[1]["dc:identifier"]
+        log_settings["year"] = video_metadata[1]["dcterms:created"]
+        log_settings["title"] = video_metadata[1]["dc:title"]
+
         p = Process(target=start_supervisor, args=(log_settings, video_metadata),
-                    kwargs={'src_dst': [src, dst]})
+                    kwargs={'src_dst': [src, dst]}, name='file_import')
         p.start()
         self.ffmpeg_supervisor_processes.append(p)
 
@@ -291,7 +358,6 @@ def startup_cleanup():
 
 
 class GracefulKiller:
-
     def __init__(self):
         signal.signal(signal.SIGINT, self.exit_gracefully)
         signal.signal(signal.SIGTERM, self.exit_gracefully)
@@ -299,7 +365,9 @@ class GracefulKiller:
     @staticmethod
     def exit_gracefully(signum, frame):
         global CLOSING_TIME
+        global CLOSE_SIGNAL
         CLOSING_TIME = True
+        CLOSE_SIGNAL = signum  # 2 = SIGINT (Ctrl-C), 15 = SIGTERM
 
 
 if __name__ == "__main__":

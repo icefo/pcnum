@@ -20,7 +20,7 @@ def get_complete_logs_document(command, log_settings):
                               "action": log_settings["action"],
                               "year": log_settings["year"],
                               "title": log_settings["title"],
-                              "start_date": str(datetime.now()),
+                              "start_date": datetime.now().isoformat(),
                               "pid": os.getpid(),
                               "command": command,
                               "return_code": None,
@@ -38,7 +38,7 @@ def get_ongoing_conversion_document(log_settings):
                                    "action": log_settings["action"],
                                    "year": log_settings["year"],
                                    "title": log_settings["title"],
-                                   "start_date": str(datetime.now()),
+                                   "start_date": datetime.now().isoformat(),
                                    "progress": None
                                    }
 
@@ -120,7 +120,7 @@ class FFmpegWampSupervisor(ApplicationSession):
                 return_code = self.ffmpeg_process.returncode
                 converted_file_path = command[-1]
                 self.complete_ffmpeg_logs_collection.find_and_modify(query={"_id": complete_logs_document_id},
-                                                                     update={"$set": {"end_date": str(datetime.now()),
+                                                                     update={"$set": {"end_date": datetime.now().isoformat(),
                                                                                       "return_code": return_code}
                                                                              },
                                                                      fsync=True
@@ -186,7 +186,7 @@ class FFmpegWampSupervisor(ApplicationSession):
                 progress = round(progress)
 
                 ongoing_conversion_document['progress'] = progress
-                self.publish('com.digitize_app.ongoing_conversion', ongoing_conversion_document)
+                self.publish('com.digitize_app.ongoing_capture', ongoing_conversion_document)
 
 
 class CopyFileSupervisor(ApplicationSession):
@@ -252,18 +252,25 @@ class CopyFileSupervisor(ApplicationSession):
                 return_code = self.rsync_process.returncode
                 converted_file_path = command[-1]
                 self.complete_rsync_logs_collection.find_and_modify(query={"_id": complete_logs_document_id},
-                                                                    update={"$set": {"end_date": str(datetime.now()),
+                                                                    update={"$set": {"end_date": datetime.now().isoformat(),
                                                                                      "return_code": return_code}
                                                                             },
                                                                     fsync=True
                                                                     )
+                dublincore_dict = video_metadata[1]
+                dublincore_dict['files_path'] = {'unknown': converted_file_path}
+                dublincore_dict['source'] = video_metadata[0]['source']
+                self.videos_metadata_collection.insert(dublincore_dict, fsync=True)
+                global CLOSING_TIME
+                CLOSING_TIME = True
+                break
             stdout_complete_line = self.rsync_process.stdout.readline()
             stdout_line = stdout_complete_line.strip()
             stdout_list = re.sub(' +', ' ', stdout_line).split(' ')
             for elem in stdout_list:
                 if '%' in elem:
-                    ongoing_conversion_document['progress'] = elem[:-1]
-                    self.publish('com.digitize_app.ongoing_conversion', ongoing_conversion_document)
+                    ongoing_conversion_document['progress'] = round(float(elem[:-1]))
+                    self.publish('com.digitize_app.ongoing_capture', ongoing_conversion_document)
                     break
 
 
@@ -275,14 +282,14 @@ class GracefulKiller:
 
     @staticmethod
     def exit_gracefully(signum, frame):
-        print("CLOSING TIME for FFmpeg supervisor")
+        print("CLOSING TIME for Capture supervisor")
         global CLOSING_TIME
         CLOSING_TIME = True
 
 
 def start_supervisor(log_settings, video_metadata, ffmpeg_command=None, src_dst=None):
-    print("FFmpeg wamp service")
-    setproctitle("FFmpeg wamp service")
+    print("Capture wamp service")
+    setproctitle("Capture wamp service")
     GracefulKiller()
     runner = ApplicationRunner(url="ws://127.0.0.1:8080/ws", realm="realm1")
     # todo do a pull request for *args, **kwargs, print_exc() addition
