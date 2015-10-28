@@ -75,7 +75,15 @@ class SearchWidget(QWidget):
                 self.query_table.removeCellWidget(row, 2)
                 self.query_table.setCellWidget(row, 2, QTextEdit())
                 self.query_table.setRowHeight(row, 60)
+            elif text == "source":
+                self.query_table.removeCellWidget(row, 1)
+                self.query_table.setCellWidget(row, 1, QComboBox())
+                self.query_table.cellWidget(row, 1).addItems(["equal",])
 
+                self.query_table.removeCellWidget(row, 2)
+                self.query_table.setCellWidget(row, 2, QComboBox())
+                self.query_table.cellWidget(row, 2).addItems(['decklink_1', 'decklink_2', 'DVD', 'file'])
+                self.query_table.setRowHeight(row, 30)
             elif text == "dcterms:created":
                 self.query_table.removeCellWidget(row, 1)
                 self.query_table.setCellWidget(row, 1, QComboBox())
@@ -124,6 +132,7 @@ class SearchWidget(QWidget):
         dc_data['dcterms:isPartOf'] = "remplir si le film fait partit d'un ensemble de films comme Star Wars"
         dc_data['dcterms:created'] = "année de sortie du film"
         dc_data['durée'] = "durée du film en minutes"
+        dc_data['source'] = "source de l'acquisition"
 
         logic_text_list = ["equal", "contain"]
 
@@ -209,6 +218,8 @@ class SearchWidget(QWidget):
                 data_widget_text_value = self.query_table.cellWidget(row, 2).displayText()
             elif data_widget_type == "QTextEdit":
                 data_widget_text_value = self.query_table.cellWidget(row, 2).toPlainText()
+            elif data_widget_type == "QComboBox":
+                data_widget_text_value = self.query_table.cellWidget(row, 2).currentText()
             query_type = self.query_table.cellWidget(row, 1).currentText()
 
             if data_widget_text_value != "":
