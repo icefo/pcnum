@@ -189,17 +189,6 @@ class DigitiseWidget(QWidget):
         self.digitise_table.setCellWidget(row_count, 2, QPushButton("Delete"))
         self.digitise_table.cellWidget(row_count, 2).clicked.connect(self.delete_table_row)
 
-    # def get_and_lock_new_vuid(self):
-    #     # TODO this function should be launched when the metadata is copied to the video metadata database
-    #     # set this so the first vuid will be 1
-    #     list_of_vuids = [0]
-    #     for post in self.videos_metadata.find({}, {"dc:identifier": True, "_id": False}):
-    #         list_of_vuids.append(post["dc:identifier"])
-    #     new_vuid = max(list_of_vuids) + 1
-    #     # Use this vuid so that an other acquisition don't use it and mess up the database
-    #     self.videos_metadata.insert({"dc:identifier": new_vuid}, fsync=True)
-    #     return new_vuid
-
     def digitise_checker(self, capture_action, data):
         """
         :param capture_action: tell which capture_action the digitise_checker function should launch

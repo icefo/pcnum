@@ -218,7 +218,6 @@ class Backend(ApplicationSession):
                 self.waiting_captures_list.append(video_metadata)
                 self.waiting_captures_queue.put_nowait(video_metadata)
 
-
         else:
             raise ValueError("This is not a valid capture request\n" + video_metadata)
 

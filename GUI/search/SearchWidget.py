@@ -9,7 +9,7 @@ from collections import OrderedDict
 from pymongo import MongoClient, ASCENDING
 import atexit
 
-# todo add search by source (DVD, file_import, decklink)
+
 class SearchWidget(QWidget):
     show_result_widget_signal = pyqtSignal()
     search_transmit = pyqtSignal([list])

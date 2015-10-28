@@ -17,8 +17,9 @@ class MyComponent(ApplicationSession):
             print("call error: {0}".format(e))
 
 runner = ApplicationRunner(url = "ws://127.0.0.1:8080/ws", realm = "realm1")
+
 try:
     runner.run(MyComponent)
-    runner.loop.run_forever()
 except KeyboardInterrupt:
     asyncio.get_event_loop().stop()
+
