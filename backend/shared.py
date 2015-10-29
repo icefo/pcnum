@@ -4,8 +4,10 @@ import functools
 import asyncio
 import time
 
-FILES_PATHS = {'raw': '/home/adrien/Documents/tm/raw/', 'compressed': '/home/adrien/Documents/tm/compressed/',
-               'imported': '/home/adrien/Documents/tm/imported/', 'home_dir': os.getenv('HOME') + '/'}
+FILES_PATHS = {'raw': '/media/storage/raw/', 'compressed': '/media/storage/compressed/',
+               'imported': '/media/storage/imported/', 'home_dir': os.getenv('HOME') + '/'}
+
+PYPY_PATH = os.getcwd()[:-7] + 'pypy-2.6.1-linux_x86_64-portable/'
 
 
 def async_call(func):

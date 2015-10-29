@@ -1,6 +1,6 @@
 __author__ = 'adrien'
 
-from backend.shared import FILES_PATHS
+from backend.shared import FILES_PATHS, PYPY_PATH
 from backend.CaptureSupervisor import start_supervisor
 from backend.startup_check import startup_check
 import setproctitle
@@ -13,7 +13,6 @@ from collections import OrderedDict
 from multiprocessing import Process
 import subprocess
 from pprint import pprint
-import atexit
 import itertools
 from datetime import datetime, timedelta
 from time import sleep
@@ -24,6 +23,7 @@ import multiprocessing
 
 CLOSING_TIME = False
 CLOSE_SIGNAL = None
+EXIT_NOW = False
 
 
 def get_mkv_file_duration(file_path):
@@ -51,30 +51,30 @@ class Backend(ApplicationSession):
         ApplicationSession.__init__(self, config)
 
         self.default_dvd_to_h264 = OrderedDict()
-        self.default_dvd_to_h264['part1'] = ['nice', '-n', '19', 'ffmpeg', '-y', '-nostdin', '-i']
-        self.default_dvd_to_h264['input'] = '/this/is/a/path/video_file.mkv'
-        self.default_dvd_to_h264['part2'] = ['-map', '0',
+        self.default_dvd_to_h264['part1'] = ('nice', '-n', '19', 'ffmpeg', '-y', '-nostdin', '-i')
+        self.default_dvd_to_h264['input'] = ['/this/is/a/path/video_file.mkv', ]
+        self.default_dvd_to_h264['part2'] = ('-map', '0',
                                              '-c:s', 'copy',
                                              '-c:v', 'libx264', '-crf', '22', '-preset', 'slow',
                                              '-c:a', 'libfdk_aac', '-vbr', '4'
-                                             ]
-        self.default_dvd_to_h264['output'] = '/this/is/a/path/video_file.mkv'
+                                             )
+        self.default_dvd_to_h264['output'] = ['/this/is/a/path/video_file.mkv', ]
 
         self.default_decklink_to_raw = OrderedDict()
-        self.default_decklink_to_raw['part1'] = ['nice', '-n', '19', 'ffmpeg', '-y', '-nostdin', '-f', 'decklink']
-        self.default_decklink_to_raw['input'] = "'Intensity Pro (1)'@16"
-        self.default_decklink_to_raw['recording_duration'] = '-t 10'
-        self.default_decklink_to_raw['part2'] = ['-acodec', 'copy', '-vcodec', 'copy']
-        self.default_decklink_to_raw['frame_rate'] = '-r 25'
-        self.default_decklink_to_raw['output'] = '/this/is/a/path/video_file.mkv'
+        self.default_decklink_to_raw['part1'] = ('nice', '-n', '0', 'ffmpeg', '-y', '-nostdin', '-f', 'decklink', '-i')
+        self.default_decklink_to_raw['input'] = ["Intensity Pro (1)@16", ]
+        self.default_decklink_to_raw['recording_duration'] = ['-t', '60', ]  # in seconds
+        self.default_decklink_to_raw['part2'] = ('-acodec', 'copy', '-vcodec', 'copy')
+        self.default_decklink_to_raw['frame_rate'] = ['-r', '25', ]
+        self.default_decklink_to_raw['output'] = ['/this/is/a/path/video_file.mkv', ]
 
         self.default_raw_to_h264 = OrderedDict()
-        self.default_raw_to_h264['part1'] = ['nice', '-n', '19', 'ffmpeg', '-y', '-nostdin', '-i']
-        self.default_raw_to_h264['input'] = '/this/is/a/path/video_file.mkv'
-        self.default_raw_to_h264['aspect_ratio'] = '-aspect 4:3'
-        self.default_raw_to_h264['part2'] = ['-c:v', 'libx264', '-crf 25', '-preset', 'slow', '-filter:v', 'hqdn3d=3:2:2:3'
-                                             '-c:a', 'libfdk_aac', '-vbr', '3']
-        self.default_raw_to_h264['output'] = '/this/is/a/path/video_file.mkv'
+        self.default_raw_to_h264['part1'] = ('nice', '-n', '11', 'ffmpeg', '-y', '-nostdin', '-i')
+        self.default_raw_to_h264['input'] = ['/this/is/a/path/video_file.mkv', ]
+        self.default_raw_to_h264['aspect_ratio'] = ['-aspect', '4:3']
+        self.default_raw_to_h264['part2'] = ('-c:v', 'libx264', '-crf', '25', '-preset', 'slow', '-filter:v', 'hqdn3d=3:2:2:3',
+                                             '-c:a', 'libfdk_aac', '-vbr', '3')
+        self.default_raw_to_h264['output'] = ['/this/is/a/path/video_file.mkv', ]
 
         self.default_log_settings = {
             'action': 'raw_to_h264',
@@ -233,10 +233,13 @@ class Backend(ApplicationSession):
         duration = video_metadata[1]["dc:format"]["duration"]
 
         ffmpeg_command = self.default_decklink_to_raw.copy()
-        ffmpeg_command['input'] = (decklink_card,)
-        ffmpeg_command['recording_duration'] = ('-t ' + str(duration),)
-        ffmpeg_command['output'] = (FILES_PATHS['raw'] + video_metadata[1]["dc:title"][0] + " -- " +
-            str(video_metadata[1]["dcterms:created"]) + " -- " + video_metadata[1]['dc:identifier'] + ".mkv",)
+        ffmpeg_command['input'][0] = decklink_card
+        ffmpeg_command['recording_duration'][1] = str(duration)
+        ffmpeg_command['output'][0] = FILES_PATHS['raw'] + video_metadata[1]["dc:title"][0] + " -- " +\
+                    str(video_metadata[1]["dcterms:created"]) + " -- " + video_metadata[1]['dc:identifier'] + ".nut"
+
+        ffmpeg_command = [value for value in ffmpeg_command.values()]
+        ffmpeg_command = list(itertools.chain(*ffmpeg_command))
 
         log_settings = self.default_log_settings.copy()
         log_settings["action"] = "decklink_to_raw"
@@ -245,9 +248,6 @@ class Backend(ApplicationSession):
         log_settings["title"] = video_metadata[1]["dc:title"]
         log_settings["duration"] = duration
         log_settings["decklink_id"] = decklink_id
-
-        ffmpeg_command = [value for value in ffmpeg_command.values()]
-        ffmpeg_command = list(itertools.chain(*ffmpeg_command))
 
         p = Process(target=start_supervisor, args=(log_settings, video_metadata),
                     kwargs={'ffmpeg_command': ffmpeg_command}, name='decklink_to_raw')
@@ -266,13 +266,13 @@ class Backend(ApplicationSession):
         aspect_ratio = video_metadata[1]["dc:format"]["aspect_ratio"]
 
         ffmpeg_command = self.default_raw_to_h264.copy()
-        ffmpeg_command['input'] = (file_path,)
-        ffmpeg_command['aspect_ratio'] = ('-aspect ' + aspect_ratio,)
-        ffmpeg_command['output'] = (FILES_PATHS['compressed'] + video_metadata[1]["dc:title"][0] + " -- " +
-        str(video_metadata[1]["dcterms:created"]) + " -- " + video_metadata[1]['dc:identifier'] + ".mkv",)
+        ffmpeg_command['input'][0] = file_path
+        ffmpeg_command['aspect_ratio'][1] = aspect_ratio
+        ffmpeg_command['output'][0] = FILES_PATHS['compressed'] + video_metadata[1]["dc:title"][0] + " -- " +\
+                    str(video_metadata[1]["dcterms:created"]) + " -- " + video_metadata[1]['dc:identifier'] + ".mkv"
+
         ffmpeg_command = [value for value in ffmpeg_command.values()]
         ffmpeg_command = list(itertools.chain(*ffmpeg_command))
-        print(ffmpeg_command)
 
         log_settings = self.default_log_settings.copy()
         log_settings["action"] = "raw_to_h264"
@@ -359,11 +359,12 @@ def startup_cleanup():
 
 class GracefulKiller:
     def __init__(self):
-        signal.signal(signal.SIGINT, self.exit_gracefully)
         signal.signal(signal.SIGTERM, self.exit_gracefully)
+        signal.signal(signal.SIGINT, self.exit_gracefully)
 
     @staticmethod
     def exit_gracefully(signum, frame):
+        print("caught signal")
         global CLOSING_TIME
         global CLOSE_SIGNAL
         CLOSING_TIME = True
@@ -371,20 +372,14 @@ class GracefulKiller:
 
 
 if __name__ == "__main__":
+    print(os.getpid())
     multiprocessing.set_start_method('spawn')
     setproctitle.setproctitle("digitize_backend")
-    print(os.getpid())
     # this function check that the the directories are writable
     startup_check()
     startup_cleanup()
     killer = GracefulKiller()
-    # run crossbar init --template default --appdir "appdir" to generate the default config
-    # you have to install libffi-dev to make crossbar installation success
-    p = subprocess.Popen(['/usr/local/bin/crossbar', "start", "--cbdir",
-                          FILES_PATHS['home_dir'] + '.config/crossbar/default/'])
-    sleep(12)
     runner = ApplicationRunner(url="ws://127.0.0.1:8080/ws", realm="realm1")
+    killer = GracefulKiller()
     runner.run(Backend)
-    p.terminate()
-    p.wait()
     print("backend has gracefully exited")
