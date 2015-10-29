@@ -47,7 +47,7 @@ class MainWindow(ApplicationSession, QMainWindow):
         yield from self.call('com.digitize_app.launch_capture', metadata)
 
     def backend_is_alive_beacon(self):
-        self.digitise_tab.backend_is_alive_signal.emit(3000)
+        self.digitise_tab.backend_is_alive_signal.emit(4000)
 
     def ongoing_capture(self, status):
         self.status_tab.ongoing_capture_status_update.emit(status)

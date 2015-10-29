@@ -111,7 +111,6 @@ class FFmpegWampSupervisor(ApplicationSession):
         ongoing_conversion_document = get_ongoing_conversion_document(log_settings)
 
         complete_logs_document_id = self.complete_ffmpeg_logs_collection.insert(complete_logs_document)
-
         self.ffmpeg_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                                universal_newlines=True)
 
@@ -120,7 +119,7 @@ class FFmpegWampSupervisor(ApplicationSession):
                 return_code = self.ffmpeg_process.returncode
                 converted_file_path = command[-1]
                 self.complete_ffmpeg_logs_collection.find_and_modify(query={"_id": complete_logs_document_id},
-                                                                     update={"$set": {"end_date": datetime.now().isoformat(),
+                                                                     update={"$set": {"end_date": datetime.now(),
                                                                                       "return_code": return_code}
                                                                              },
                                                                      fsync=True
@@ -153,7 +152,6 @@ class FFmpegWampSupervisor(ApplicationSession):
 
             # stdout_line example: frame=  288 fps= 16 q=32.0 size=    1172kB time=00:00:09.77 bitrate= 982.4kbits/s
             stdout_complete_line = self.ffmpeg_process.stdout.readline()
-
             self.complete_ffmpeg_logs_collection.find_and_modify(query={"_id": complete_logs_document_id},
                                                                  update={"$push": {"log_data": stdout_complete_line}}
                                                                  )

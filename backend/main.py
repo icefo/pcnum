@@ -133,6 +133,8 @@ class Backend(object):
         self.complete_conversion_logs_collection = ffmpeg_db["complete_conversion_logs"]
         metadata_db = self.db_client["metadata"]
         self.videos_metadata_collection = metadata_db["videos_metadata"]
+        # self.videos_metadata_collection.drop()
+        # self.waiting_conversions_collection.drop()
 
         self.startup_cleanup()
         atexit.register(self.exit_cleanup)
@@ -304,10 +306,14 @@ class Backend(object):
 
             for doc in self.ongoing_conversions_collection.find({}):
                 vuid = doc["vuid"]
+                print(vuid)
                 converted_file_path = doc["converted_file_path"]
+                print(converted_file_path)
                 video_metadata = []
                 for metadata in self.waiting_conversions_collection.find(query={"metadata.1.dc:identifier": vuid}):
+
                     video_metadata.append(metadata)
+                print(video_metadata)
 
                 if doc["action"] == "decklink_to_raw" and doc["return_code"] == 0:
                     self.waiting_conversions_collection.find_and_modify(
@@ -323,6 +329,8 @@ class Backend(object):
                     dublin_dict = video_metadata[0]["metadata"][1]
                     dublin_dict["files_path"] = {"h264": converted_file_path}
                     dublin_dict["source"] = "DVD"
+                    print(vuid)
+                    pprint(dublin_dict)
 
                     self.videos_metadata_collection.update(spec={"dc:identifier": vuid}, document={"$set": dublin_dict},
                                                            upsert=False, fsync=True)

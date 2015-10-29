@@ -45,7 +45,6 @@ class StatusWidget(QWidget):
         self.ongoing_captures.clearContents()
         self.ongoing_captures.setRowCount(0)
         for row in self.ongoing_conversions_dict.values():
-            pprint(row)
             row_count = self.ongoing_captures.rowCount()
             self.ongoing_captures.insertRow(row_count)
             self.ongoing_captures.setCellWidget(row_count, 0, QLabel(row["title"][0]))
