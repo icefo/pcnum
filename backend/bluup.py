@@ -1,18 +1,42 @@
 from pymongo import MongoClient
 from pprint import pprint
-from backend.shared import PYPY_PATH
 import shlex
 
-db_client = MongoClient("mongodb://localhost:27017/")
-digitize_app = db_client['digitize_app']
-videos_metadata_collection = digitize_app['videos_metadata']
-videos_metadata_collection.drop()
-complete_ffmpeg_logs_collection = digitize_app['complete_ffmpeg_logs']
+# db_client = MongoClient("mongodb://localhost:27017/")
+# digitize_app = db_client['digitize_app']
+# videos_metadata_collection = digitize_app['videos_metadata']
+# videos_metadata_collection.drop()
+# complete_ffmpeg_logs_collection = digitize_app['complete_ffmpeg_logs']
+#
+# for doc in complete_ffmpeg_logs_collection.find({}):
+#     pprint(doc)
+#
+# complete_ffmpeg_logs_collection.drop()
+#
+# print(shlex.quote(" ".join([PYPY_PATH + 'bin/crossbar', "start", "--cbdir",
+#                             PYPY_PATH + 'config/crossbar/default/.crossbar'])))from pymongo import MongoClient
+# from pprint import pprint
+#
+# import shlex
+#
+# db_client = MongoClient("mongodb://localhost:27017/")
+# digitize_app = db_client['digitize_app']
+# videos_metadata_collection = digitize_app['videos_metadata']
+# videos_metadata_collection.drop()
+# complete_ffmpeg_logs_collection = digitize_app['complete_ffmpeg_logs']
+#
+# for doc in complete_ffmpeg_logs_collection.find({}):
+#     pprint(doc)
+#
+# complete_ffmpeg_logs_collection.drop()
+#
+# print(shlex.quote(" ".join([PYPY_PATH + 'bin/crossbar', "start", "--cbdir",
+#                             PYPY_PATH + 'config/crossbar/default/.crossbar'])))
 
-for doc in complete_ffmpeg_logs_collection.find({}):
-    pprint(doc)
+from time import sleep
+while True:
+    sleep(1)
+    if True:
+        break
 
-complete_ffmpeg_logs_collection.drop()
-
-print(shlex.quote(" ".join([PYPY_PATH + 'bin/crossbar', "start", "--cbdir",
-                            PYPY_PATH + 'config/crossbar/default/.crossbar'])))
+print("Kjno")

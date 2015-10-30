@@ -1,5 +1,3 @@
-__author__ = 'adrien'
-
 import sys
 
 from PyQt5.QtCore import pyqtSignal
@@ -15,14 +13,15 @@ from quamash import QEventLoop
 def async_call(func):
     @functools.wraps(func)
     def wrapper(*args, **kw):
-        res = func(*args, **kw)
-        asyncio.async(res)
+        asyncio.async(func(*args, **kw))
     return wrapper
 
 
 class MainWindow(ApplicationSession, QMainWindow):
 
     def __init__(self, config=None):
+
+        # do this with super() ?
         ApplicationSession.__init__(self, config)
         QMainWindow.__init__(self)
 
@@ -38,11 +37,12 @@ class MainWindow(ApplicationSession, QMainWindow):
         print("session ready")
         yield from self.subscribe(self.time_event_handler, 'com.myapp.the_time')
 
-    @async_call
+    @async_call  # PyQT5 can't call a coroutine directly
     @asyncio.coroutine
     def the_widget_add_numbers(self, list_of_number=None):
         print("call it baby !")
-        result = yield from self.call('com.myapp.add2', list_of_number[0], list_of_number[1])
+        yield from asyncio.sleep(3)  # simulate processing time
+        result = yield from self.call('com.myapp.add', list_of_number)
         print("I called baby ! ", result)
         self.the_widget.addition_result_signal.emit(str(result))
 
@@ -50,6 +50,7 @@ class MainWindow(ApplicationSession, QMainWindow):
         self.the_widget.add_the_numbers_signal.connect(self.the_widget_add_numbers)
         self.setCentralWidget(self.the_widget)
 
+        #                 x    y  x_size y_size
         self.setGeometry(300, 300, 300, 200)
         self.setWindowTitle('gui_wamp_test')
         self.show()
@@ -75,9 +76,6 @@ class MainWidget(QWidget):
         grid = QGridLayout()
         self.setLayout(grid)
 
-        self.number_1.setInputMask("0000")
-        self.number_2.setInputMask("0000")
-
         self.addition_button.clicked.connect(self.collect_numbers)
         self.addition_result_signal.connect(self.addition_result.setText)
 
@@ -88,18 +86,8 @@ class MainWidget(QWidget):
 
     def collect_numbers(self):
         number_1 = self.number_1.displayText()
-        try:
-            number_1 = int(number_1)
-        except ValueError:
-            number_1 = 0
-
         number_2 = self.number_2.displayText()
-        try:
-            number_2 = int(number_2)
-        except ValueError:
-            number_2 = 0
-
-        print(number_1, number_2)
+        print("numbers to add:", number_1, number_2)
         self.add_the_numbers_signal.emit([number_1, number_2])
 
 

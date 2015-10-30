@@ -3,7 +3,7 @@ from pymongo import MongoClient
 from datetime import datetime
 from pprint import pprint
 from setproctitle import setproctitle
-from autobahn import wamp
+import functools
 from backend.shared import async_call
 import asyncio
 from autobahn.asyncio.wamp import ApplicationSession, ApplicationRunner
@@ -12,15 +12,12 @@ import os
 import re
 
 
-CLOSING_TIME = False
-
-
 def get_complete_logs_document(command, log_settings):
     complete_logs_document = {"dc:identifier": log_settings["dc:identifier"],
                               "action": log_settings["action"],
                               "year": log_settings["year"],
                               "title": log_settings["title"],
-                              "start_date": datetime.now().isoformat(),
+                              "start_date": datetime.now().replace(microsecond=0).isoformat(),
                               "pid": os.getpid(),
                               "command": command,
                               "return_code": None,
@@ -38,7 +35,7 @@ def get_ongoing_conversion_document(log_settings):
                                    "action": log_settings["action"],
                                    "year": log_settings["year"],
                                    "title": log_settings["title"],
-                                   "start_date": datetime.now().isoformat(),
+                                   "start_date": datetime.now().replace(microsecond=0).isoformat(),
                                    "progress": None
                                    }
 
@@ -53,7 +50,6 @@ def get_sec(s):
 
 
 class FFmpegWampSupervisor(ApplicationSession):
-
     def __init__(self, config, ffmpeg_command, log_settings, video_metadata):
         ApplicationSession.__init__(self, config)
 
@@ -64,18 +60,30 @@ class FFmpegWampSupervisor(ApplicationSession):
         self.videos_metadata_collection = digitize_app['videos_metadata']
         self.complete_ffmpeg_logs_collection = digitize_app['complete_ffmpeg_logs']
 
-        asyncio.async(self.exit_cleanup())
+        self.close_signal = None
+        loop = asyncio.get_event_loop()
+        # You should abort any long operation on SIGINT and you can do what you want SIGTERM
+        # In both cases the program should exit cleanly
+        # SIGINT = Ctrl-C
+        loop.add_signal_handler(signal.SIGINT, functools.partial(self.exit_cleanup, 'SIGINT'))
+        # the kill command use the SIGTERM signal by default
+        loop.add_signal_handler(signal.SIGTERM, functools.partial(self.exit_cleanup, 'SIGTERM'))
+
         asyncio.async(self.run_ffmpeg(ffmpeg_command, log_settings, video_metadata))
 
+    @async_call
     @asyncio.coroutine
-    def exit_cleanup(self):
+    def exit_cleanup(self, close_signal):
+        self.close_signal = close_signal
         while True:
             yield from asyncio.sleep(2)
-            if CLOSING_TIME and self.ffmpeg_process.poll() is None:
+            if self.ffmpeg_process.poll() is None:
                 print("Waiting for conversion to terminate")
-            if CLOSING_TIME and self.ffmpeg_process.poll() is not None:
+            if self.ffmpeg_process.poll() is not None:
                 print("CLOSING_TIME = True for ffmpeg supervisor")
                 break
+
+        yield from asyncio.sleep(5)  # give time to run_ffmpeg to log what's happening to the database
 
         loopy = asyncio.get_event_loop()
         for task in asyncio.Task.all_tasks():
@@ -84,7 +92,7 @@ class FFmpegWampSupervisor(ApplicationSession):
             if task is not asyncio.Task.current_task():
                 task.cancel()
 
-        # little trick to allow the event loop to process the cancel events
+        # Just to make sure that the cancel events are processed
         yield from asyncio.sleep(1)
 
         loopy.stop()
@@ -119,7 +127,7 @@ class FFmpegWampSupervisor(ApplicationSession):
                 return_code = self.ffmpeg_process.returncode
                 converted_file_path = command[-1]
                 self.complete_ffmpeg_logs_collection.find_and_modify(query={"_id": complete_logs_document_id},
-                                                                     update={"$set": {"end_date": datetime.now(),
+                                                                     update={"$set": {"end_date": datetime.now().replace(microsecond=0),
                                                                                       "return_code": return_code}
                                                                              },
                                                                      fsync=True
@@ -130,11 +138,13 @@ class FFmpegWampSupervisor(ApplicationSession):
                     dublincore_dict['files_path'] = {'h264': converted_file_path}
                     dublincore_dict['source'] = video_metadata[0]['source']
                     self.videos_metadata_collection.insert(dublincore_dict, fsync=True)
+
                 elif return_code == 0 and log_settings['action'] == 'decklink_to_raw':
                     video_metadata[0]["file_path"] = converted_file_path
 
                     # block until completition so that the task is not cancelled
                     yield from self.call('com.digitize_app.start_raw_to_h264', video_metadata)
+
                 elif return_code == 0 and log_settings['action'] == 'raw_to_h264':
                     dublincore_dict = video_metadata[1]
                     dublincore_dict['files_path'] = {'h264': converted_file_path}
@@ -145,9 +155,7 @@ class FFmpegWampSupervisor(ApplicationSession):
                     os.remove(converted_file_path)
                     raise ChildProcessError("FFMPEG process returned with a non zero code \"", str(return_code),
                                             "\" , see complete log for details")
-
-                global CLOSING_TIME
-                CLOSING_TIME = True
+                self.exit_cleanup('SIGTERM')
                 break
 
             # stdout_line example: frame=  288 fps= 16 q=32.0 size=    1172kB time=00:00:09.77 bitrate= 982.4kbits/s
@@ -192,18 +200,31 @@ class CopyFileSupervisor(ApplicationSession):
         self.videos_metadata_collection = digitize_app['videos_metadata']
         self.complete_rsync_logs_collection = digitize_app['complete_rsync_logs']
 
-        asyncio.async(self.exit_cleanup())
+        self.close_signal = None
+        loop = asyncio.get_event_loop()
+        # You should abort any long operation on SIGINT and you can do what you want SIGTERM
+        # In both cases the program should exit cleanly
+        # SIGINT = Ctrl-C
+        loop.add_signal_handler(signal.SIGINT, functools.partial(self.exit_cleanup, 'SIGINT'))
+        # the kill command use the SIGTERM signal by default
+        loop.add_signal_handler(signal.SIGTERM, functools.partial(self.exit_cleanup, 'SIGTERM'))
+
         asyncio.async(self.run_rsync(src_dst, log_settings, video_metadata))
 
+    @async_call
     @asyncio.coroutine
-    def exit_cleanup(self):
+    def exit_cleanup(self, close_signal):
+        self.close_signal = close_signal
         while True:
             yield from asyncio.sleep(2)
-            if CLOSING_TIME and self.rsync_process.poll() is None:
+            if self.rsync_process.poll() is None:
                 print("Waiting for copy to terminate")
-            if CLOSING_TIME and self.rsync_process.poll() is not None:
+            if self.rsync_process.poll() is not None:
                 print("CLOSING_TIME = True for rsync supervisor")
                 break
+
+        # give time to run_rsync to log data to the database
+        yield from asyncio.sleep(5)
 
         loopy = asyncio.get_event_loop()
         for task in asyncio.Task.all_tasks():
@@ -212,11 +233,12 @@ class CopyFileSupervisor(ApplicationSession):
             if task is not asyncio.Task.current_task():
                 task.cancel()
 
-        # little trick to allow the event loop to process the cancel events
+        # Just to make sure that the cancel events are processed
         yield from asyncio.sleep(1)
 
         loopy.stop()
         print("rsync supervisor has gracefully exited")
+        loopy.close()
 
     @asyncio.coroutine
     def run_rsync(self, src_dst, log_settings, video_metadata):
@@ -245,18 +267,19 @@ class CopyFileSupervisor(ApplicationSession):
                 return_code = self.rsync_process.returncode
                 converted_file_path = command[-1]
                 self.complete_rsync_logs_collection.find_and_modify(query={"_id": complete_logs_document_id},
-                                                                    update={"$set": {"end_date": datetime.now().isoformat(),
+                                                                    update={"$set": {"end_date": datetime.now().replace(microsecond=0),
                                                                                      "return_code": return_code}
                                                                             },
                                                                     fsync=True
                                                                     )
-                dublincore_dict = video_metadata[1]
-                dublincore_dict['files_path'] = {'unknown': converted_file_path}
-                dublincore_dict['source'] = video_metadata[0]['source']
-                self.videos_metadata_collection.insert(dublincore_dict, fsync=True)
-                global CLOSING_TIME
-                CLOSING_TIME = True
+                if return_code == 0:
+                    dublincore_dict = video_metadata[1]
+                    dublincore_dict['files_path'] = {'unknown': converted_file_path}
+                    dublincore_dict['source'] = video_metadata[0]['source']
+                    self.videos_metadata_collection.insert(dublincore_dict, fsync=True)
+                self.exit_cleanup('SIGTERM')
                 break
+
             stdout_complete_line = self.rsync_process.stdout.readline()
             stdout_line = stdout_complete_line.strip()
             stdout_list = re.sub(' +', ' ', stdout_line).split(' ')
@@ -267,23 +290,9 @@ class CopyFileSupervisor(ApplicationSession):
                     break
 
 
-class GracefulKiller:
-
-    def __init__(self):
-        signal.signal(signal.SIGINT, self.exit_gracefully)
-        signal.signal(signal.SIGTERM, self.exit_gracefully)
-
-    @staticmethod
-    def exit_gracefully(signum, frame):
-        print("CLOSING TIME for Capture supervisor")
-        global CLOSING_TIME
-        CLOSING_TIME = True
-
-
 def start_supervisor(log_settings, video_metadata, ffmpeg_command=None, src_dst=None):
     print("Capture wamp service")
     setproctitle("Capture wamp service")
-    GracefulKiller()
     runner = ApplicationRunner(url="ws://127.0.0.1:8080/ws", realm="realm1")
     # todo do a pull request for *args, **kwargs, print_exc() addition
     if ffmpeg_command:
@@ -292,3 +301,4 @@ def start_supervisor(log_settings, video_metadata, ffmpeg_command=None, src_dst=
         runner.run(CopyFileSupervisor, args=(src_dst, log_settings, video_metadata))
     else:
         raise ValueError("Both parameters ffmpeg_command and src_dst are None, this shouldn't happen")
+    print("capture supervisor has exited")

@@ -57,39 +57,6 @@ class DigitiseWidget(QWidget):
         # self.backend_status_check()
         self.tab_init()
 
-        atexit.register(self.cleanup)
-
-    def cleanup(self):
-        """
-        This function is called when the DigitiseWidget class is about to be destroyed
-
-        :return:
-        """
-        pass
-
-    def backend_status_check(self):
-        """
-        This function launch the backend and collection monitoring worker
-
-        :return:
-        """
-
-        print("backend_status_check")
-        self.worker_thread_backend_status = QThread()
-        self.worker_object_backend_status = DigitiseWidgetWorker()
-        self.worker_object_backend_status.moveToThread(self.worker_thread_backend_status)
-
-        self.worker_thread_backend_status.started.connect(self.worker_object_backend_status.backend_status_check)
-
-        self.worker_object_backend_status.enable_decklink_1_radio.connect(self.decklink_radio_1.setCheckable)
-        self.worker_object_backend_status.enable_decklink_1_radio.connect(self.decklink_radio_1.setEnabled)
-
-        self.worker_object_backend_status.enable_decklink_2_radio.connect(self.decklink_radio_2.setCheckable)
-        self.worker_object_backend_status.enable_decklink_2_radio.connect(self.decklink_radio_2.setEnabled)
-
-        self.worker_object_backend_status.enable_digitize_button.connect(self.launch_digitise_button.setEnabled)
-        self.worker_thread_backend_status.start()
-
     def delete_table_row(self):
         """
         This function is linked to the delete button when a row is added.
@@ -286,8 +253,6 @@ class DigitiseWidget(QWidget):
 
         :return: nothing but call the digitise_checker function with the parameter [digitise_infos, dublincore_dict]
         """
-        # prevent button hammering
-        self.launch_digitise_button.setEnabled(False)
 
         file_path = None
         if self.dvd_import_radio.isChecked():

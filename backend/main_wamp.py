@@ -1,6 +1,6 @@
 __author__ = 'adrien'
 
-from backend.shared import FILES_PATHS, PYPY_PATH
+from backend.shared import FILES_PATHS
 from backend.CaptureSupervisor import start_supervisor
 from backend.startup_check import startup_check
 import setproctitle
@@ -13,17 +13,14 @@ from collections import OrderedDict
 from multiprocessing import Process
 import subprocess
 from pprint import pprint
+from backend.shared import async_call
+from time import sleep
 import itertools
 from datetime import datetime, timedelta
-from time import sleep
+import functools
 import os
 from uuid import uuid4
 import multiprocessing
-
-
-CLOSING_TIME = False
-CLOSE_SIGNAL = None
-EXIT_NOW = False
 
 
 def get_mkv_file_duration(file_path):
@@ -46,7 +43,6 @@ def get_mkv_file_duration(file_path):
 
 
 class Backend(ApplicationSession):
-
     def __init__(self, config=None):
         ApplicationSession.__init__(self, config)
 
@@ -88,9 +84,21 @@ class Backend(ApplicationSession):
         self.compressed_videos_path = FILES_PATHS["compressed"]
         self.imported_files_path = FILES_PATHS["imported"]
 
+        self.close_signal = None
+
         self.ffmpeg_supervisor_processes = list()
         self.waiting_captures_list = list()
-        self.waiting_captures_queue = asyncio.Queue()
+
+        asyncio.async(self.waiting_conversions_handler())
+        asyncio.async(self.ffmpeg_supervisor_processes_list_updater())
+
+        loop = asyncio.get_event_loop()
+        # You should abort any long operation on SIGINT and you can do what you want SIGTERM
+        # In both cases the program should exit cleanly
+        # SIGINT = Ctrl-C
+        loop.add_signal_handler(signal.SIGINT, functools.partial(self.exit_cleanup, 'SIGINT'))
+        # the kill command use the SIGTERM signal by default
+        loop.add_signal_handler(signal.SIGTERM, functools.partial(self.exit_cleanup, 'SIGTERM'))
 
     @asyncio.coroutine
     def onJoin(self, details):
@@ -102,12 +110,13 @@ class Backend(ApplicationSession):
         except Exception as e:
             print("could not register procedure: {0}".format(e))
 
-        asyncio.async(self.exit_cleanup())
         asyncio.async(self.backend_is_alive_beacon_sender())
-        asyncio.async(self.waiting_conversions_handler())
 
+    @async_call  # the signal handler can't call a coroutine directly
     @asyncio.coroutine
-    def exit_cleanup(self):
+    def exit_cleanup(self, close_signal):
+        self.close_signal = close_signal
+
         while True:
             self.ffmpeg_supervisor_processes = [process for process in self.ffmpeg_supervisor_processes
                                                 if process.is_alive()]
@@ -128,22 +137,22 @@ class Backend(ApplicationSession):
             len_ffmpeg_supervisor_processes = max(len_ffmpeg_supervisor_processes_1, len_ffmpeg_supervisor_processes_2)
             len_waiting_captures_list = max(len_waiting_captures_list_1, len_waiting_captures_list_2)
 
-            if CLOSING_TIME and len_ffmpeg_supervisor_processes != 0 and len_waiting_captures_list != 0:
+            if len_ffmpeg_supervisor_processes != 0 and len_waiting_captures_list != 0:
                 print("waiting for {0} subprocess to terminate"
-                      "and on {1} captures to start".format(len_ffmpeg_supervisor_processes, len_waiting_captures_list))
+                      " and on {1} captures to start".format(len_ffmpeg_supervisor_processes, len_waiting_captures_list))
 
-            elif CLOSING_TIME and len_ffmpeg_supervisor_processes != 0 and CLOSE_SIGNAL == 2:
+            elif len_ffmpeg_supervisor_processes != 0 and close_signal == 'SIGINT':
                 print("cancellation of {0} subprocess".format(len_ffmpeg_supervisor_processes))
-            elif CLOSING_TIME and len_ffmpeg_supervisor_processes != 0:
+            elif len_ffmpeg_supervisor_processes != 0:
                 print("waiting for {0} subprocess to complete".format(len_ffmpeg_supervisor_processes))
 
-            elif CLOSING_TIME and len_waiting_captures_list != 0 and CLOSE_SIGNAL == 2:
+            elif len_waiting_captures_list != 0 and close_signal == 'SIGINT':
                 print("cancellation of {0} queued conversions".format(len_waiting_captures_list))
                 break
-            elif CLOSING_TIME and len_waiting_captures_list != 0:
+            elif len_waiting_captures_list != 0:
                 print("waiting on {0} conversions to start".format(len_waiting_captures_list))
 
-            elif CLOSING_TIME and len_ffmpeg_supervisor_processes == 0 and len_waiting_captures_list == 0:
+            elif len_ffmpeg_supervisor_processes == 0 and len_waiting_captures_list == 0:
                 print("CLOSING_TIME = True for backend")
                 break
 
@@ -154,10 +163,18 @@ class Backend(ApplicationSession):
             if task is not asyncio.Task.current_task():
                 task.cancel()
 
-        # little trick to allow the event loop to process the cancel events
+        # just to make sure that the cancel events are processed
         yield from asyncio.sleep(1)
 
         loopy.stop()
+        print("backend has gracefully exited")
+        loopy.close()
+
+    @asyncio.coroutine
+    def ffmpeg_supervisor_processes_list_updater(self):
+        while True:
+            self.ffmpeg_supervisor_processes = [process for process in self.ffmpeg_supervisor_processes if process.is_alive()]
+            yield from asyncio.sleep(5)
 
     @asyncio.coroutine
     def backend_is_alive_beacon_sender(self):
@@ -174,17 +191,17 @@ class Backend(ApplicationSession):
         :return:
         """
         while True:
-            if CLOSE_SIGNAL == 2:
+            if self.close_signal == 'SIGINT':
                 break
             try:
-                video_metadata = self.waiting_captures_queue.get_nowait()
-                self.waiting_captures_list.remove(video_metadata)
+                video_metadata = self.waiting_captures_list.pop(0)
                 self.launch_capture(video_metadata)
-            except asyncio.QueueEmpty:
+            except IndexError:
                 pass
-            self.publish('com.digitize_app.waiting_captures', self.waiting_captures_list)
 
+            # Give time to the waiting_capture to come back in the list if it can't be processed
             yield from asyncio.sleep(5)
+            self.publish('com.digitize_app.waiting_captures', self.waiting_captures_list)
 
     @wamp.register("com.digitize_app.launch_capture")
     def launch_capture(self, video_metadata):
@@ -192,8 +209,9 @@ class Backend(ApplicationSession):
         this function dispatch the incoming captures request to the correct functions
         :param video_metadata : [digitise_infos, dublincore_dict]
         """
-        temp_ffmpeg_supervisor_processes = self.ffmpeg_supervisor_processes.copy()
-        ongoing_captures = [p.name for p in temp_ffmpeg_supervisor_processes]
+
+        ongoing_captures = [pa.name for pa in self.ffmpeg_supervisor_processes]
+        print(self.ffmpeg_supervisor_processes)
         print(ongoing_captures)
         print(video_metadata)
         video_metadata[1]['dc:identifier'] = str(uuid4())
@@ -209,7 +227,6 @@ class Backend(ApplicationSession):
             else:
                 print("nope back in the queue")
                 self.waiting_captures_list.append(video_metadata)
-                self.waiting_captures_queue.put_nowait(video_metadata)
 
         elif video_metadata[0]["source"] == "file":
             if 'file_import' not in ongoing_captures:
@@ -217,7 +234,6 @@ class Backend(ApplicationSession):
             else:
                 print("nope back in the queue")
                 self.waiting_captures_list.append(video_metadata)
-                self.waiting_captures_queue.put_nowait(video_metadata)
 
         else:
             raise ValueError("This is not a valid capture request\n" + video_metadata)
@@ -357,29 +373,19 @@ def startup_cleanup():
     complete_rsync_logs_collection.remove({"return_code": 0, "end_date": {"$lt": one_week_ago}})
 
 
-class GracefulKiller:
-    def __init__(self):
-        signal.signal(signal.SIGTERM, self.exit_gracefully)
-        signal.signal(signal.SIGINT, self.exit_gracefully)
-
-    @staticmethod
-    def exit_gracefully(signum, frame):
-        print("caught signal")
-        global CLOSING_TIME
-        global CLOSE_SIGNAL
-        CLOSING_TIME = True
-        CLOSE_SIGNAL = signum  # 2 = SIGINT (Ctrl-C), 15 = SIGTERM
-
-
 if __name__ == "__main__":
     print(os.getpid())
     multiprocessing.set_start_method('spawn')
     setproctitle.setproctitle("digitize_backend")
-    # this function check that the the directories are writable
+    # this function check if the directories are writable
     startup_check()
     startup_cleanup()
-    killer = GracefulKiller()
+
+    p = subprocess.Popen(['/usr/local/bin/crossbar', "start", "--cbdir",
+                          FILES_PATHS['home_dir'] + '.config/crossbar/default/'])
+
+    sleep(12)
     runner = ApplicationRunner(url="ws://127.0.0.1:8080/ws", realm="realm1")
-    killer = GracefulKiller()
     runner.run(Backend)
-    print("backend has gracefully exited")
+    p.terminate()
+    p.wait()
