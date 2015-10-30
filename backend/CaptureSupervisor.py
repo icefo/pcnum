@@ -238,7 +238,6 @@ class CopyFileSupervisor(ApplicationSession):
 
         loopy.stop()
         print("rsync supervisor has gracefully exited")
-        loopy.close()
 
     @asyncio.coroutine
     def run_rsync(self, src_dst, log_settings, video_metadata):

@@ -168,7 +168,6 @@ class Backend(ApplicationSession):
 
         loopy.stop()
         print("backend has gracefully exited")
-        loopy.close()
 
     @asyncio.coroutine
     def ffmpeg_supervisor_processes_list_updater(self):
