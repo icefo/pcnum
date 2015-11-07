@@ -20,7 +20,7 @@ def async_call(func):
 
 # inspiration: http://stackoverflow.com/questions/3927166/automatically-expiring-variable -- Ant
 # inspiration: http://stackoverflow.com/questions/16136979/set-class-with-timed-auto-remove-of-elements -- A. Rodas
-class AutoKeyDeleteDict(dict):
+class TimedKeyDeleteDict(dict):
     def __init__(self, timeout, raise_error=False):
         dict.__init__(self)
         self.timeout = timeout

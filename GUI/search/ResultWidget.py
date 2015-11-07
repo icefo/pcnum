@@ -1,5 +1,3 @@
-__author__ = 'adrien'
-
 from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtWidgets import QWidget, QPushButton, QGridLayout, QTreeWidget, QTreeWidgetItem, QTextBrowser, QMessageBox
 from PyQt5.QtGui import QFont
@@ -10,15 +8,23 @@ import os
 
 
 class ResultWidget(QWidget):
+    """
+    This QWidget display the search results
+    Attributes:
+        self.show_search_widget_signal (pyqtSignal()): Is used to ask the MainSearchWidget to display the SearchWidget
+        self.request_refresh (pyqtSignal()): Is used to ask the SearchWidget to rerun the search after a deletion
+        self.receive_search_results (pyqtSignal([list])): List of dict sent after a search by the SearchWidget
+    """
+
     show_search_widget_signal = pyqtSignal()
     request_refresh = pyqtSignal()
-    receive_list = pyqtSignal([list])
+    receive_search_results = pyqtSignal([list])
 
     def __init__(self):
         super().__init__()
 
         #########
-        self.display_result = QTreeWidget()
+        self.search_results_tree = QTreeWidget()
         self.result_font = QFont(QFont().defaultFamily(), 12)
 
         #########
@@ -43,8 +49,10 @@ class ResultWidget(QWidget):
         """
         This function is called when the DigitiseWidgetWorker class is about to be destroyed
 
-        :return:
+        Returns
+            nothing
         """
+
         self.db_client.close()
         print("ResultWidget's db connection closed")
 
@@ -52,27 +60,31 @@ class ResultWidget(QWidget):
         """
         This function launch vlc in a separate process when the user double click on a file path
 
-        :return:
+        Returns:
+            nothing
         """
-        selected_item = self.display_result.currentItem().text(0)
+
+        selected_item = self.search_results_tree.currentItem().text(0)
 
         if selected_item.startswith("h264: ") or selected_item.startswith("unknown: "):
             # unknown: /media/storage/imported/le beau fichier importé: -- 4.mkv
             file_path = "".join(selected_item.split(": ")[1:])
             print(file_path)
-            shell_command = ['vlc', '--quiet', file_path]
-            subprocess.Popen(shell_command, stdout=None)
+            command = ['vlc', '--quiet', file_path]
+            subprocess.Popen(command, stdout=None)
 
     def delete_video(self):
         """
         This function delete a video after requesting user confirmation
 
-        :return:
+        Returns:
+            nothing
         """
+
         selected_item_parent = None
         dc_identifier = None
         try:
-            selected_item = self.display_result.currentItem()
+            selected_item = self.search_results_tree.currentItem()
             selected_item_parent = selected_item.parent().text(0)
             dc_identifier = selected_item.text(0)
             print(dc_identifier)
@@ -106,11 +118,18 @@ class ResultWidget(QWidget):
 
     def search_done(self, search_results):
         """
-        This function display the search results send by the SearchWidget
-        :param search_results: list of dictionary
-        :return:
+        This function display the search results send by the SearchWidget in a QTreeWidget
+        Args:
+            search_results (list): list of dictionary
+                [{'dc:type': 'video', 'dcterms:modified': '2015-10-29T02:13:30',
+                'files_path': {'h264': file_path}, 'dc:title': ['the title']}]
+
+        Returns:
+            nothing
         """
-        self.display_result.clear()
+
+        print(search_results)
+        self.search_results_tree.clear()
 
         for result in search_results:
             result_tree = QTreeWidgetItem()
@@ -133,7 +152,7 @@ class ResultWidget(QWidget):
                             text_browser.setMinimumHeight(0)
                             text_browser.setMaximumHeight(100)
                             dc_tree.addChild(item)
-                            self.display_result.setItemWidget(item, 0, text_browser)
+                            self.search_results_tree.setItemWidget(item, 0, text_browser)
                     else:
                         for x in value:
                             item = QTreeWidgetItem()
@@ -155,39 +174,41 @@ class ResultWidget(QWidget):
                     text_browser.setMinimumHeight(0)
                     text_browser.setMaximumHeight(100)
                     dc_tree.addChild(item)
-                    self.display_result.setItemWidget(item, 0, text_browser)
+                    self.search_results_tree.setItemWidget(item, 0, text_browser)
                 else:
                     item = QTreeWidgetItem()
                     item.setText(0, str(value))
                     dc_tree.addChild(item)
                 result_tree.addChild(dc_tree)
             result_tree.setText(0, self.movie_title[0] + " -- " + self.movie_creation_date)
-            self.display_result.addTopLevelItem(result_tree)
+            self.search_results_tree.addTopLevelItem(result_tree)
         # 0 == column, 0 == sort_order // 1 to reverse_sort
-        self.display_result.sortItems(0, 0)
+        self.search_results_tree.sortItems(0, 0)
 
     def tab_init(self):
         """
-        This function is called when the DigitiseWidget class init
-        Its job is to put the widgets instantiated in the init function to their place and
-        set some link between functions and buttons
+        This function is called when the ResultWidget class init
+        Its job is to put the widgets instantiated in the init function to their place and set some link between
+         functions and buttons
 
-        :return:
+        Returns:
+            nothing
         """
+
         grid = QGridLayout()
         self.setLayout(grid)
 
         #########
-        self.display_result.setFont(self.result_font)
-        self.display_result.setHeaderLabel("")
+        self.search_results_tree.setFont(self.result_font)
+        self.search_results_tree.setHeaderLabel("")
 
         #########
-        grid.addWidget(self.display_result, 0, 0, 3, 2)
+        grid.addWidget(self.search_results_tree, 0, 0, 3, 2)
         grid.addWidget(self.delete_video_button, 4, 0)
         grid.addWidget(self.return_to_search_button, 4, 1)
 
         #########
         self.return_to_search_button.clicked.connect(self.show_search_widget_signal.emit)
-        self.display_result.itemDoubleClicked.connect(self.launch_vlc)
+        self.search_results_tree.itemDoubleClicked.connect(self.launch_vlc)
         self.delete_video_button.clicked.connect(self.delete_video)
-        self.receive_list.connect(self.search_done)
+        self.receive_search_results.connect(self.search_done)

@@ -2,9 +2,7 @@ import sys
 
 from PyQt5.QtWidgets import QMainWindow, QApplication, QTabWidget
 
-from PyQt5.QtCore import pyqtSignal
-
-from GUI.digitise.DigitiseWidget import DigitiseWidget
+from GUI.digitise.CaptureWidget import CaptureWidget
 from GUI.search.MainSearchWidget import MainSearchWidget
 from GUI.status.StatusWidget import StatusWidget
 import setproctitle
@@ -26,34 +24,24 @@ from quamash import QEventLoop
 
 
 class MainWindow(ApplicationSession, QMainWindow):
+    """
+    This class is a wamp client and adds the CaptureWidget, MainSearchWidget and StatusWidget in a QTabWidget.
+    This class acts as a proxy for the widgets that want to communicate with the backend because they can't have a valid
+     ApplicationSession that would allow them to be a wamp client and a QWidget.
+    """
 
     def __init__(self, config=None):
         ApplicationSession.__init__(self, config)
         QMainWindow.__init__(self)
 
-        self.digitise_tab = DigitiseWidget()
+        #########
+        self.capture_tab = CaptureWidget()
         self.search_tab = MainSearchWidget()
         self.status_tab = StatusWidget()
 
+        #########
         self.statusBar()
         self.main_window_init()
-
-    def set_status_bar_message(self, arg):
-        self.statusBar().showMessage(arg, msecs=10000)
-
-    @async_call
-    @asyncio.coroutine
-    def launch_capture(self, metadata):
-        yield from self.call('com.digitize_app.launch_capture', metadata)
-
-    def backend_is_alive_beacon(self):
-        self.digitise_tab.backend_is_alive_signal.emit(4000)
-
-    def ongoing_capture(self, status):
-        self.status_tab.ongoing_capture_status_update.emit(status)
-
-    def waiting_captures(self, list_of_waiting_captures):
-        self.status_tab.waiting_captures_status_update.emit(list_of_waiting_captures)
 
     @asyncio.coroutine
     def onJoin(self, details):
@@ -62,31 +50,99 @@ class MainWindow(ApplicationSession, QMainWindow):
         yield from self.subscribe(self.ongoing_capture, 'com.digitize_app.ongoing_capture')
         yield from self.subscribe(self.waiting_captures, 'com.digitize_app.waiting_captures')
 
+    @async_call
+    @asyncio.coroutine
+    def launch_capture(self, metadata):
+        """
+        This function is called by the CaptureWidget and call the 'launch_capture' function in the backend
+        Args:
+            metadata (list): [digitise_infos, dublincore_dict]
+
+        Returns:
+            nothing
+        """
+
+        yield from self.call('com.digitize_app.launch_capture', metadata)
+
+    def backend_is_alive_beacon(self):
+        """
+        This function is called when the backend send a beacon and fire the 'backend_is_alive_signal' signal in the
+         'capture_tab' class.
+
+        Returns:
+            nothing
+        """
+
+        self.capture_tab.backend_is_alive_signal.emit(4000)
+
+    def ongoing_capture(self, capture_status):
+        """
+        This function is called whenever one of the ongoing capture has an update which happens randomly.
+
+        Args:
+            capture_status (dict): Dict that contain the following keys:
+                title, year, dc:identifier, start_date, action
+
+        Returns:
+            nothing
+        """
+
+        self.status_tab.receive_ongoing_capture_status.emit(capture_status)
+
+    def waiting_captures(self, waiting_captures):
+        """
+        This function is called when the backend publish a list of waiting captures
+        If there is at least one capture waiting this function is called every 5 seconds.
+
+        Args:
+            waiting_captures (list): List of dicts. These dicts contain the following keys:
+                dc:title, dcterms:created, dc:identifier, source
+
+        Returns:
+            nothing
+        """
+
+        self.status_tab.receive_waiting_captures_status.emit(waiting_captures)
+
+    def set_status_bar_message(self, message):
+        """
+        Args:
+            message (str):
+
+        Returns:
+            nothing
+        """
+        self.statusBar().showMessage(message, msecs=10000)
+
     def main_window_init(self):
         """
         This function init the main window
         It sets the status bar, menu bar and set the tabs class as central widget
 
-        :return: nothing
+        Returns:
+            nothing
         """
+
         tabs = QTabWidget()
-        self.digitise_tab.set_statusbar_text_signal.connect(self.set_status_bar_message)
-        self.digitise_tab.launch_digitise_signal.connect(self.launch_capture)
-        tabs.addTab(self.digitise_tab, "Numérisation")
+        self.capture_tab.set_statusbar_text_signal.connect(self.set_status_bar_message)
+        self.capture_tab.launch_capture_signal.connect(self.launch_capture)
 
+        #########
+        tabs.addTab(self.capture_tab, "Numérisation")
         tabs.addTab(self.search_tab, "Recherche")
-
         tabs.addTab(self.status_tab, "Statuts des conversions")
 
+        #########
         self.setCentralWidget(tabs)
 
+        #########
         self.setGeometry(300, 300, 800, 600)
         self.setWindowTitle('Logiciel Numérisation')
         self.show()
 
 
 if __name__ == '__main__':
-    # this function check that the directories are writable
+    # this function check if the directories are writable
     startup_check()
 
     setproctitle.setproctitle("digitise_gui")

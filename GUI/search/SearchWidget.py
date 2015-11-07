@@ -1,5 +1,3 @@
-__author__ = 'adrien'
-
 from PyQt5.QtCore import pyqtSignal, Qt
 from PyQt5.QtWidgets import (QWidget,
                              QHeaderView, QGridLayout,
@@ -11,6 +9,13 @@ import atexit
 
 
 class SearchWidget(QWidget):
+    """
+    This QWidget gather the search query, transform it in a suitable format for MongoDB and then run it
+    Attributes:
+        self.show_result_widget_signal (pyqtSignal()): Is used to ask the MainSearchWidget to display the ResultWidget
+        self.search_transmit (pyqtSignal([list])): List of dict sent after a search
+    """
+
     show_result_widget_signal = pyqtSignal()
     search_transmit = pyqtSignal([list])
 
@@ -36,16 +41,70 @@ class SearchWidget(QWidget):
         self.tab_init()
 
     def cleanup(self):
+        """
+        This function is called when the DigitiseWidgetWorker class is about to be destroyed
+
+        Returns
+            nothing
+        """
+
         self.db_client.close()
         print("SearchWidget's db connection closed")
+
+    def add_table_row(self):
+        """
+        This function is called when the "self.new_table_row_button" button is pressed
+        This function will fill the combobox with their name and a tooltip
+        Link the combobox to the "self.combobox_changed function",
+        Link the delete button with the self.delete_table_row" function
+
+        Returns:
+            nothing
+        """
+
+        dc_data = OrderedDict()
+        dc_data['dc:contributor'] = "nom de acteurs"
+        dc_data['dc:creator'] = "maison d'édition, scénariste ou réalisateur"
+        dc_data['dc:description'] = "résumé de la vidéo"
+        dc_data['dc:language'] = "langue de la vidéo"
+        dc_data['dc:publisher'] = "entreprise qui a publié le film, par exemple Sony Pictures"
+        dc_data['dc:subject'] = "thème du film: horreur, action, histoire d'amour..."
+        dc_data['dc:title'] = "titre du film"
+        dc_data['dcterms:isPartOf'] = "remplir si le film fait partit d'un ensemble de films comme Star Wars"
+        dc_data['dcterms:created'] = "année de sortie du film"
+        dc_data['durée'] = "durée du film en minutes"
+        dc_data['source'] = "source de l'acquisition"
+
+        logic_text_list = ["equal", "contain"]
+
+        row_count = self.query_table.rowCount()
+        self.query_table.insertRow(row_count)
+        self.query_table.setCellWidget(row_count, 0, QComboBox())
+
+        count = 0
+        for dc_key, dc_tooltip in dc_data.items():
+            self.query_table.cellWidget(row_count, 0).addItem(dc_key)
+            self.query_table.cellWidget(row_count, 0).setItemData(count, dc_tooltip, Qt.ToolTipRole)
+            count += 1
+
+        self.query_table.cellWidget(row_count, 0).activated[str].connect(self.dc_combobox_changed)
+
+        self.query_table.setCellWidget(row_count, 1, QComboBox())
+        self.query_table.cellWidget(row_count, 1).addItems(logic_text_list)
+
+        self.query_table.setCellWidget(row_count, 2, QLineEdit())
+        self.query_table.setCellWidget(row_count, 3, QPushButton("Delete"))
+        self.query_table.cellWidget(row_count, 3).clicked.connect(self.delete_table_row)
 
     def delete_table_row(self):
         """
         This function is linked to the delete button when a row is added.
         When the delete button is pressed, the function look up its row and delete it
 
-        :return:
+        Returns:
+            nothing
         """
+
         sender = self.sender()
         index = self.query_table.indexAt(sender.pos())
         if index.isValid():
@@ -53,14 +112,16 @@ class SearchWidget(QWidget):
 
     def dc_combobox_changed(self, text):
         """
-        This function is linked to the dublin core combobox when a row is added
+        This function is linked to the combobox when a row is added
         When the combobox selected item changes (example: from dc:contributor to dc:description),
         this function is called to make the row fit its new usage. (example: enter text or a date)
+        Args:
+            text (str): its the active combobox selection
 
-        :param text: it's the selected combobox item name
-
-        :return:
+        Returns:
+            nothing
         """
+
         sender = self.sender()
         index = self.query_table.indexAt(sender.pos())
         logic_time_list = ["equal", "greater", "inferior"]
@@ -111,67 +172,37 @@ class SearchWidget(QWidget):
                 self.query_table.setCellWidget(row, 2, QLineEdit())
                 self.query_table.setRowHeight(row, 30)
 
-    def add_row(self):
+    def run_search_query(self, user_query):
         """
-        This function add a new row (Hoho !) when the new_table_row button is pressed
-        this function will fill the combobox with their name and a tooltip,
-        link the dublin core combobox to the dc_combobox_changed function,
-        link the delete button with the delete_table_row function
+        Transform the user_query argument in a suitable format for MongoDB and run it
+        All the query are transformed to be case insensitive
+        Args:
+            user_query (dict):
 
-        :return:
+        Examples:
+            This 'user_query' argument:
+                {'dc:creator': {'equal': ['Jean Dupont']},
+                'dc:description': {'contain': ["C'est l'histoire de"]},
+                'dc:format.duration': {'greater': [35], 'inferior': [75]},
+                'dc:title': {'contain': ['La tour']}}
+            would be transformed in:
+                {'$and': [
+                    {'dc:creator': {'$options': 'i', '$regex': '^Jean Dupont$'}},
+                    {'dc:description': {'$options': 'i', '$regex': ".*C'est l'histoire de.*"}},
+                    {'dc:format.duration': {'$gt': 35}},
+                    {'dc:format.duration': {'$lt': 75}},
+                    {'dc:title': {'$options': 'i', '$regex': '.*La tour.*'}}
+                ]}
+            then run in the MongoDb client
+
+        Returns:
+            nothing
         """
 
-        dc_data = OrderedDict()
-        dc_data['dc:contributor'] = "nom de acteurs"
-        dc_data['dc:creator'] = "maison d'édition, scénariste ou réalisateur"
-        dc_data['dc:description'] = "résumé de la vidéo"
-        dc_data['dc:language'] = "langue de la vidéo"
-        dc_data['dc:publisher'] = "entreprise qui a publié le film, par exemple Sony Pictures"
-        dc_data['dc:subject'] = "thème du film: horreur, action, histoire d'amour..."
-        dc_data['dc:title'] = "titre du film"
-        dc_data['dcterms:isPartOf'] = "remplir si le film fait partit d'un ensemble de films comme Star Wars"
-        dc_data['dcterms:created'] = "année de sortie du film"
-        dc_data['durée'] = "durée du film en minutes"
-        dc_data['source'] = "source de l'acquisition"
-
-        logic_text_list = ["equal", "contain"]
-
-        row_count = self.query_table.rowCount()
-        self.query_table.insertRow(row_count)
-        self.query_table.setCellWidget(row_count, 0, QComboBox())
-
-        count = 0
-        for dc_key, dc_tooltip in dc_data.items():
-            self.query_table.cellWidget(row_count, 0).addItem(dc_key)
-            self.query_table.cellWidget(row_count, 0).setItemData(count, dc_tooltip, Qt.ToolTipRole)
-            count += 1
-
-        self.query_table.cellWidget(row_count, 0).activated[str].connect(self.dc_combobox_changed)
-
-        self.query_table.setCellWidget(row_count, 1, QComboBox())
-        self.query_table.cellWidget(row_count, 1).addItems(logic_text_list)
-
-        self.query_table.setCellWidget(row_count, 2, QLineEdit())
-        self.query_table.setCellWidget(row_count, 3, QPushButton("Delete"))
-        self.query_table.cellWidget(row_count, 3).clicked.connect(self.delete_table_row)
-
-    def run_search_query(self, command):
-        """
-        take the command parameter from the search function and transform it in the MongoDB syntax:
-        {'$and': [{'dc:creator': {'$options': 'i', '$regex': '^claire sougner$'}},
-        {'dc:description': {'$options': 'i', '$regex': ".*C'est l'histoire de.*"}},
-        {'dc:format.duration': {'$gt': 35}},
-        {'dc:format.duration': {'$lt': 75}},
-        {'dc:title': {'$options': 'i', '$regex': '.*La tour.*'}}]}
-
-        :param command: dictionary
-
-        :return:
-        """
         print("run_search_query()")
 
         mongo_query = {"$and": []}
-        for dc_item, dict_query in command.items():
+        for dc_item, dict_query in user_query.items():
             print(dc_item, dict_query)
             for query_type, query in dict_query.items():
                 if query_type == "equal":
@@ -202,11 +233,16 @@ class SearchWidget(QWidget):
     def search(self):
         """
         This function gather the search keys and put them in a dictionary similar to the one shown below:
-        {'dc:creator': {'equal': ['claire sougner']}, 'dc:description': {'contain': ["C'est l'histoire de"]},
-        'dc:format.duration': {'greater': [35], 'inferior': [75]}, 'dc:title': {'contain': ['La tour']}}
+        {'dc:creator': {'equal': ['Jean Dupont']},
+        'dc:description': {'contain': ["C'est l'histoire de"]},
+        'dc:format.duration': {'greater': [35], 'inferior': [75]},
+        'dc:title': {'contain': ['La tour']}}
 
-        :return: nothing but call the run_search_query function with the dictionary as parameter
+        Returns:
+            nothing but call the self.run_search_query function with the dictionary as parameter
+
         """
+
         # Prevent button hammering
         self.search_button.setEnabled(False)
         # Handle the dublincore metadata
@@ -244,7 +280,7 @@ class SearchWidget(QWidget):
 
         if query_dict:
             print(query_dict)
-            self.run_search_query(command=query_dict)
+            self.run_search_query(query_dict)
         else:
             warning_box = QMessageBox()
             warning_message = "Il faut entrer des informations à rechercher"
@@ -255,11 +291,13 @@ class SearchWidget(QWidget):
     def tab_init(self):
         """
         This function is called when the SearchWidget class init
-        Its job is to put the widgets instantiated in the init function to their place and
-        set some link between functions and buttons
+        Its job is to put the widgets instantiated in the init function to their place and set some link between
+         functions and buttons
 
-        :return:
+        Returns:
+            nothing
         """
+
         grid = QGridLayout()
         self.setLayout(grid)
 
@@ -277,6 +315,6 @@ class SearchWidget(QWidget):
         grid.addWidget(self.search_button, 3, 6)
 
         #########
-        self.add_row_button.clicked.connect(self.add_row)
+        self.add_row_button.clicked.connect(self.add_table_row)
         self.search_button.clicked.connect(self.search)
         self.search_button.clicked.connect(self.show_result_widget_signal.emit)

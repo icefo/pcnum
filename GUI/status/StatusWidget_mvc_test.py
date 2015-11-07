@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import (QWidget,
                              QHeaderView, QGridLayout,
                              QProgressBar, QLabel, QTableWidget)
 from PyQt5.QtGui import QFont
-from backend.shared import AutoKeyDeleteDict
+from backend.shared import TimedKeyDeleteDict
 from pprint import pprint
 import operator
 from PyQt5.QtCore import QAbstractTableModel, Qt, QModelIndex, QTimer
@@ -35,7 +35,7 @@ class StatusWidget(QWidget):
         self.waiting_conversions_label = QLabel("Conversions en attente:")
 
         #########
-        self.waiting_conversions_dict = AutoKeyDeleteDict(timeout=5)
+        self.waiting_conversions_dict = TimedKeyDeleteDict(timeout=5)
 
         #########
         self.tab_init()
@@ -60,7 +60,7 @@ class OnGoingCapturesTableModel(QAbstractTableModel):
         QAbstractTableModel.__init__(self, parent)
         self.ongoing_capture_status_update.connect(self.dict_updater)
 
-        self.ongoing_captures_dict = AutoKeyDeleteDict(timeout=5)
+        self.ongoing_captures_dict = TimedKeyDeleteDict(timeout=5)
         self.row_list = []
         self.header = ["titre", "année", "dc:identifier", "date début", "action", "progès"]
 
