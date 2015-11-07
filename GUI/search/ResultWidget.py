@@ -10,6 +10,7 @@ import os
 class ResultWidget(QWidget):
     """
     This QWidget display the search results
+
     Attributes:
         self.show_search_widget_signal (pyqtSignal()): Is used to ask the MainSearchWidget to display the SearchWidget
         self.request_refresh (pyqtSignal()): Is used to ask the SearchWidget to rerun the search after a deletion
@@ -47,10 +48,7 @@ class ResultWidget(QWidget):
 
     def cleanup(self):
         """
-        This function is called when the DigitiseWidgetWorker class is about to be destroyed
-
-        Returns
-            nothing
+        Is called when the DigitiseWidgetWorker class is about to be destroyed
         """
 
         self.db_client.close()
@@ -58,10 +56,7 @@ class ResultWidget(QWidget):
 
     def launch_vlc(self):
         """
-        This function launch vlc in a separate process when the user double click on a file path
-
-        Returns:
-            nothing
+        Launch vlc in a separate process when the user double click on a file path
         """
 
         selected_item = self.search_results_tree.currentItem().text(0)
@@ -75,10 +70,7 @@ class ResultWidget(QWidget):
 
     def delete_video(self):
         """
-        This function delete a video after requesting user confirmation
-
-        Returns:
-            nothing
+        Delete a video after requesting user confirmation
         """
 
         selected_item_parent = None
@@ -118,14 +110,12 @@ class ResultWidget(QWidget):
 
     def search_done(self, search_results):
         """
-        This function display the search results send by the SearchWidget in a QTreeWidget
+        Display the search results send by the SearchWidget in a QTreeWidget
+
         Args:
             search_results (list): list of dictionary
                 [{'dc:type': 'video', 'dcterms:modified': '2015-10-29T02:13:30',
                 'files_path': {'h264': file_path}, 'dc:title': ['the title']}]
-
-        Returns:
-            nothing
         """
 
         print(search_results)
@@ -187,12 +177,10 @@ class ResultWidget(QWidget):
 
     def tab_init(self):
         """
-        This function is called when the ResultWidget class init
+        Is called when the ResultWidget class init
+
         Its job is to put the widgets instantiated in the init function to their place and set some link between
          functions and buttons
-
-        Returns:
-            nothing
         """
 
         grid = QGridLayout()

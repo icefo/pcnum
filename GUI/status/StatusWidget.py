@@ -11,6 +11,7 @@ from backend.shared import TimedKeyDeleteDict
 class StatusWidget(QWidget):
     """
     This QWidget gather the search query, transform it in a suitable format for MongoDB and then run it
+
     Attributes:
         self.receive_ongoing_capture_status (pyqtSignal([dict])): Dict sent by MainWindow
         self.receive_waiting_captures_status (pyqtSignal([list])): List of dict sent by MainWindow
@@ -43,7 +44,9 @@ class StatusWidget(QWidget):
 
     def ongoing_captures_table_updater(self, capture_status):
         """
-        This function is called when the self.receive_ongoing_capture_status signal is fired.
+        Is called when the self.receive_ongoing_capture_status signal is fired.
+
+        Notes:
         This signal is fired whenever one of the ongoing capture has an update which happens randomly.
 
         Args:
@@ -57,9 +60,6 @@ class StatusWidget(QWidget):
             This dictionary is set to delete the keys that are older than 5 seconds so when an ongoing_capture stop to
              send updates, its key is deleted after 5 seconds and doesn't show up anymore
              in the 'self.ongoing_captures_table'
-
-        Returns:
-            nothing
         """
 
         self.ongoing_conversions_dict[capture_status['dc:identifier']] = capture_status
@@ -80,6 +80,8 @@ class StatusWidget(QWidget):
     def waiting_captures_table_updater(self, waiting_captures):
         """
         This function is called when the self.receive_waiting_captures_status signal is fired.
+
+        Notes:
         This signal is fired every 5 seconds.
 
         Args:
@@ -103,11 +105,9 @@ class StatusWidget(QWidget):
     def tab_init(self):
         """
         This function is called when the StatusWidget class init
+
         Its job is to put the widgets instantiated in the init function to their place and set some link between
          functions and buttons
-
-        Returns:
-            nothing
         """
 
         grid = QGridLayout()

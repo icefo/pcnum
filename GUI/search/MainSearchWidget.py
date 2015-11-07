@@ -11,11 +11,8 @@ class MainSearchWidget(QWidget):
     def __init__(self):
         """
         Init the QStackedWidget class and set signals to display SearchWidget or ResultWidget
-
-        Returns:
-            nothing
         """
-        QWidget.__init__(self)
+        super().__init__()
 
         #########
         self.search_widget = SearchWidget()

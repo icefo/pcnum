@@ -15,6 +15,7 @@ from backend.shared import FILES_PATHS
 class CaptureWidget(QWidget):
     """
     This QWidget gather and check the user provided metadata and ask the MainWindow to launch the capture
+
     Attributes:
         self.set_statusbar_text_signal (pyqtSignal([str])): Is used to display text on the MainWindow's statusbar
         self.launch_capture_signal (pyqtSignal([list])): Is used to launch the capture
@@ -59,13 +60,10 @@ class CaptureWidget(QWidget):
 
     def add_table_row(self):
         """
-        This function is called when the "self.new_table_row_button" button is pressed
-        This function will fill the combobox with their name and a tooltip
-        Link the combobox to the "self.combobox_changed function",
-        Link the delete button with the self.delete_table_row" function
+        Is called when the "self.new_table_row_button" button is pressed
 
-        Returns:
-            nothing
+        This function will fill the combobox with their name and a tooltip, link the combobox
+         to the "self.combobox_changed function" and link the delete button with the self.delete_table_row" function
         """
 
         dc_data = OrderedDict()
@@ -99,11 +97,9 @@ class CaptureWidget(QWidget):
 
     def delete_table_row(self):
         """
-        This function is linked to the delete button when a row is added.
-        When the delete button is pressed, the function look up its row and delete it
+        Is linked to the delete button when a row is added.
 
-        Returns:
-            nothing
+        When the delete button is pressed, the function look up its row and delete it
         """
 
         sender = self.sender()
@@ -113,14 +109,13 @@ class CaptureWidget(QWidget):
 
     def combobox_changed(self, text):
         """
-        This function is linked to the combobox when a row is added
+        Is linked to the combobox when a row is added
+
         When the combobox selected item changes (example: from dc:contributor to dc:description),
         this function is called to make the row fit its new usage. (example: enter text or a date)
+
         Args:
             text (str): its the active combobox selection
-
-        Returns:
-            nothing
         """
 
         sender = self.sender()
@@ -164,14 +159,12 @@ class CaptureWidget(QWidget):
     def metadata_checker(self, capture_action, data):
         """
         Check if the required metadata is present. If yes it emit the "launch_capture_signal" and "MainWindows" takes
-        care of the rest.
+         care of the rest.
+
         Args:
             capture_action (str): tell which capture_action the metadata_checker function should launch
                 Possible values: decklink, file, DVD
             data: [digitise_infos, dublincore_dict]
-
-        Returns:
-            nothing
         """
 
         # this check if at least a duration, title, and creation date is set before sending the data to the back end
@@ -219,7 +212,7 @@ class CaptureWidget(QWidget):
 
     def check_remaining_space(self, DVD_file_path=None, import_file_path=None, duration=None):
         """
-        This function check the remaining space in the folder where the video will be saved
+        Check the remaining space in the folder where the video will be saved
 
         Args:
             DVD_file_path (str):
@@ -269,17 +262,16 @@ class CaptureWidget(QWidget):
 
     def gather_metadata(self):
         """
-        This function wil gather the user provided metadata and add the constants listed below.
+        Gather the user provided metadata and add the constants listed below.
             dublincore_dict["dc:rights"] = "usage libre pour l'éducation"
             dublincore_dict["dc:type"] = "video"
             dublincore_dict["dcterms:modified"] = datetime.now().replace(microsecond=0).isoformat()
 
         Notes:
             This function also set default values for this key but it can be overriden by the user
-            dublincore_dict["dc:format"] = {"aspect_ratio": "4:3", "format": "PAL"}
+            dublincore_dict['dc:format'] = {'aspect_ratio': '4:3', 'format': 'PAL'}
 
-        Returns:
-            nothing but call the "self.metadata_checker" function with the parameter [digitise_infos, dublincore_dict]
+        Call the 'self.metadata_checker' function with the parameter [digitise_infos, dublincore_dict]
         """
 
         # prevent button hammering
@@ -355,12 +347,10 @@ class CaptureWidget(QWidget):
 
     def tab_init(self):
         """
-        This function is called when the CaptureWidget class init
+        Is called when the CaptureWidget class init
+
         Its job is to put the widgets instantiated in the init function to their place and set some signals between
          functions and buttons
-
-        Returns:
-            nothing
         """
 
         grid = QGridLayout()

@@ -1,5 +1,3 @@
-__author__ = 'adrien'
-
 from backend.shared import FILES_PATHS
 from backend.CaptureSupervisor import start_supervisor
 from backend.startup_check import startup_check
@@ -24,6 +22,17 @@ import multiprocessing
 
 
 def get_mkv_file_duration(file_path):
+    """
+    Get video file duration by asking ffmpeg to look at the container metadata
+    Work with mkv files, maybe with other containers too.
+
+    Args:
+        file_path (str):
+
+    Returns:
+        float: duration of the video file in seconds
+    """
+
     command = ['ffprobe',
                '-v',
                'error',
@@ -43,9 +52,14 @@ def get_mkv_file_duration(file_path):
 
 
 class Backend(ApplicationSession):
+    """
+    This class launch captures and is a wamp client
+    """
+
     def __init__(self, config=None):
         ApplicationSession.__init__(self, config)
 
+        #########
         self.default_dvd_to_h264 = OrderedDict()
         self.default_dvd_to_h264['part1'] = ('nice', '-n', '19', 'ffmpeg', '-y', '-nostdin', '-i')
         self.default_dvd_to_h264['input'] = ['/this/is/a/path/video_file.mkv', ]
@@ -72,6 +86,7 @@ class Backend(ApplicationSession):
                                              '-c:a', 'libfdk_aac', '-vbr', '3')
         self.default_raw_to_h264['output'] = ['/this/is/a/path/video_file.mkv', ]
 
+        #########
         self.default_log_settings = {
             'action': 'raw_to_h264',
             'dc:identifier': 2,
@@ -80,18 +95,23 @@ class Backend(ApplicationSession):
             'duration': 1/6,
             }
 
+        #########
         self.raw_videos_path = FILES_PATHS["raw"]
         self.compressed_videos_path = FILES_PATHS["compressed"]
         self.imported_files_path = FILES_PATHS["imported"]
 
+        #########
         self.close_signal = None
 
+        #########
         self.ffmpeg_supervisor_processes = list()
         self.waiting_captures_list = list()
 
+        #########
         asyncio.async(self.waiting_conversions_handler())
         asyncio.async(self.ffmpeg_supervisor_processes_list_updater())
 
+        #########
         loop = asyncio.get_event_loop()
         # You should abort any long operation on SIGINT and you can do what you want SIGTERM
         # In both cases the program should exit cleanly
@@ -102,6 +122,13 @@ class Backend(ApplicationSession):
 
     @asyncio.coroutine
     def onJoin(self, details):
+        """
+        Is called if the wamp router is successfully joined
+
+        Args:
+            details(class): SessionDetails
+        """
+
         print("session ready")
 
         try:
@@ -115,6 +142,20 @@ class Backend(ApplicationSession):
     @async_call  # the signal handler can't call a coroutine directly
     @asyncio.coroutine
     def exit_cleanup(self, close_signal):
+        """
+        Is called when asyncio catch a 'SIGINT' or 'SIGTERM' signal
+
+        If the signal is 'SIGTERM': the function wait for all ongoing and waiting captures to complete before cancelling
+         other running coroutines and then exit
+        If the signal is 'SIGINT': the function cancel other running coroutines then exit.
+
+        Note:
+            The function doesn't have to cancel ongoing captures on 'SIGINT' because subprocess.Popen does it.
+
+        Args:
+            close_signal (str): 'SIGINT' or 'SIGTERM'
+        """
+
         self.close_signal = close_signal
 
         while True:
@@ -124,7 +165,7 @@ class Backend(ApplicationSession):
             len_ffmpeg_supervisor_processes_1 = len(self.ffmpeg_supervisor_processes)
             len_waiting_captures_list_1 = len(self.waiting_captures_list)
 
-            # if there is only one waiting_capture left, it my disappear for a brief time before coming back as a process
+            # if there is only one waiting_capture left, it might disappear for a brief time before coming back as a process
             # the sleep ensure that the exit loop don't miss it and terminate the program early.
             yield from asyncio.sleep(3)
 
@@ -171,12 +212,21 @@ class Backend(ApplicationSession):
 
     @asyncio.coroutine
     def ffmpeg_supervisor_processes_list_updater(self):
+        """
+        Infinite loop that update the list of ffmpeg_supervisor_processes because the 'self.exit_cleanup'
+         and 'self.launch_capture' need an up to date list
+        """
+
         while True:
             self.ffmpeg_supervisor_processes = [process for process in self.ffmpeg_supervisor_processes if process.is_alive()]
             yield from asyncio.sleep(5)
 
     @asyncio.coroutine
     def backend_is_alive_beacon_sender(self):
+        """
+        Infinite loop that send a beacon to the GUI. If the backend stop sending the beacon for whatever reason the GUI
+         disable the launch_capture button.
+        """
         while True:
             self.publish('com.digitize_app.backend_is_alive_beacon')
             yield from asyncio.sleep(2)
@@ -184,10 +234,10 @@ class Backend(ApplicationSession):
     @asyncio.coroutine
     def waiting_conversions_handler(self):
         """
-        This function get a video_metadata dictionary from the waiting queue and call the launch_capture function with it.
-        Just like a RPC call from the frontend would do. If the video can still not get captured, it will get back in the queue
+        This function get a video_metadata dictionary from the 'waiting_captures_list' and call the launch_capture function with it.
+
+        Just like a RPC call from the GUI would do. If the video can still not get captured, it will get back in the queue
         The function also send the waiting_captures_list for the GUI.
-        :return:
         """
         while True:
             if self.close_signal == 'SIGINT':
@@ -205,13 +255,16 @@ class Backend(ApplicationSession):
     @wamp.register("com.digitize_app.launch_capture")
     def launch_capture(self, video_metadata):
         """
-        this function dispatch the incoming captures request to the correct functions
-        :param video_metadata : [digitise_infos, dublincore_dict]
+        this function dispatch the incoming captures request to the correct functions and put in a Queue the captures
+         request that can't be launched yet.
+
+        Args:
+            video_metadata (list): [digitise_infos, dublincore_dict]
         """
 
-        ongoing_captures = [pa.name for pa in self.ffmpeg_supervisor_processes]
+        ongoing_captures_names = [pa.name for pa in self.ffmpeg_supervisor_processes]
         print(self.ffmpeg_supervisor_processes)
-        print(ongoing_captures)
+        print(ongoing_captures_names)
         print(video_metadata)
         video_metadata[1]['dc:identifier'] = str(uuid4())
         if video_metadata[0]["source"] == "decklink_1":
@@ -221,30 +274,32 @@ class Backend(ApplicationSession):
             self.start_decklink_to_raw(video_metadata, "Intensity Pro (2)@16", 2)
 
         elif video_metadata[0]["source"] == "DVD":
-            if 'dvd_to_h264' not in ongoing_captures:
+            if 'dvd_to_h264' not in ongoing_captures_names:
                 self.start_dvd_to_h264(video_metadata)
             else:
                 print("nope back in the queue")
                 self.waiting_captures_list.append(video_metadata)
 
         elif video_metadata[0]["source"] == "file":
-            if 'file_import' not in ongoing_captures:
+            if 'file_import' not in ongoing_captures_names:
                 self.start_file_import(video_metadata)
             else:
                 print("nope back in the queue")
                 self.waiting_captures_list.append(video_metadata)
 
         else:
-            raise ValueError("This is not a valid capture request\n" + video_metadata)
+            raise ValueError("This is not a valid capture request\n" + str(video_metadata))
 
     def start_decklink_to_raw(self, video_metadata, decklink_card, decklink_id):
         """
         Gather necessary metadata and launch FFmpeg
 
-        :param video_metadata : [digitise_infos, dublincore_dict]
-        :param decklink_card: "Intensity Pro (1)@16" or "Intensity Pro (2)@16"
-        :param decklink_id: 1 or 2
+        Args:
+            video_metadata (list): [digitise_infos, dublincore_dict]
+            decklink_card (str): "Intensity Pro (1)@16" or "Intensity Pro (2)@16"
+            decklink_id (int): 1 or 2
         """
+
         duration = video_metadata[1]["dc:format"]["duration"]
 
         ffmpeg_command = self.default_decklink_to_raw.copy()
@@ -274,7 +329,8 @@ class Backend(ApplicationSession):
         """
         Gather necessary metadata and launch FFmpeg
 
-        :param video_metadata : [digitise_infos, dublincore_dict]
+        Args:
+            video_metadata (list): [digitise_infos, dublincore_dict]
         """
         duration = video_metadata[1]["dc:format"]["duration"]
         file_path = video_metadata[0]["file_path"]
@@ -305,7 +361,8 @@ class Backend(ApplicationSession):
         """
         Gather necessary metadata and launch FFmpeg
 
-        :param video_metadata: [digitise_infos, dublincore_dict]
+        Args:
+            video_metadata (list): [digitise_infos, dublincore_dict]
         """
         duration = get_mkv_file_duration(file_path=video_metadata[0]["file_path"])
         video_metadata[1]["dc:format"]["duration"] = duration
@@ -334,9 +391,8 @@ class Backend(ApplicationSession):
         """
         Gather necessary metadata and launch the copy_file function
 
-        :param video_metadata: [digitise_infos, dublincore_dict]
-
-        :return:
+        Args:
+            video_metadata: [digitise_infos, dublincore_dict]
         """
 
         src = video_metadata[0]["file_path"]
@@ -359,8 +415,6 @@ class Backend(ApplicationSession):
 def startup_cleanup():
     """
     This function remove more than one week old capture logs.
-
-    :return:
     """
     db_client = MongoClient("mongodb://localhost:27017/")
     digitize_app = db_client['digitize_app']
@@ -380,11 +434,11 @@ if __name__ == "__main__":
     startup_check()
     startup_cleanup()
 
-    p = subprocess.Popen(['/usr/local/bin/crossbar', "start", "--cbdir",
-                          FILES_PATHS['home_dir'] + '.config/crossbar/default/'])
+    crossbar_process = subprocess.Popen(['/usr/local/bin/crossbar', "start", "--cbdir",
+                                         FILES_PATHS['home_dir'] + '.config/crossbar/default/'])
 
     sleep(12)
     runner = ApplicationRunner(url="ws://127.0.0.1:8080/ws", realm="realm1")
     runner.run(Backend)
-    p.terminate()
-    p.wait()
+    crossbar_process.terminate()
+    crossbar_process.wait()

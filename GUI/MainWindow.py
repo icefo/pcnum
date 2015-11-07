@@ -26,6 +26,7 @@ from quamash import QEventLoop
 class MainWindow(ApplicationSession, QMainWindow):
     """
     This class is a wamp client and adds the CaptureWidget, MainSearchWidget and StatusWidget in a QTabWidget.
+
     This class acts as a proxy for the widgets that want to communicate with the backend because they can't have a valid
      ApplicationSession that would allow them to be a wamp client and a QWidget.
     """
@@ -45,7 +46,13 @@ class MainWindow(ApplicationSession, QMainWindow):
 
     @asyncio.coroutine
     def onJoin(self, details):
-        print("session ready")
+        """
+        Is called if the wamp router is successfully joined
+
+        Args:
+            details(class): SessionDetails
+        """
+        print("session ready ")
         yield from self.subscribe(self.backend_is_alive_beacon, 'com.digitize_app.backend_is_alive_beacon')
         yield from self.subscribe(self.ongoing_capture, 'com.digitize_app.ongoing_capture')
         yield from self.subscribe(self.waiting_captures, 'com.digitize_app.waiting_captures')
@@ -54,52 +61,41 @@ class MainWindow(ApplicationSession, QMainWindow):
     @asyncio.coroutine
     def launch_capture(self, metadata):
         """
-        This function is called by the CaptureWidget and call the 'launch_capture' function in the backend
+        Is called by the CaptureWidget and call the 'launch_capture' function in the backend
+
         Args:
             metadata (list): [digitise_infos, dublincore_dict]
-
-        Returns:
-            nothing
         """
 
         yield from self.call('com.digitize_app.launch_capture', metadata)
 
     def backend_is_alive_beacon(self):
         """
-        This function is called when the backend send a beacon and fire the 'backend_is_alive_signal' signal in the
-         'capture_tab' class.
-
-        Returns:
-            nothing
+        Is called when the backend send a beacon and fire the 'backend_is_alive_signal' signal in the 'capture_tab' class.
         """
 
         self.capture_tab.backend_is_alive_signal.emit(4000)
 
     def ongoing_capture(self, capture_status):
         """
-        This function is called whenever one of the ongoing capture has an update which happens randomly.
+        Is called whenever one of the ongoing capture has an update which happens randomly.
 
         Args:
             capture_status (dict): Dict that contain the following keys:
                 title, year, dc:identifier, start_date, action
-
-        Returns:
-            nothing
         """
 
         self.status_tab.receive_ongoing_capture_status.emit(capture_status)
 
     def waiting_captures(self, waiting_captures):
         """
-        This function is called when the backend publish a list of waiting captures
+        Is called when the backend publish a list of waiting captures
+
         If there is at least one capture waiting this function is called every 5 seconds.
 
         Args:
             waiting_captures (list): List of dicts. These dicts contain the following keys:
                 dc:title, dcterms:created, dc:identifier, source
-
-        Returns:
-            nothing
         """
 
         self.status_tab.receive_waiting_captures_status.emit(waiting_captures)
@@ -108,19 +104,14 @@ class MainWindow(ApplicationSession, QMainWindow):
         """
         Args:
             message (str):
-
-        Returns:
-            nothing
         """
         self.statusBar().showMessage(message, msecs=10000)
 
     def main_window_init(self):
         """
         This function init the main window
-        It sets the status bar, menu bar and set the tabs class as central widget
 
-        Returns:
-            nothing
+        It sets the status bar, menu bar and set the tabs class as central widget
         """
 
         tabs = QTabWidget()

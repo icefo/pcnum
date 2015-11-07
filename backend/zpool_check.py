@@ -18,7 +18,7 @@ from email.mime.text import MIMEText
 TEST = False
 
 MAIL_FROM = 'nas@host.tld'
-MAIL_TO = 'user@host.tld'
+MAIL_TO = 'user@host.tld;user2@host2.tld'
 MAIL_HOST = 'smtp.host.tld'
 MAIL_PORT = 25 # 465 SSL/TLS
 MAIL_USER = 'foo'

@@ -13,6 +13,24 @@ import re
 
 
 def get_complete_logs_document(command, log_settings):
+    """
+    Prepare a document that will be put in the database
+
+    Args:
+        command (list): list that will be passed to the subprocess.Popen constructor
+            Example: ['nice', '-n',  '19', 'echo', 'I like kiwis']
+        log_settings (dict):
+            Example: {
+                "action": "raw_to_h264",
+                "dc:identifier": 'a29f7c4d-9523-4c10-b66f-da314b7d992e',
+                "year": 1995,
+                "title": "the killer cactus' story",
+                "duration": 2 (min)
+                }
+
+    Returns:
+        dict:
+    """
     complete_logs_document = {"dc:identifier": log_settings["dc:identifier"],
                               "action": log_settings["action"],
                               "year": log_settings["year"],
@@ -20,17 +38,37 @@ def get_complete_logs_document(command, log_settings):
                               "start_date": datetime.now().replace(microsecond=0).isoformat(),
                               "pid": os.getpid(),
                               "command": command,
+                              "duration": None,
                               "return_code": None,
                               "end_date": None,
                               "log_data": []
                               }
 
     if not log_settings['action'] == 'file_import':
-        complete_logs_document["duration"] = log_settings["duration"]
+        complete_logs_document['duration'] = log_settings['duration']
+    if log_settings['action'] == 'decklink_to_raw':
+        complete_logs_document['decklink_id'] = log_settings['decklink_id']
+
     return complete_logs_document
 
 
 def get_ongoing_conversion_document(log_settings):
+    """
+    Prepare a document that will be sent to the GUI
+
+    Args:
+        log_settings (dict):
+            Example: {
+                "action": "raw_to_h264",
+                "dc:identifier": 'a29f7c4d-9523-4c10-b66f-da314b7d992e',
+                "year": 1995,
+                "title": "the killer cactus' story",
+                "duration": 2 (min)
+                }
+
+    Returns:
+        dict:
+    """
     ongoing_conversion_document = {"dc:identifier": log_settings["dc:identifier"],
                                    "action": log_settings["action"],
                                    "year": log_settings["year"],
@@ -44,23 +82,46 @@ def get_ongoing_conversion_document(log_settings):
     return ongoing_conversion_document
 
 
-def get_sec(s):
-    l = s.split(':')
+def get_sec(input_string):
+    """
+    Convert input_string in seconds
+
+    Notes:
+        taken from stackoverflow
+
+    Args:
+        input_string (str): 00:00:00
+
+    Returns:
+        float:
+    """
+    l = input_string.split(':')
     return float(l[0]) * 3600 + float(l[1]) * 60 + float(l[2])
 
 
 class FFmpegWampSupervisor(ApplicationSession):
+    """
+    Launch ffmpeg, monitor and send the progress
+
+    When the capture is done and if the return code is 0, add the metadata to the database.
+    """
+
     def __init__(self, config, ffmpeg_command, log_settings, video_metadata):
         ApplicationSession.__init__(self, config)
 
+        #########
         self.ffmpeg_process = None
 
+        #########
         db_client = MongoClient("mongodb://localhost:27017/")
         digitize_app = db_client['digitize_app']
         self.videos_metadata_collection = digitize_app['videos_metadata']
         self.complete_ffmpeg_logs_collection = digitize_app['complete_ffmpeg_logs']
 
+        #########
         self.close_signal = None
+
+        #########
         loop = asyncio.get_event_loop()
         # You should abort any long operation on SIGINT and you can do what you want SIGTERM
         # In both cases the program should exit cleanly
@@ -71,9 +132,19 @@ class FFmpegWampSupervisor(ApplicationSession):
 
         asyncio.async(self.run_ffmpeg(ffmpeg_command, log_settings, video_metadata))
 
-    @async_call
+    @async_call  # the signal handler can't call a coroutine directly
     @asyncio.coroutine
     def exit_cleanup(self, close_signal):
+        """
+        Is called when asyncio catch a 'SIGINT' or 'SIGTERM' signal
+
+        Note:
+            The function doesn't have to cancel the capture on 'SIGINT' because subprocess.Popen does it.
+
+        Args:
+            close_signal (str): 'SIGINT' or 'SIGTERM'
+        """
+
         self.close_signal = close_signal
         while True:
             yield from asyncio.sleep(2)
@@ -101,20 +172,23 @@ class FFmpegWampSupervisor(ApplicationSession):
     @asyncio.coroutine
     def run_ffmpeg(self, command, log_settings, video_metadata):
         """
+        Launch ffmpeg, monitor and send the progress
 
-        :param command: list because order matter
-            example: ['nice', '-n',  '19', 'echo', 'I like kiwis']
-        :param log_settings: dictionary
-            example: {
-                "action": "raw_to_h264",
-                "vuid": 1,
-                "year": 1995,
-                "title": "the killer cactus' story",
-                "duration": 2 (min)
-                }
-        :param video_metadata: [digitise_infos, dublincore_dict]
-        :return:
+        When the capture is done and if the return code is 0, add the metadata to the database.
+        Args:
+            command (list): list that will be passed to the subprocess.Popen constructor
+                Example: ['nice', '-n',  '19', 'echo', 'I like kiwis']
+            log_settings (dict):
+                Example: {
+                    "action": "raw_to_h264",
+                    "dc:identifier": 'a29f7c4d-9523-4c10-b66f-da314b7d992e',
+                    "year": 1995,
+                    "title": "the killer cactus' story",
+                    "duration": 2 (min)
+                    }
+            video_metadata (list): [digitise_infos, dublincore_dict]
         """
+
         complete_logs_document = get_complete_logs_document(command, log_settings)
         ongoing_conversion_document = get_ongoing_conversion_document(log_settings)
 
@@ -214,6 +288,16 @@ class CopyFileSupervisor(ApplicationSession):
     @async_call
     @asyncio.coroutine
     def exit_cleanup(self, close_signal):
+        """
+        Is called when asyncio catch a 'SIGINT' or 'SIGTERM' signal
+
+        Note:
+            The function doesn't have to cancel the capture on 'SIGINT' because subprocess.Popen does it.
+
+        Args:
+            close_signal (str): 'SIGINT' or 'SIGTERM'
+        """
+
         self.close_signal = close_signal
         while True:
             yield from asyncio.sleep(2)
@@ -242,13 +326,22 @@ class CopyFileSupervisor(ApplicationSession):
     @asyncio.coroutine
     def run_rsync(self, src_dst, log_settings, video_metadata):
         """
-        copy files and ask for low I/O priority
+        Launch rsync, monitor and send the progress
 
-        :param src_dst: list ["/this/is/a/source/path.mkv" "/this/is/a/destination/path.mkv"]
-        :param video_metadata: [digitise_infos, dublincore_dict]
-
-        :return:
+        When the capture is done and if the return code is 0, add the metadata to the database.
+        Args:
+            src_dst (list): ["/this/is/a/source/path.mkv" "/this/is/a/destination/path.mkv"]
+            log_settings (dict):
+                Example: {
+                    "action": "raw_to_h264",
+                    "dc:identifier": 'a29f7c4d-9523-4c10-b66f-da314b7d992e',
+                    "year": 1995,
+                    "title": "the killer cactus' story",
+                    "duration": 2 (min)
+                    }
+            video_metadata (list): [digitise_infos, dublincore_dict]
         """
+
         src = src_dst[0]
         dst = src_dst[1]
 

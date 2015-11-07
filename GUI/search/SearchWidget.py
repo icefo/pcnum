@@ -11,6 +11,7 @@ import atexit
 class SearchWidget(QWidget):
     """
     This QWidget gather the search query, transform it in a suitable format for MongoDB and then run it
+
     Attributes:
         self.show_result_widget_signal (pyqtSignal()): Is used to ask the MainSearchWidget to display the ResultWidget
         self.search_transmit (pyqtSignal([list])): List of dict sent after a search
@@ -43,9 +44,6 @@ class SearchWidget(QWidget):
     def cleanup(self):
         """
         This function is called when the DigitiseWidgetWorker class is about to be destroyed
-
-        Returns
-            nothing
         """
 
         self.db_client.close()
@@ -53,13 +51,10 @@ class SearchWidget(QWidget):
 
     def add_table_row(self):
         """
-        This function is called when the "self.new_table_row_button" button is pressed
-        This function will fill the combobox with their name and a tooltip
-        Link the combobox to the "self.combobox_changed function",
-        Link the delete button with the self.delete_table_row" function
+        Is called when the "self.new_table_row_button" button is pressed
 
-        Returns:
-            nothing
+        This function will fill the combobox with their name and a tooltip, link the combobox
+         to the "self.combobox_changed function" and link the delete button with the self.delete_table_row" function
         """
 
         dc_data = OrderedDict()
@@ -98,11 +93,9 @@ class SearchWidget(QWidget):
 
     def delete_table_row(self):
         """
-        This function is linked to the delete button when a row is added.
-        When the delete button is pressed, the function look up its row and delete it
+        Is linked to the delete button when a row is added.
 
-        Returns:
-            nothing
+        When the delete button is pressed, the function look up its row and delete it
         """
 
         sender = self.sender()
@@ -112,14 +105,13 @@ class SearchWidget(QWidget):
 
     def dc_combobox_changed(self, text):
         """
-        This function is linked to the combobox when a row is added
+        Is linked to the combobox when a row is added
+
         When the combobox selected item changes (example: from dc:contributor to dc:description),
         this function is called to make the row fit its new usage. (example: enter text or a date)
+
         Args:
             text (str): its the active combobox selection
-
-        Returns:
-            nothing
         """
 
         sender = self.sender()
@@ -175,7 +167,10 @@ class SearchWidget(QWidget):
     def run_search_query(self, user_query):
         """
         Transform the user_query argument in a suitable format for MongoDB and run it
-        All the query are transformed to be case insensitive
+
+        Notes:
+            All the query are transformed to be case insensitive
+
         Args:
             user_query (dict):
 
@@ -194,9 +189,6 @@ class SearchWidget(QWidget):
                     {'dc:title': {'$options': 'i', '$regex': '.*La tour.*'}}
                 ]}
             then run in the MongoDb client
-
-        Returns:
-            nothing
         """
 
         print("run_search_query()")
@@ -232,15 +224,14 @@ class SearchWidget(QWidget):
 
     def search(self):
         """
-        This function gather the search keys and put them in a dictionary similar to the one shown below:
+        Gather the search keys and put them in a dictionary similar to the one shown below:
+
         {'dc:creator': {'equal': ['Jean Dupont']},
         'dc:description': {'contain': ["C'est l'histoire de"]},
         'dc:format.duration': {'greater': [35], 'inferior': [75]},
         'dc:title': {'contain': ['La tour']}}
 
-        Returns:
-            nothing but call the self.run_search_query function with the dictionary as parameter
-
+        Call the self.run_search_query function with the dictionary as parameter
         """
 
         # Prevent button hammering
@@ -290,12 +281,10 @@ class SearchWidget(QWidget):
 
     def tab_init(self):
         """
-        This function is called when the SearchWidget class init
+        Is called when the SearchWidget class init
+
         Its job is to put the widgets instantiated in the init function to their place and set some link between
          functions and buttons
-
-        Returns:
-            nothing
         """
 
         grid = QGridLayout()

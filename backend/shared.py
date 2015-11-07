@@ -5,22 +5,40 @@ import asyncio
 import time
 
 
-FILES_PATHS = {'raw': '/home/adrien/Documents/tm/raw/', 'compressed': '/home/adrien/Documents/tm/compressed/',
-               'imported': '/home/adrien/Documents/tm/imported/', 'home_dir': os.getenv('HOME') + '/'}
+FILES_PATHS = {'raw': '/media/storage/raw/', 'compressed': '/media/storage/compressed/',
+               'imported': '/media/storage/imported/', 'home_dir': os.getenv('HOME') + '/'}
 # FILES_PATHS = {'raw': '/home/adrien/Documents/tm/raw/', 'compressed': '/home/adrien/Documents/tm/compressed/',
 #               'imported': '/home/adrien/Documents/tm/imported/', 'home_dir': os.getenv('HOME') + '/'}
 
 
 def async_call(func):
+    """
+    Wrap the function in asyncio.async to make launching async function from blocking function possible
+
+    Args:
+        func (function):
+
+    Returns:
+        function: wrapper around func
+    """
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         asyncio.async(func(*args, **kwargs))
     return wrapper
 
 
-# inspiration: http://stackoverflow.com/questions/3927166/automatically-expiring-variable -- Ant
-# inspiration: http://stackoverflow.com/questions/16136979/set-class-with-timed-auto-remove-of-elements -- A. Rodas
 class TimedKeyDeleteDict(dict):
+    """
+    This dictionary behave like a normal dictionary except that it deletes key that are older that the timeout set on
+     instantiation when they are accessed.
+
+    Notes:
+        inspiration: http://stackoverflow.com/questions/3927166/automatically-expiring-variable -- Ant
+        inspiration: http://stackoverflow.com/questions/16136979/set-class-with-timed-auto-remove-of-elements -- A. Rodas
+
+    Warnings:
+        the 'setdefault' method is not implemented
+    """
     def __init__(self, timeout, raise_error=False):
         dict.__init__(self)
         self.timeout = timeout
