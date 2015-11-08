@@ -209,6 +209,7 @@ class CaptureWidget(QWidget):
                 "   Il faut aussi avoir sélectionné une méthode d'enregistrement (decklink, dvd...)")
 
             warning_box.warning(warning_box, "Attention", warning_message)
+            self.launch_digitise_button.setEnabled(True)
 
     def check_remaining_space(self, DVD_file_path=None, import_file_path=None, duration=None):
         """
