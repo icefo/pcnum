@@ -223,6 +223,7 @@ class FFmpegWampSupervisor(ApplicationSession):
                     dublincore_dict = video_metadata[1]
                     dublincore_dict['files_path'] = {'h264': converted_file_path}
                     dublincore_dict['source'] = video_metadata[0]['source']
+                    os.remove(video_metadata[0]["file_path"])
                     self.videos_metadata_collection.insert(dublincore_dict, fsync=True)
 
                 else:
