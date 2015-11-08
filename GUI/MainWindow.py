@@ -132,7 +132,7 @@ class MainWindow(ApplicationSession, QMainWindow):
         self.show()
 
 
-if __name__ == '__main__':
+def launch_gui():
     # this function check if the directories are writable
     startup_check()
 
@@ -144,3 +144,6 @@ if __name__ == '__main__':
 
     runner = ApplicationRunner(url="ws://127.0.0.1:8080/ws", realm="realm1")
     runner.run(MainWindow)
+
+if __name__ == '__main__':
+    launch_gui()

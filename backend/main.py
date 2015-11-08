@@ -426,7 +426,7 @@ def startup_cleanup():
     complete_rsync_logs_collection.remove({"return_code": 0, "end_date": {"$lt": one_week_ago}})
 
 
-if __name__ == "__main__":
+def launch_backend():
     print(os.getpid())
     multiprocessing.set_start_method('spawn')
     setproctitle.setproctitle("digitize_backend")
@@ -442,3 +442,6 @@ if __name__ == "__main__":
     runner.run(Backend)
     crossbar_process.terminate()
     crossbar_process.wait()
+
+if __name__ == "__main__":
+    launch_backend()

@@ -387,6 +387,7 @@ def start_supervisor(log_settings, video_metadata, ffmpeg_command=None, src_dst=
     setproctitle("Capture wamp service")
     runner = ApplicationRunner(url="ws://127.0.0.1:8080/ws", realm="realm1")
     # todo do a pull request for *args, **kwargs, print_exc() addition
+    # the correct way to pass arguments to the called function is with the 'extra' argument in the ApplicationRunner class
     if ffmpeg_command:
         runner.run(FFmpegWampSupervisor, args=(ffmpeg_command, log_settings, video_metadata))
     elif src_dst:
