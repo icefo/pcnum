@@ -4,6 +4,7 @@ from GUI.MainWindow import launch_gui
 
 
 if __name__ == '__main__':
+    # doc: http://blog.ablepear.com/2012/10/bundling-python-files-into-stand-alone.html
     # Get the arguments, if any
     parser = argparse.ArgumentParser(description="capture software, this package contains the backend and the GUI")
     parser.add_argument("-backend", "--Launch_backend", action="store_true", help="Launch the backend")
