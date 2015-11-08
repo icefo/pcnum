@@ -115,8 +115,12 @@ class MainWindow(ApplicationSession, QMainWindow):
         """
 
         tabs = QTabWidget()
+
+        #########
         self.capture_tab.set_statusbar_text_signal.connect(self.set_status_bar_message)
         self.capture_tab.launch_capture_signal.connect(self.launch_capture)
+        self.status_tab.send_enable_decklink_radio_1.connect(self.capture_tab.receive_enable_decklink_radio_1)
+        self.status_tab.send_enable_decklink_radio_2.connect(self.capture_tab.receive_enable_decklink_radio_2)
 
         #########
         tabs.addTab(self.capture_tab, "Numérisation")
@@ -127,7 +131,7 @@ class MainWindow(ApplicationSession, QMainWindow):
         self.setCentralWidget(tabs)
 
         #########
-        self.setGeometry(300, 300, 800, 600)
+        self.setGeometry(300, 300, 1024, 800)
         self.setWindowTitle('Logiciel Numérisation')
         self.show()
 

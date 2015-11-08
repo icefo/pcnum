@@ -32,6 +32,7 @@ def get_complete_logs_document(command, log_settings):
         dict:
     """
     complete_logs_document = {"dc:identifier": log_settings["dc:identifier"],
+                              "source": log_settings["source"],
                               "action": log_settings["action"],
                               "year": log_settings["year"],
                               "title": log_settings["title"],
@@ -70,6 +71,7 @@ def get_ongoing_conversion_document(log_settings):
         dict:
     """
     ongoing_conversion_document = {"dc:identifier": log_settings["dc:identifier"],
+                                   "source": log_settings["source"],
                                    "action": log_settings["action"],
                                    "year": log_settings["year"],
                                    "title": log_settings["title"],
@@ -77,7 +79,7 @@ def get_ongoing_conversion_document(log_settings):
                                    "progress": None
                                    }
 
-    if log_settings.get("decklink_id", None):
+    if log_settings['action'] == 'decklink_to_raw':
         ongoing_conversion_document["decklink_id"] = log_settings["decklink_id"]
     return ongoing_conversion_document
 

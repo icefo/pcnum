@@ -4,6 +4,7 @@
       <w>dest</w>
       <w>fsync</w>
       <w>nostdin</w>
+      <w>pyqt</w>
       <w>setchecked</w>
       <w>vuids</w>
       <w>zpool</w>

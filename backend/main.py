@@ -88,6 +88,7 @@ class Backend(ApplicationSession):
 
         #########
         self.default_log_settings = {
+            'source': 'decklink_1',
             'action': 'raw_to_h264',
             'dc:identifier': 2,
             'year': 1965,
@@ -312,6 +313,7 @@ class Backend(ApplicationSession):
         ffmpeg_command = list(itertools.chain(*ffmpeg_command))
 
         log_settings = self.default_log_settings.copy()
+        log_settings["source"] = video_metadata[0]["source"]
         log_settings["action"] = "decklink_to_raw"
         log_settings["dc:identifier"] = video_metadata[1]["dc:identifier"]
         log_settings["year"] = video_metadata[1]["dcterms:created"]
@@ -346,6 +348,7 @@ class Backend(ApplicationSession):
         ffmpeg_command = list(itertools.chain(*ffmpeg_command))
 
         log_settings = self.default_log_settings.copy()
+        log_settings["source"] = video_metadata[0]["source"]
         log_settings["action"] = "raw_to_h264"
         log_settings["dc:identifier"] = video_metadata[1]["dc:identifier"]
         log_settings["year"] = video_metadata[1]["dcterms:created"]
@@ -376,6 +379,7 @@ class Backend(ApplicationSession):
         print(ffmpeg_command)
 
         log_settings = self.default_log_settings.copy()
+        log_settings["source"] = video_metadata[0]["source"]
         log_settings["action"] = "dvd_to_h264"
         log_settings["dc:identifier"] = video_metadata[1]["dc:identifier"]
         log_settings["year"] = video_metadata[1]["dcterms:created"]
@@ -401,6 +405,7 @@ class Backend(ApplicationSession):
               "." + src.split(sep=".")[-1]  # to put the same extension back
 
         log_settings = self.default_log_settings.copy()
+        log_settings["source"] = video_metadata[0]["source"]
         log_settings["action"] = "file_import"
         log_settings["dc:identifier"] = video_metadata[1]["dc:identifier"]
         log_settings["year"] = video_metadata[1]["dcterms:created"]

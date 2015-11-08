@@ -57,11 +57,18 @@ class TimedKeyDeleteDict(dict):
         for key in self.__iter__():
             yield key, dict.__getitem__(self, key)
 
+    def get(self, k, d=None):
+        key = self.__getitem__(k)
+        if key:
+            return key
+        else:
+            return d
+
     def __iter__(self):
         to_delete = []
 
         for key in dict.__iter__(self):
-            if time.time() < self.__expire_table.get(key, 0):
+            if time.time() < self.__expire_table.get(key, False):
                 yield key
             else:
                 to_delete.append(key)
@@ -89,7 +96,7 @@ class TimedKeyDeleteDict(dict):
             return result
 
     def __contains__(self, key):
-        if dict.__contains__(self, key) and time.time() < self.__expire_table.get(key, 0):
+        if dict.__contains__(self, key) and time.time() < self.__expire_table.get(key, False):
             return True
         elif dict.__contains__(self, key):
             dict.__delitem__(self, key)
@@ -99,10 +106,15 @@ class TimedKeyDeleteDict(dict):
             raise KeyError(key)
 
     def __getitem__(self, key):
-        if key in self:
+        if key in self and time.time() < self.__expire_table.get(key, False):
             return dict.__getitem__(self, key)
+        elif key in self:
+            dict.__delitem__(self, key)
+            del self.__expire_table[key]
 
     def __len__(self):
+        for _ in self.__iter__():
+            pass
         self.keys()
         return dict.__len__(self)
 

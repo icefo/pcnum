@@ -17,6 +17,8 @@ class CaptureWidget(QWidget):
     This QWidget gather and check the user provided metadata and ask the MainWindow to launch the capture
 
     Attributes:
+        self.receive_enable_decklink_radio_1 (pyqtSignal([bool])): signal sent by the StatusWidget
+        self.receive_enable_decklink_radio_2 (pyqtSignal([bool])): signal sent by the StatusWidget
         self.set_statusbar_text_signal (pyqtSignal([str])): Is used to display text on the MainWindow's statusbar
         self.launch_capture_signal (pyqtSignal([list])): Is used to launch the capture
             Value [digitise_infos, dublincore_dict]
@@ -25,6 +27,8 @@ class CaptureWidget(QWidget):
             Effect make a timer decrement from this value. If the timer reach zero, the widget can't start a new capture.
     """
 
+    receive_enable_decklink_radio_1 = pyqtSignal([bool])
+    receive_enable_decklink_radio_2 = pyqtSignal([bool])
     set_statusbar_text_signal = pyqtSignal([str])
     launch_capture_signal = pyqtSignal([list])
     backend_is_alive_signal = pyqtSignal([int])
@@ -326,10 +330,10 @@ class CaptureWidget(QWidget):
         # Handle the other infos
         capture_action = None
         digitise_infos = {}
-        if self.decklink_radio_1.isChecked():
+        if self.decklink_radio_1.isChecked() and self.decklink_radio_1.isEnabled():
             digitise_infos["source"] = "decklink_1"
             capture_action = "decklink"
-        elif self.decklink_radio_2.isChecked():
+        elif self.decklink_radio_2.isChecked() and self.decklink_radio_2.isEnabled():
             digitise_infos["source"] = "decklink_2"
             capture_action = "decklink"
         elif self.file_import_radio.isChecked():
@@ -380,6 +384,8 @@ class CaptureWidget(QWidget):
         self.backend_is_alive_timer.start(4000)
         self.backend_is_alive_signal.connect(self.backend_is_alive_timer.setInterval)
         self.backend_is_alive_timer.timeout.connect(partial(self.launch_digitise_button.setDisabled, True))
+        self.receive_enable_decklink_radio_1.connect(self.decklink_radio_1.setEnabled)
+        self.receive_enable_decklink_radio_2.connect(self.decklink_radio_2.setEnabled)
 
         #########
         self.new_table_row_button.clicked.connect(self.add_table_row)

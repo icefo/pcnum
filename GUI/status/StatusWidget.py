@@ -1,4 +1,4 @@
-from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtCore import pyqtSignal, QTimer
 from PyQt5.QtWidgets import (QWidget,
                              QHeaderView, QGridLayout,
                              QProgressBar, QLabel, QTableWidget)
@@ -13,10 +13,14 @@ class StatusWidget(QWidget):
     This QWidget gather the search query, transform it in a suitable format for MongoDB and then run it
 
     Attributes:
+        self.send_enable_decklink_radio_1 (pyqtSignal([bool])): bool sent to the CaptureWidget
+        self.send_enable_decklink_radio_2 (pyqtSignal([bool])): bool sent to the CaptureWidget
         self.receive_ongoing_capture_status (pyqtSignal([dict])): Dict sent by MainWindow
         self.receive_waiting_captures_status (pyqtSignal([list])): List of dict sent by MainWindow
     """
 
+    send_enable_decklink_radio_1 = pyqtSignal([bool])
+    send_enable_decklink_radio_2 = pyqtSignal([bool])
     receive_ongoing_capture_status = pyqtSignal([dict])
     receive_waiting_captures_status = pyqtSignal([list])
 
@@ -36,13 +40,39 @@ class StatusWidget(QWidget):
         self.waiting_conversions_label = QLabel("Acquisitions en attente:")
 
         #########
-        self.ongoing_conversions_dict = TimedKeyDeleteDict(timeout=5)
+        self.ongoing_captures_dict = TimedKeyDeleteDict(timeout=5)
         self.waiting_conversions_dict = TimedKeyDeleteDict(timeout=5)
+
+        #########
+        self.my_timer = QTimer()
+        self.timed_key_delete_dict_updater()
 
         #########
         self.tab_init()
 
-    def ongoing_captures_table_updater(self, capture_status):
+    def ongoing_capture_dict_receiver(self, capture_status):
+        self.ongoing_captures_dict[capture_status['dc:identifier']] = capture_status
+
+    def timed_key_delete_dict_updater(self):
+        """
+        Update the dictionary by iterating over it, this delete keys that are older than 5 seconds
+
+        Enable or disable the decklink_radio_button to avoid launching to capture on the same card by mistake
+        """
+        try:
+            activate_decklink_button = {1: True, 2: True}
+            for value in self.ongoing_captures_dict.values():
+                decklink_id = value.get('decklink_id')
+                if decklink_id:
+                    activate_decklink_button[decklink_id] = False
+            self.send_enable_decklink_radio_1.emit(activate_decklink_button[1])
+            self.send_enable_decklink_radio_2.emit(activate_decklink_button[2])
+
+            self.ongoing_captures_table_updater()
+        finally:
+            self.my_timer.singleShot(2000, self.timed_key_delete_dict_updater)
+
+    def ongoing_captures_table_updater(self):
         """
         Is called when the self.receive_ongoing_capture_status signal is fired.
 
@@ -62,20 +92,20 @@ class StatusWidget(QWidget):
              in the 'self.ongoing_captures_table'
         """
 
-        self.ongoing_conversions_dict[capture_status['dc:identifier']] = capture_status
         self.ongoing_captures_table.clearContents()
         self.ongoing_captures_table.setRowCount(0)
-        for row in self.ongoing_conversions_dict.values():
+        for row in self.ongoing_captures_dict.values():
             row_count = self.ongoing_captures_table.rowCount()
             self.ongoing_captures_table.insertRow(row_count)
             self.ongoing_captures_table.setCellWidget(row_count, 0, QLabel(row["title"][0]))
             self.ongoing_captures_table.setCellWidget(row_count, 1, QLabel(str(row["year"])))
             self.ongoing_captures_table.setCellWidget(row_count, 2, QLabel(str(row["dc:identifier"])))
             self.ongoing_captures_table.setCellWidget(row_count, 3, QLabel(row["start_date"]))
-            self.ongoing_captures_table.setCellWidget(row_count, 4, QLabel(row["action"]))
+            self.ongoing_captures_table.setCellWidget(row_count, 4, QLabel(row["source"]))
+            self.ongoing_captures_table.setCellWidget(row_count, 5, QLabel(row["action"]))
             progress_bar = QProgressBar()
             progress_bar.setValue(row["progress"])
-            self.ongoing_captures_table.setCellWidget(row_count, 5, progress_bar)
+            self.ongoing_captures_table.setCellWidget(row_count, 6, progress_bar)
 
     def waiting_captures_table_updater(self, waiting_captures):
         """
@@ -113,23 +143,27 @@ class StatusWidget(QWidget):
         grid = QGridLayout()
         self.setLayout(grid)
 
-        self.receive_ongoing_capture_status.connect(self.ongoing_captures_table_updater)
+        #########
+        self.receive_ongoing_capture_status.connect(self.ongoing_capture_dict_receiver)
         self.receive_waiting_captures_status.connect(self.waiting_captures_table_updater)
+
         #########
         self.ongoing_conversions_label.setFont(self.widget_font)
         self.waiting_conversions_label.setFont(self.widget_font)
 
         #########
         self.ongoing_captures_table.setRowCount(0)
-        self.ongoing_captures_table.setColumnCount(6)
+        self.ongoing_captures_table.setColumnCount(7)
         self.ongoing_captures_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
         # self.ongoing_captures_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
         self.ongoing_captures_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
         self.ongoing_captures_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch)
-        self.ongoing_captures_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.Stretch)
-        # self.ongoing_captures_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.Stretch)
+        # self.ongoing_captures_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.Stretch)
+        self.ongoing_captures_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.Stretch)
+        # self.ongoing_captures_table.horizontalHeader().setSectionResizeMode(6, QHeaderView.Stretch)
         self.ongoing_captures_table.setFont(self.widget_font)
-        self.ongoing_captures_table.setHorizontalHeaderLabels(["titre", "année", "dc:identifier", "date début", "action", "progès"])
+        self.ongoing_captures_table.setHorizontalHeaderLabels(["titre", "année", "dc:identifier",
+                                                               "date début", "source", "action", "progès"])
 
         #########
         self.waiting_captures_table.setRowCount(0)
