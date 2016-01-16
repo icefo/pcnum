@@ -8,7 +8,7 @@
 
 # Under the hood
 * The backend has a wamp driven event loop and this event loop spawn subprocess with their own loop to deal with the captures.
-* The frontend use a combination of PyQT5 and a wamp driven event loop. It's was hard to set up but the result is great.
+* The frontend use a combination of PyQT5 and a wamp driven event loop. This was made possible by [quamash](https://github.com/harvimt/quamash) lib.
 
 ![pic1](https://cloud.githubusercontent.com/assets/7746352/10670787/904b3d86-78e7-11e5-8b1a-cd8081aafacf.png)
 ![pic2](https://cloud.githubusercontent.com/assets/7746352/10670788/904c6c9c-78e7-11e5-91d3-06ddd0967c66.png)
