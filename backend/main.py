@@ -11,7 +11,7 @@ from collections import OrderedDict
 from multiprocessing import Process
 import subprocess
 from pprint import pprint
-from backend.shared import async_call
+from backend.shared import wrap_in_future
 from time import sleep
 import itertools
 from datetime import datetime, timedelta
@@ -140,7 +140,7 @@ class Backend(ApplicationSession):
 
         asyncio.async(self.backend_is_alive_beacon_sender())
 
-    @async_call  # the signal handler can't call a coroutine directly
+    @wrap_in_future  # the signal handler can't call a coroutine directly
     @asyncio.coroutine
     def exit_cleanup(self, close_signal):
         """

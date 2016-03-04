@@ -12,7 +12,9 @@ class MainSearchWidget(QWidget):
         """
         Init the QStackedWidget class and set signals to display SearchWidget or ResultWidget
         """
-        super().__init__()
+        # Initialize the parent class QWidget
+        # this allow the use of the parent's methods when needed
+        super(MainSearchWidget, self).__init__()
 
         #########
         self.search_widget = SearchWidget()

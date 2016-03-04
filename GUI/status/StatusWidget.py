@@ -21,12 +21,11 @@ class StatusWidget(QWidget):
 
     send_enable_decklink_radio_1 = pyqtSignal([bool])
     send_enable_decklink_radio_2 = pyqtSignal([bool])
-    receive_ongoing_capture_status = pyqtSignal([dict])
-    receive_waiting_captures_status = pyqtSignal([list])
 
     def __init__(self):
         # Initialize the parent class QWidget
-        super().__init__()
+        # this allow the use of the parent's methods when needed
+        super(StatusWidget, self).__init__()
 
         #########
         self.widget_font = QFont(QFont().defaultFamily(), 12)
@@ -51,6 +50,14 @@ class StatusWidget(QWidget):
         self.tab_init()
 
     def ongoing_capture_dict_receiver(self, capture_status):
+        """
+        Is called whenever one of the ongoing capture has an update which happens randomly.
+
+        Args:
+            capture_status (dict): Dict that contain the following keys:
+                title, year, dc:identifier, start_date, action
+        """
+
         self.ongoing_captures_dict[capture_status['dc:identifier']] = capture_status
 
     def timed_key_delete_dict_updater(self):
@@ -108,18 +115,16 @@ class StatusWidget(QWidget):
             self.ongoing_captures_table.setCellWidget(row_count, 6, progress_bar)
 
     def waiting_captures_table_updater(self, waiting_captures):
+
         """
-        This function is called when the self.receive_waiting_captures_status signal is fired.
+        Is called when the backend publish a list of waiting captures
 
         Notes:
-        This signal is fired every 5 seconds.
+            If there is at least one capture waiting this function is called every 5 seconds.
 
         Args:
             waiting_captures (list): List of dicts. These dicts contain the following keys:
                 dc:title, dcterms:created, dc:identifier, source
-
-        Returns:
-            nothing
         """
 
         self.waiting_captures_table.clearContents()
@@ -142,10 +147,6 @@ class StatusWidget(QWidget):
 
         grid = QGridLayout()
         self.setLayout(grid)
-
-        #########
-        self.receive_ongoing_capture_status.connect(self.ongoing_capture_dict_receiver)
-        self.receive_waiting_captures_status.connect(self.waiting_captures_table_updater)
 
         #########
         self.ongoing_conversions_label.setFont(self.widget_font)

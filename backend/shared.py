@@ -1,17 +1,16 @@
-__author__ = 'adrien'
 import os
 import functools
 import asyncio
 import time
 
 
-FILES_PATHS = {'raw': '/media/storage/raw/', 'compressed': '/media/storage/compressed/',
-               'imported': '/media/storage/imported/', 'home_dir': os.getenv('HOME') + '/'}
-# FILES_PATHS = {'raw': '/home/adrien/Documents/tm/raw/', 'compressed': '/home/adrien/Documents/tm/compressed/',
-#               'imported': '/home/adrien/Documents/tm/imported/', 'home_dir': os.getenv('HOME') + '/'}
+# FILES_PATHS = {'raw': '/media/storage/raw/', 'compressed': '/media/storage/compressed/',
+#                'imported': '/media/storage/imported/', 'home_dir': os.getenv('HOME') + '/'}
+FILES_PATHS = {'raw': '/home/adrien/Documents/tm/raw/', 'compressed': '/home/adrien/Documents/tm/compressed/',
+               'imported': '/home/adrien/Documents/tm/imported/', 'home_dir': os.getenv('HOME') + '/'}
 
 
-def async_call(func):
+def wrap_in_future(func):
     """
     Wrap the function in asyncio.async to make launching async function from blocking function possible
 

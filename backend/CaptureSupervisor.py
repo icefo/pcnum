@@ -4,7 +4,7 @@ from datetime import datetime
 from pprint import pprint
 from setproctitle import setproctitle
 import functools
-from backend.shared import async_call
+from backend.shared import wrap_in_future
 import asyncio
 from autobahn.asyncio.wamp import ApplicationSession, ApplicationRunner
 import signal
@@ -108,8 +108,9 @@ class FFmpegWampSupervisor(ApplicationSession):
     When the capture is done and if the return code is 0, add the metadata to the database.
     """
 
-    def __init__(self, config, ffmpeg_command, log_settings, video_metadata):
+    def __init__(self, config):
         ApplicationSession.__init__(self, config)
+        ffmpeg_command, log_settings, video_metadata = config.extra['capture_parameters']
 
         #########
         self.ffmpeg_process = None
@@ -132,9 +133,10 @@ class FFmpegWampSupervisor(ApplicationSession):
         # the kill command use the SIGTERM signal by default
         loop.add_signal_handler(signal.SIGTERM, functools.partial(self.exit_cleanup, 'SIGTERM'))
 
+        #########
         asyncio.async(self.run_ffmpeg(ffmpeg_command, log_settings, video_metadata))
 
-    @async_call  # the signal handler can't call a coroutine directly
+    @wrap_in_future  # the signal handler can't call a coroutine directly
     @asyncio.coroutine
     def exit_cleanup(self, close_signal):
         """
@@ -268,15 +270,20 @@ class FFmpegWampSupervisor(ApplicationSession):
 
 
 class CopyFileSupervisor(ApplicationSession):
-    def __init__(self, config, src_dst, log_settings, video_metadata):
+    def __init__(self, config):
         ApplicationSession.__init__(self, config)
+        src_dst, log_settings, video_metadata = config.extra['capture_parameters']
+
+        #########
         self.rsync_process = None
 
+        #########
         db_client = MongoClient("mongodb://localhost:27017/")
         digitize_app = db_client['digitize_app']
         self.videos_metadata_collection = digitize_app['videos_metadata']
         self.complete_rsync_logs_collection = digitize_app['complete_rsync_logs']
 
+        #########
         self.close_signal = None
         loop = asyncio.get_event_loop()
         # You should abort any long operation on SIGINT and you can do what you want SIGTERM
@@ -286,9 +293,10 @@ class CopyFileSupervisor(ApplicationSession):
         # the kill command use the SIGTERM signal by default
         loop.add_signal_handler(signal.SIGTERM, functools.partial(self.exit_cleanup, 'SIGTERM'))
 
+        #########
         asyncio.async(self.run_rsync(src_dst, log_settings, video_metadata))
 
-    @async_call
+    @wrap_in_future
     @asyncio.coroutine
     def exit_cleanup(self, close_signal):
         """
@@ -388,13 +396,17 @@ class CopyFileSupervisor(ApplicationSession):
 def start_supervisor(log_settings, video_metadata, ffmpeg_command=None, src_dst=None):
     print("Capture wamp service")
     setproctitle("Capture wamp service")
-    runner = ApplicationRunner(url="ws://127.0.0.1:8080/ws", realm="realm1")
+
     # todo do a pull request for *args, **kwargs, print_exc() addition
     # the correct way to pass arguments to the called function is with the 'extra' argument in the ApplicationRunner class
     if ffmpeg_command:
-        runner.run(FFmpegWampSupervisor, args=(ffmpeg_command, log_settings, video_metadata))
+        runner = ApplicationRunner(url="ws://127.0.0.1:8080/ws", realm="realm1",
+                                   extra={'capture_parameters': (ffmpeg_command, log_settings, video_metadata)})
+        runner.run(FFmpegWampSupervisor)
     elif src_dst:
-        runner.run(CopyFileSupervisor, args=(src_dst, log_settings, video_metadata))
+        runner = ApplicationRunner(url="ws://127.0.0.1:8080/ws", realm="realm1",
+                                   extra={'capture_parameters': (src_dst, log_settings, video_metadata)})
+        runner.run(CopyFileSupervisor)
     else:
         raise ValueError("Both parameters ffmpeg_command and src_dst are None, this shouldn't happen")
     print("capture supervisor has exited")

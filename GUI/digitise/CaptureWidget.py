@@ -11,6 +11,9 @@ import shutil
 from functools import partial
 from backend.shared import FILES_PATHS
 
+from backend.shared import wrap_in_future
+import asyncio
+
 
 class CaptureWidget(QWidget):
     """
@@ -20,22 +23,17 @@ class CaptureWidget(QWidget):
         self.receive_enable_decklink_radio_1 (pyqtSignal([bool])): signal sent by the StatusWidget
         self.receive_enable_decklink_radio_2 (pyqtSignal([bool])): signal sent by the StatusWidget
         self.set_statusbar_text_signal (pyqtSignal([str])): Is used to display text on the MainWindow's statusbar
-        self.launch_capture_signal (pyqtSignal([list])): Is used to launch the capture
-            Value [digitise_infos, dublincore_dict]
-        self.backend_is_alive_signal (pyqtSignal([int])): Signal sent by the backend
-            Value milliseconds
-            Effect make a timer decrement from this value. If the timer reach zero, the widget can't start a new capture.
     """
 
     receive_enable_decklink_radio_1 = pyqtSignal([bool])
     receive_enable_decklink_radio_2 = pyqtSignal([bool])
     set_statusbar_text_signal = pyqtSignal([str])
-    launch_capture_signal = pyqtSignal([list])
-    backend_is_alive_signal = pyqtSignal([int])
 
-    def __init__(self):
+    def __init__(self, parent):
         # Initialize the parent class QWidget
-        super().__init__()
+        # this allow the use of the parent's methods when needed
+        super(CaptureWidget, self).__init__(parent=parent)
+        self.main_window = None
 
         #########
         self.decklink_label = QLabel("Choisissez la source vidéo")
@@ -59,8 +57,38 @@ class CaptureWidget(QWidget):
         self.backend_is_alive_timer = QTimer()
 
         #########
-        # self.backend_status_check()
         self.tab_init()
+
+    def delayed_init(self):
+        """
+        Is called if the wamp router is successfully joined, if you don't wait, you get this:
+
+        'NoneType' object has no attribute 'parent'
+        Traceback (most recent call last):
+            File "/usr/local/lib/python3.4/dist-packages/autobahn/wamp/websocket.py", line 62, in onOpen
+                self._session.onOpen(self)
+        AttributeError: 'NoneType' object has no attribute 'onOpen'
+        """
+        self.main_window = self.parent().parent().parent()  # MainWindow -> QTabWidget -> QStackedWidget
+
+    @wrap_in_future
+    @asyncio.coroutine
+    def launch_capture(self, metadata):
+        """
+        Call the 'launch_capture' function in the backend
+
+        Args:
+            metadata (list): [digitise_infos, dublincore_dict]
+        """
+
+        yield from self.main_window.call('com.digitize_app.launch_capture', metadata)
+
+    def backend_is_alive_beacon(self):
+        """
+        Is called when the backend send a beacon
+        Effect: make a timer decrement from 4000 ms. If the timer reach zero, the widget can't start a new capture.
+        """
+        self.backend_is_alive_timer.setInterval(4000)
 
     def add_table_row(self):
         """
@@ -162,8 +190,7 @@ class CaptureWidget(QWidget):
 
     def metadata_checker(self, capture_action, data):
         """
-        Check if the required metadata is present. If yes it emit the "launch_capture_signal" and "MainWindows" takes
-         care of the rest.
+        Check if the required metadata is present. If yes it launches the launch_capture function
 
         Args:
             capture_action (str): tell which capture_action the metadata_checker function should launch
@@ -177,7 +204,7 @@ class CaptureWidget(QWidget):
 
             self.launch_digitise_button.setEnabled(False)
 
-            self.launch_capture_signal.emit(data)
+            self.launch_capture(data)
             self.launch_digitise_button.setEnabled(True)
             # set status bar temp text
             self.set_statusbar_text_signal.emit("Numérisation Decklink lancée")
@@ -187,7 +214,7 @@ class CaptureWidget(QWidget):
 
             self.launch_digitise_button.setEnabled(False)
 
-            self.launch_capture_signal.emit(data)
+            self.launch_capture(data)
             self.launch_digitise_button.setEnabled(True)
 
             self.set_statusbar_text_signal.emit("Enregistrement du fichier lancé !")
@@ -197,7 +224,7 @@ class CaptureWidget(QWidget):
 
             self.launch_digitise_button.setEnabled(False)
 
-            self.launch_capture_signal.emit(data)
+            self.launch_capture(data)
             self.launch_digitise_button.setEnabled(True)
 
             self.set_statusbar_text_signal.emit("Enregistrement du DVD lancé !")
@@ -382,7 +409,6 @@ class CaptureWidget(QWidget):
 
         #########
         self.backend_is_alive_timer.start(4000)
-        self.backend_is_alive_signal.connect(self.backend_is_alive_timer.setInterval)
         self.backend_is_alive_timer.timeout.connect(partial(self.launch_digitise_button.setDisabled, True))
         self.receive_enable_decklink_radio_1.connect(self.decklink_radio_1.setEnabled)
         self.receive_enable_decklink_radio_2.connect(self.decklink_radio_2.setEnabled)
