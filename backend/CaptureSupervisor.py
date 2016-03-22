@@ -184,7 +184,7 @@ class FFmpegWampSupervisor(ApplicationSession):
                 Example: ['nice', '-n',  '19', 'echo', 'I like kiwis']
             log_settings (dict):
                 Example: {
-                    "action": "raw_to_h264",
+                    "action": "raw_to_h264_aac",
                     "dc:identifier": 'a29f7c4d-9523-4c10-b66f-da314b7d992e',
                     "year": 1995,
                     "title": "the killer cactus' story",
@@ -217,15 +217,28 @@ class FFmpegWampSupervisor(ApplicationSession):
                     dublincore_dict['source'] = video_metadata[0]['source']
                     self.videos_metadata_collection.insert(dublincore_dict, fsync=True)
 
-                elif return_code == 0 and log_settings['action'] == 'decklink_to_raw':
+                elif return_code == 0 and log_settings['action'] == 'decklink_to_raw'\
+                        and video_metadata[0]["lossless_import"]:
+
                     video_metadata[0]["file_path"] = converted_file_path
+                    yield from self.call('com.digitize_app.start_raw_to_ffv1_flac', video_metadata)
 
-                    # block until completition so that the task is not cancelled
-                    yield from self.call('com.digitize_app.start_raw_to_h264', video_metadata)
+                elif return_code == 0 and log_settings['action'] == 'decklink_to_raw'\
+                        and not video_metadata[0]["lossless_import"]:
 
-                elif return_code == 0 and log_settings['action'] == 'raw_to_h264':
+                    video_metadata[0]["file_path"] = converted_file_path
+                    yield from self.call('com.digitize_app.start_raw_to_h264_aac', video_metadata)
+
+                elif return_code == 0 and log_settings['action'] == 'raw_to_h264_aac':
                     dublincore_dict = video_metadata[1]
-                    dublincore_dict['files_path'] = {'h264': converted_file_path}
+                    dublincore_dict['files_path'] = {'h264_aac': converted_file_path}
+                    dublincore_dict['source'] = video_metadata[0]['source']
+                    os.remove(video_metadata[0]["file_path"])
+                    self.videos_metadata_collection.insert(dublincore_dict, fsync=True)
+
+                elif return_code == 0 and log_settings['action'] == 'raw_to_ffv1_flac':
+                    dublincore_dict = video_metadata[1]
+                    dublincore_dict['files_path'] = {'ffv1_flac': converted_file_path}
                     dublincore_dict['source'] = video_metadata[0]['source']
                     os.remove(video_metadata[0]["file_path"])
                     self.videos_metadata_collection.insert(dublincore_dict, fsync=True)

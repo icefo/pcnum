@@ -1,7 +1,7 @@
 from PyQt5.QtCore import pyqtSignal, Qt, QTimer
 from PyQt5.QtWidgets import (QWidget,
                              QHeaderView, QGridLayout,
-                             QRadioButton, QTextEdit, QLabel, QLineEdit, QTableWidget, QComboBox,
+                             QRadioButton, QCheckBox, QTextEdit, QLabel, QLineEdit, QTableWidget, QComboBox,
                              QPushButton, QFileDialog, QMessageBox)
 from PyQt5.QtGui import QFont
 from collections import OrderedDict
@@ -41,6 +41,7 @@ class CaptureWidget(QWidget):
         self.decklink_radio_2 = QRadioButton("Decklink 2")
         self.file_import_radio = QRadioButton("importer fichier vidéo")
         self.dvd_import_radio = QRadioButton("importer dvd")
+        self.lossless_import_checkbox = QCheckBox("Importer sans perte de qualité")
 
         #########
         self.digitise_table = QTableWidget()
@@ -359,9 +360,11 @@ class CaptureWidget(QWidget):
         digitise_infos = {}
         if self.decklink_radio_1.isChecked() and self.decklink_radio_1.isEnabled():
             digitise_infos["source"] = "decklink_1"
+            digitise_infos["lossless_import"] = self.lossless_import_checkbox.isChecked()
             capture_action = "decklink"
         elif self.decklink_radio_2.isChecked() and self.decklink_radio_2.isEnabled():
             digitise_infos["source"] = "decklink_2"
+            digitise_infos["lossless_import"] = self.lossless_import_checkbox.isChecked()
             capture_action = "decklink"
         elif self.file_import_radio.isChecked():
             digitise_infos["source"] = "file"
@@ -400,12 +403,17 @@ class CaptureWidget(QWidget):
         grid.addWidget(self.decklink_label, 0, 0)
         grid.addWidget(self.decklink_radio_1, 0, 1)
         grid.addWidget(self.file_import_radio, 0, 3)
+        grid.addWidget(self.lossless_import_checkbox, 1, 0)
         grid.addWidget(self.decklink_radio_2, 1, 1)
         grid.addWidget(self.dvd_import_radio, 1, 3)
 
         grid.addWidget(self.digitise_table, 2, 0, 7, 4)
         grid.addWidget(self.new_table_row_button, 2, 5)
         grid.addWidget(self.launch_digitise_button, 8, 5)
+
+        #########
+        self.dvd_import_radio.toggled.connect(self.lossless_import_checkbox.setDisabled)
+        self.file_import_radio.toggled.connect(self.lossless_import_checkbox.setDisabled)
 
         #########
         self.backend_is_alive_timer.start(4000)

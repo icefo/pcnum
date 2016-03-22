@@ -78,19 +78,26 @@ class Backend(ApplicationSession):
         self.default_decklink_to_raw['frame_rate'] = ['-r', '25', ]
         self.default_decklink_to_raw['output'] = ['/this/is/a/path/video_file.mkv', ]
 
-        self.default_raw_to_h264 = OrderedDict()
-        self.default_raw_to_h264['part1'] = ('nice', '-n', '11', 'ffmpeg', '-y', '-nostdin', '-i')
-        self.default_raw_to_h264['input'] = ['/this/is/a/path/video_file.mkv', ]
-        self.default_raw_to_h264['aspect_ratio'] = ['-aspect', '4:3']
-        self.default_raw_to_h264['part2'] = ('-c:v', 'libx264', '-crf', '25', '-preset', 'slow', '-filter:v', 'hqdn3d=3:2:2:3',
+        self.default_raw_to_h264_aac = OrderedDict()
+        self.default_raw_to_h264_aac['part1'] = ('nice', '-n', '11', 'ffmpeg', '-y', '-nostdin', '-i')
+        self.default_raw_to_h264_aac['input'] = ['/this/is/a/path/video_file.mkv', ]
+        self.default_raw_to_h264_aac['aspect_ratio'] = ['-aspect', '4:3']
+        self.default_raw_to_h264_aac['part2'] = ('-c:v', 'libx264', '-crf', '25', '-preset', 'slow', '-filter:v', 'hqdn3d=3:2:2:3',
                                              '-c:a', 'libfdk_aac', '-vbr', '3')
-        self.default_raw_to_h264['output'] = ['/this/is/a/path/video_file.mkv', ]
+        self.default_raw_to_h264_aac['output'] = ['/this/is/a/path/video_file.mkv', ]
+
+        self.default_raw_to_ffv1_flac = OrderedDict()
+        self.default_raw_to_ffv1_flac['part1'] = ('nice', '-n', '11', 'ffmpeg', '-y', '-nostdin', '-i')
+        self.default_raw_to_ffv1_flac['input'] = ['/this/is/a/path/video_file.mkv', ]
+        self.default_raw_to_ffv1_flac['part2'] = ('-c:v', 'ffv1', '-level', '3', '-g', '1', '-slicecrc', '1',
+                                                  '-c:a', 'flac')
+        self.default_raw_to_ffv1_flac['output'] = ['/this/is/a/path/video_file.mkv', ]
 
         #########
         self.default_log_settings = {
             'source': 'decklink_1',
             'action': 'raw_to_h264',
-            'dc:identifier': 2,
+            'dc:identifier': '0c3579f8-97ec-4737-bbaa-daf8aa9d651f',
             'year': 1965,
             'title': 'the holloway',
             'duration': 1/6,
@@ -326,8 +333,8 @@ class Backend(ApplicationSession):
         p.start()
         self.ffmpeg_supervisor_processes.append(p)
 
-    @wamp.register("com.digitize_app.start_raw_to_h264")
-    def start_raw_to_h264(self, video_metadata):
+    @wamp.register("com.digitize_app.start_raw_to_h264_aac")
+    def start_raw_to_h264_aac(self, video_metadata):
         """
         Gather necessary metadata and launch FFmpeg
 
@@ -338,7 +345,7 @@ class Backend(ApplicationSession):
         file_path = video_metadata[0]["file_path"]
         aspect_ratio = video_metadata[1]["dc:format"]["aspect_ratio"]
 
-        ffmpeg_command = self.default_raw_to_h264.copy()
+        ffmpeg_command = self.default_raw_to_h264_aac.copy()
         ffmpeg_command['input'][0] = file_path
         ffmpeg_command['aspect_ratio'][1] = aspect_ratio
         ffmpeg_command['output'][0] = FILES_PATHS['compressed'] + video_metadata[1]["dc:title"][0] + " -- " +\
@@ -349,14 +356,46 @@ class Backend(ApplicationSession):
 
         log_settings = self.default_log_settings.copy()
         log_settings["source"] = video_metadata[0]["source"]
-        log_settings["action"] = "raw_to_h264"
+        log_settings["action"] = "raw_to_h264_aac"
         log_settings["dc:identifier"] = video_metadata[1]["dc:identifier"]
         log_settings["year"] = video_metadata[1]["dcterms:created"]
         log_settings["title"] = video_metadata[1]["dc:title"]
         log_settings["duration"] = duration
 
         p = Process(target=start_supervisor, args=(log_settings, video_metadata),
-                    kwargs={'ffmpeg_command': ffmpeg_command}, name='raw_to_h264')
+                    kwargs={'ffmpeg_command': ffmpeg_command}, name='raw_to_h264_aac')
+        p.start()
+        self.ffmpeg_supervisor_processes.append(p)
+
+    @wamp.register("com.digitize_app.start_raw_to_ffv1_flac")
+    def start_raw_to_ffv1_flac(self, video_metadata):
+        """
+        Gather necessary metadata and launch FFmpeg
+
+        Args:
+            video_metadata (list): [digitise_infos, dublincore_dict]
+        """
+        duration = video_metadata[1]["dc:format"]["duration"]
+        file_path = video_metadata[0]["file_path"]
+
+        ffmpeg_command = self.default_raw_to_ffv1_flac.copy()
+        ffmpeg_command['input'][0] = file_path
+        ffmpeg_command['output'][0] = FILES_PATHS['compressed'] + video_metadata[1]["dc:title"][0] + " -- " +\
+                    str(video_metadata[1]["dcterms:created"]) + " -- " + video_metadata[1]['dc:identifier'] + ".mkv"
+
+        ffmpeg_command = [value for value in ffmpeg_command.values()]
+        ffmpeg_command = list(itertools.chain(*ffmpeg_command))
+
+        log_settings = self.default_log_settings.copy()
+        log_settings["source"] = video_metadata[0]["source"]
+        log_settings["action"] = "raw_to_ffv1_flac"
+        log_settings["dc:identifier"] = video_metadata[1]["dc:identifier"]
+        log_settings["year"] = video_metadata[1]["dcterms:created"]
+        log_settings["title"] = video_metadata[1]["dc:title"]
+        log_settings["duration"] = duration
+
+        p = Process(target=start_supervisor, args=(log_settings, video_metadata),
+                    kwargs={'ffmpeg_command': ffmpeg_command}, name='raw_to_ffv1_flac')
         p.start()
         self.ffmpeg_supervisor_processes.append(p)
 

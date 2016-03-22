@@ -59,11 +59,12 @@ class ResultWidget(QWidget):
         Launch vlc in a separate process when the user double click on a file path
         """
 
-        selected_item = self.search_results_tree.currentItem().text(0)
+        selected_item = self.search_results_tree.currentItem()
+        selected_item_parent = selected_item.parent().text(0)
 
-        if selected_item.startswith("h264: ") or selected_item.startswith("unknown: "):
+        if selected_item_parent == "files_path":
             # unknown: /media/storage/imported/le beau fichier importé: -- 4.mkv
-            file_path = "".join(selected_item.split(": ")[1:])
+            file_path = "".join(selected_item.text(0).split(": ")[1:])
             print(file_path)
             command = ['vlc', '--quiet', file_path]
             subprocess.Popen(command, stdout=None)
@@ -100,11 +101,9 @@ class ResultWidget(QWidget):
 
             if reply == QMessageBox.Yes and dc_identifier:
                 video_metadata = self.videos_metadata_collection.find_one({"dc:identifier": dc_identifier})
-                try:
-                    file_path = video_metadata["files_path"]["h264"]
-                except KeyError:
-                    file_path = video_metadata["files_path"]["unknown"]
-                os.remove(file_path)
+                for file_path in video_metadata["files_path"].values():
+                    print(file_path)
+                    os.remove(file_path)
                 self.videos_metadata_collection.remove(spec_or_id={"dc:identifier": dc_identifier}, fsync=True)
                 self.request_refresh.emit()
 
