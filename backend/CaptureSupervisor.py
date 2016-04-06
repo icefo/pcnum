@@ -84,6 +84,36 @@ def get_ongoing_conversion_document(log_settings):
     return ongoing_conversion_document
 
 
+def get_mkv_file_duration(file_path):
+    """
+    Get video file duration by asking ffmpeg to look at the container metadata
+    Work with mkv files, maybe with other containers too.
+
+    Args:
+        file_path (str):
+
+    Returns:
+        float: duration of the video file in seconds
+    """
+
+    command = ['ffprobe',
+               '-v',
+               'error',
+               '-select_streams',
+               'v:0',
+               '-show_entries',
+               'format=duration',
+               '-of',
+               'default=noprint_wrappers=1:nokey=1',
+               file_path
+               ]
+
+    output = subprocess.check_output(command)
+    output = float(output)
+    print(output)
+    return output
+
+
 def get_sec(input_string):
     """
     Convert input_string in seconds
@@ -397,6 +427,11 @@ class CopyFileSupervisor(ApplicationSession):
                 break
 
             stdout_complete_line = self.rsync_process.stdout.readline()
+            self.complete_rsync_logs_collection.find_and_modify(
+                query={"_id": complete_logs_document_id},
+                update={"$push": {"log_data": stdout_complete_line}}
+                )
+
             stdout_line = stdout_complete_line.strip()
             stdout_list = re.sub(' +', ' ', stdout_line).split(' ')
             for elem in stdout_list:
@@ -406,16 +441,159 @@ class CopyFileSupervisor(ApplicationSession):
                     break
 
 
-def start_supervisor(log_settings, video_metadata, ffmpeg_command=None, src_dst=None):
+class MakemkvconSupervisor(ApplicationSession):
+    def __init__(self, config):
+        ApplicationSession.__init__(self, config)
+        makemkvcon_command, log_settings, video_metadata = config.extra['capture_parameters']
+
+        #########
+        self.makemkvcon_process = None
+
+        #########
+        db_client = MongoClient("mongodb://localhost:27017/")
+        digitize_app = db_client['digitize_app']
+        self.videos_metadata_collection = digitize_app['videos_metadata']
+        self.complete_makemkvcon_logs_collection = digitize_app['complete_makemkvcon_logs']
+
+        #########
+        self.close_signal = None
+        loop = asyncio.get_event_loop()
+        # You should abort any long operation on SIGINT and you can do what you want SIGTERM
+        # In both cases the program should exit cleanly
+        # SIGINT = Ctrl-C
+        loop.add_signal_handler(signal.SIGINT, functools.partial(self.exit_cleanup, 'SIGINT'))
+        # the kill command use the SIGTERM signal by default
+        loop.add_signal_handler(signal.SIGTERM, functools.partial(self.exit_cleanup, 'SIGTERM'))
+
+        #########
+        asyncio.async(self.run_makemkvcon(makemkvcon_command, log_settings, video_metadata))
+
+    @wrap_in_future
+    @asyncio.coroutine
+    def exit_cleanup(self, close_signal):
+        """
+        Is called when asyncio catch a 'SIGINT' or 'SIGTERM' signal
+
+        Note:
+            The function doesn't have to cancel the capture on 'SIGINT' because subprocess.Popen does it.
+
+        Args:
+            close_signal (str): 'SIGINT' or 'SIGTERM'
+        """
+
+        self.close_signal = close_signal
+        while True:
+            yield from asyncio.sleep(2)
+            if self.makemkvcon_process.poll() is None:
+                print("Waiting for DVD_import to terminate")
+            if self.makemkvcon_process.poll() is not None:
+                print("CLOSING_TIME = True for makemkvcon supervisor")
+                break
+
+        # give time to run_makemkvcon to log data to the database
+        yield from asyncio.sleep(5)
+
+        loopy = asyncio.get_event_loop()
+        for task in asyncio.Task.all_tasks():
+            # this is to avoid the cancellation of this coroutine because this coroutine need to be the last one running
+            # to cancel all the others.
+            if task is not asyncio.Task.current_task():
+                task.cancel()
+
+        # Just to make sure that the cancel events are processed
+        yield from asyncio.sleep(1)
+
+        loopy.stop()
+        print("makemkvcon supervisor has gracefully exited")
+
+    @asyncio.coroutine
+    def run_makemkvcon(self, makemkvcon_command, log_settings, video_metadata):
+        """
+        Launch makemkvcon, monitor and send the progress
+
+        When the capture is done and if the return code is 0, add the metadata to the database.
+        Args:
+            makemkvcon_command (list): ['nice', '-n', '11', 'makemkvcon', '-r', '--minlength=1', '--progress=-same',
+                                       'mkv', 'disc:0', 'all', '/this/is/a/path']
+            log_settings (dict):
+                Example: {
+                    "action": "raw_to_h264",
+                    "dc:identifier": 'a29f7c4d-9523-4c10-b66f-da314b7d992e',
+                    "year": 1995,
+                    "title": "the killer cactus' story",
+                    "duration": 2 (min)
+                    }
+            video_metadata (list): [digitise_infos, dublincore_dict]
+        """
+
+        complete_logs_document = get_complete_logs_document(makemkvcon_command, log_settings)
+        ongoing_conversion_document = get_ongoing_conversion_document(log_settings)
+
+        complete_logs_document_id = self.complete_makemkvcon_logs_collection.insert(complete_logs_document)
+
+        DVD_folder = makemkvcon_command[-1]
+        os.mkdir(DVD_folder)
+
+        self.makemkvcon_process = subprocess.Popen(makemkvcon_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                                   universal_newlines=True)
+        while True:
+            if self.makemkvcon_process.poll() is not None:  # returns None while subprocess is running
+                return_code = self.makemkvcon_process.returncode
+                self.complete_makemkvcon_logs_collection.find_and_modify(
+                    query={"_id": complete_logs_document_id},
+                    update={"$set": {"end_date": datetime.now().replace(microsecond=0), "return_code": return_code}},
+                    fsync=True
+                )
+
+                if return_code == 0:
+                    dublincore_dict = video_metadata[1]
+                    dublincore_dict['files_path'] = {'folder': DVD_folder}
+
+                    i = 0
+                    duration = 0
+                    for file_path in os.listdir(DVD_folder):
+                        file_path = os.path.join(DVD_folder, file_path)
+                        i += 1
+                        dublincore_dict['files_path']['mpeg2_unknown_' + str(i)] = file_path
+                        duration += get_mkv_file_duration(file_path)
+
+                    dublincore_dict["dc:format"]["duration"] = duration
+                    dublincore_dict['source'] = video_metadata[0]['source']
+                    self.videos_metadata_collection.insert(dublincore_dict, fsync=True)
+                self.exit_cleanup('SIGTERM')
+                break
+
+            stdout_complete_line = self.makemkvcon_process.stdout.readline()
+            self.complete_makemkvcon_logs_collection.find_and_modify(
+                query={"_id": complete_logs_document_id},
+                update={"$push": {"log_data": stdout_complete_line}}
+            )
+
+            # Progress bar values for current and total progress
+            # PRGV:current,total,max
+            if stdout_complete_line.startswith('PRGV:'):
+                stdout_complete_line = stdout_complete_line[5:]
+                progress_list = stdout_complete_line.split(',')
+                progress = round((int(progress_list[1])/int(progress_list[2]))*100)
+
+                ongoing_conversion_document['progress'] = progress
+                self.publish('com.digitize_app.ongoing_capture', ongoing_conversion_document)
+            else:
+                print(stdout_complete_line)
+
+
+def start_supervisor(log_settings, video_metadata, ffmpeg_command=None, src_dst=None, makemkvcon_command=None):
     print("Capture wamp service")
     setproctitle("Capture wamp service")
 
-    # todo do a pull request for *args, **kwargs, print_exc() addition
-    # the correct way to pass arguments to the called function is with the 'extra' argument in the ApplicationRunner class
     if ffmpeg_command:
         runner = ApplicationRunner(url="ws://127.0.0.1:8080/ws", realm="realm1",
                                    extra={'capture_parameters': (ffmpeg_command, log_settings, video_metadata)})
         runner.run(FFmpegWampSupervisor)
+    elif makemkvcon_command:
+        runner = ApplicationRunner(url="ws://127.0.0.1:8080/ws", realm="realm1",
+                                   extra={'capture_parameters': (makemkvcon_command, log_settings, video_metadata)})
+        runner.run(MakemkvconSupervisor)
     elif src_dst:
         runner = ApplicationRunner(url="ws://127.0.0.1:8080/ws", realm="realm1",
                                    extra={'capture_parameters': (src_dst, log_settings, video_metadata)})

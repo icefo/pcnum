@@ -20,35 +20,7 @@ import os
 from uuid import uuid4
 import multiprocessing
 
-
-def get_mkv_file_duration(file_path):
-    """
-    Get video file duration by asking ffmpeg to look at the container metadata
-    Work with mkv files, maybe with other containers too.
-
-    Args:
-        file_path (str):
-
-    Returns:
-        float: duration of the video file in seconds
-    """
-
-    command = ['ffprobe',
-               '-v',
-               'error',
-               '-select_streams',
-               'v:0',
-               '-show_entries',
-               'format=duration',
-               '-of',
-               'default=noprint_wrappers=1:nokey=1',
-               file_path
-               ]
-
-    output = subprocess.check_output(command)
-    output = float(output)
-    print(output)
-    return output
+# todo make the Gui subscribe to an "error" topic and open a pop-up to display the messages
 
 
 class Backend(ApplicationSession):
@@ -60,15 +32,10 @@ class Backend(ApplicationSession):
         ApplicationSession.__init__(self, config)
 
         #########
-        self.default_dvd_to_h264 = OrderedDict()
-        self.default_dvd_to_h264['part1'] = ('nice', '-n', '19', 'ffmpeg', '-y', '-nostdin', '-i')
-        self.default_dvd_to_h264['input'] = ['/this/is/a/path/video_file.mkv', ]
-        self.default_dvd_to_h264['part2'] = ('-map', '0',
-                                             '-c:s', 'copy',
-                                             '-c:v', 'libx264', '-crf', '22', '-preset', 'slow',
-                                             '-c:a', 'libfdk_aac', '-vbr', '4'
-                                             )
-        self.default_dvd_to_h264['output'] = ['/this/is/a/path/video_file.mkv', ]
+        self.default_dvd_to_mpeg2_unknown = OrderedDict()
+        self.default_dvd_to_mpeg2_unknown['part1'] = ('nice', '-n', '11', 'makemkvcon', '-r', '--minlength=1',
+                                                      '--progress=-same', 'mkv', 'disc:0', 'all')
+        self.default_dvd_to_mpeg2_unknown['output_folder'] = ['/this/is/a/path', ]
 
         self.default_decklink_to_raw = OrderedDict()
         self.default_decklink_to_raw['part1'] = ('nice', '-n', '0', 'ffmpeg', '-y', '-nostdin', '-f', 'decklink', '-i')
@@ -282,8 +249,8 @@ class Backend(ApplicationSession):
             self.start_decklink_to_raw(video_metadata, "Intensity Pro (2)@16", 2)
 
         elif video_metadata[0]["source"] == "DVD":
-            if 'dvd_to_h264' not in ongoing_captures_names:
-                self.start_dvd_to_h264(video_metadata)
+            if 'dvd_to_mpeg2' not in ongoing_captures_names:
+                self.start_dvd_to_mpeg2_unknown(video_metadata)
             else:
                 print("nope back in the queue")
                 self.waiting_captures_list.append(video_metadata)
@@ -336,7 +303,11 @@ class Backend(ApplicationSession):
     @wamp.register("com.digitize_app.start_raw_to_h264_aac")
     def start_raw_to_h264_aac(self, video_metadata):
         """
-        Gather necessary metadata and launch FFmpeg
+        Gather necessary metadata and launch FFmpeg to import raw video files lossly
+
+        Notes:
+            h264 is a lossy video codec
+            aac is a lossy audio codec
 
         Args:
             video_metadata (list): [digitise_infos, dublincore_dict]
@@ -370,7 +341,11 @@ class Backend(ApplicationSession):
     @wamp.register("com.digitize_app.start_raw_to_ffv1_flac")
     def start_raw_to_ffv1_flac(self, video_metadata):
         """
-        Gather necessary metadata and launch FFmpeg
+        Gather necessary metadata and launch FFmpeg to import the VHS losslessly
+
+        Notes:
+            ffv1 is a lossless video codec
+            flac is a lossless audio codec
 
         Args:
             video_metadata (list): [digitise_infos, dublincore_dict]
@@ -399,34 +374,34 @@ class Backend(ApplicationSession):
         p.start()
         self.ffmpeg_supervisor_processes.append(p)
 
-    def start_dvd_to_h264(self, video_metadata):
+    def start_dvd_to_mpeg2_unknown(self, video_metadata):
         """
-        Gather necessary metadata and launch FFmpeg
+        Gather necessary metadata and launch makemkvcon. This software decrypt and wrap DVDs in nice MKV containers
+
+        Notes:
+            mpeg2 is the video codec used in DVDs
+            unknown is there because MP2, AC3 and PCM are all valid DVD audio codec
 
         Args:
             video_metadata (list): [digitise_infos, dublincore_dict]
         """
-        duration = get_mkv_file_duration(file_path=video_metadata[0]["file_path"])
-        video_metadata[1]["dc:format"]["duration"] = duration
 
-        ffmpeg_command = self.default_dvd_to_h264.copy()
-        ffmpeg_command['input'] = (video_metadata[0]["file_path"],)
-        ffmpeg_command['output'] = (FILES_PATHS['compressed'] + video_metadata[1]["dc:title"][0] + " -- " +
-            str(video_metadata[1]["dcterms:created"]) + " -- " + video_metadata[1]['dc:identifier'] + ".mkv",)
-        ffmpeg_command = [value for value in ffmpeg_command.values()]
-        ffmpeg_command = list(itertools.chain(*ffmpeg_command))
-        print(ffmpeg_command)
+        makemkvcon_command = self.default_dvd_to_mpeg2_unknown.copy()
+        makemkvcon_command['output_folder'] = (FILES_PATHS['DVDs'] + video_metadata[1]["dc:title"][0] + " -- " +
+            str(video_metadata[1]["dcterms:created"]) + " -- " + video_metadata[1]['dc:identifier'],)
+        makemkvcon_command = [value for value in makemkvcon_command.values()]
+        makemkvcon_command = list(itertools.chain(*makemkvcon_command))
+        print(makemkvcon_command)
 
         log_settings = self.default_log_settings.copy()
         log_settings["source"] = video_metadata[0]["source"]
-        log_settings["action"] = "dvd_to_h264"
+        log_settings["action"] = "dvd_to_mpeg2_unknown"
         log_settings["dc:identifier"] = video_metadata[1]["dc:identifier"]
         log_settings["year"] = video_metadata[1]["dcterms:created"]
         log_settings["title"] = video_metadata[1]["dc:title"]
-        log_settings["duration"] = duration
 
         p = Process(target=start_supervisor, args=(log_settings, video_metadata),
-                    kwargs={'ffmpeg_command': ffmpeg_command}, name='dvd_to_h264')
+                    kwargs={'makemkvcon_command': makemkvcon_command}, name='dvd_to_mpeg2_unknown')
         p.start()
         self.ffmpeg_supervisor_processes.append(p)
 
@@ -464,10 +439,12 @@ def startup_cleanup():
     digitize_app = db_client['digitize_app']
     complete_ffmpeg_logs_collection = digitize_app['complete_ffmpeg_logs']
     complete_rsync_logs_collection = digitize_app['complete_rsync_logs']
+    complete_makemkvcon_logs_collection = digitize_app['complete_makemkvcon_logs']
 
     one_week_ago = datetime.now() - timedelta(days=7)
     complete_ffmpeg_logs_collection.remove({"return_code": 0, "end_date": {"$lt": one_week_ago}})
     complete_rsync_logs_collection.remove({"return_code": 0, "end_date": {"$lt": one_week_ago}})
+    complete_makemkvcon_logs_collection.remove({"return_code": 0, "end_date": {"$lt": one_week_ago}})
 
 
 def launch_backend():

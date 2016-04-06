@@ -201,7 +201,8 @@ class CaptureWidget(QWidget):
 
         # this check if at least a duration, title, and creation date is set before sending the data to the back end
         if capture_action == "decklink" and "duration" in data[1].get('dc:format', {}) and "dc:title" in data[1] \
-                and "dcterms:created" in data[1] and self.check_remaining_space(duration=data[1]["dc:format"]["duration"]):
+                and "dcterms:created" in data[1] and self.check_remaining_space(
+            VHS_duration=data[1]["dc:format"]["duration"]):
 
             self.launch_digitise_button.setEnabled(False)
 
@@ -220,8 +221,8 @@ class CaptureWidget(QWidget):
 
             self.set_statusbar_text_signal.emit("Enregistrement du fichier lancé !")
 
-        elif capture_action == "DVD" and "file_path" in data[0] and "dc:title" in data[1] and "dcterms:created" in data[1] \
-                and self.check_remaining_space(DVD_file_path=data[0]["file_path"]):
+        elif capture_action == "DVD" and "dc:title" in data[1] and "dcterms:created" in data[1] \
+                and self.check_remaining_space(for_DVD=True):
 
             self.launch_digitise_button.setEnabled(False)
 
@@ -243,14 +244,14 @@ class CaptureWidget(QWidget):
             warning_box.warning(warning_box, "Attention", warning_message)
             self.launch_digitise_button.setEnabled(True)
 
-    def check_remaining_space(self, DVD_file_path=None, import_file_path=None, duration=None):
+    def check_remaining_space(self, for_DVD=None, import_file_path=None, VHS_duration=None):
         """
         Check the remaining space in the folder where the video will be saved
 
         Args:
-            DVD_file_path (str):
+            for_DVD (bool):
             import_file_path (str):
-            duration (str):
+            VHS_duration (str):
 
         Returns:
             bool: True if successful, False otherwise.
@@ -259,10 +260,10 @@ class CaptureWidget(QWidget):
         error_text = "L'espace disque est insuffisant pour enregistrer la vidéo, " + \
                      "veuillez contacter le responsable informatique."
 
-        if DVD_file_path:
+        if for_DVD:
             free_space = shutil.disk_usage(self.compressed_videos_path)[2]
-            file_size = os.path.getsize(DVD_file_path)
-            if free_space - file_size < 10000000000: # 10GB
+            file_size = 15000000000  # 15GB
+            if free_space - file_size < 10000000000:  # 10GB
                 error_box = QMessageBox()
                 error_box.setText(error_text)
                 error_box.setWindowTitle("Erreur")
@@ -281,9 +282,9 @@ class CaptureWidget(QWidget):
                 return False
             else:
                 return True
-        elif duration:
+        elif VHS_duration:
             free_space = shutil.disk_usage(self.compressed_videos_path)[2]
-            file_size = duration * 6.6 * 1000000000
+            file_size = VHS_duration * 6.6 * 1000000000
             if free_space - file_size < 100000000000: # 100GB
                 error_box = QMessageBox()
                 error_box.setText(error_text)
@@ -311,12 +312,7 @@ class CaptureWidget(QWidget):
         self.launch_digitise_button.setEnabled(False)
 
         file_path = None
-        if self.dvd_import_radio.isChecked():
-            file_dialog = QFileDialog(self)
-            file_path = file_dialog.getOpenFileName(directory=FILES_PATHS["home_dir"], filter="MKV files (*.mkv)")
-            file_path = file_path[0]
-            print(file_path)
-        elif self.file_import_radio.isChecked():
+        if self.file_import_radio.isChecked():
             file_dialog = QFileDialog(self)
             file_path = file_dialog.getOpenFileName(directory=FILES_PATHS["home_dir"])
             file_path = file_path[0]

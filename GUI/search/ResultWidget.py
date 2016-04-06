@@ -54,9 +54,10 @@ class ResultWidget(QWidget):
         self.db_client.close()
         print("ResultWidget's db connection closed")
 
-    def launch_vlc(self):
+    def handle_doubleclick(self):
         """
         Launch vlc in a separate process when the user double click on a file path
+        Launch caja in a separate process when the user double click on a dir path
         """
 
         selected_item = self.search_results_tree.currentItem()
@@ -64,9 +65,9 @@ class ResultWidget(QWidget):
 
         if selected_item_parent == "files_path":
             # unknown: /media/storage/imported/le beau fichier importé: -- 4.mkv
-            file_path = "".join(selected_item.text(0).split(": ")[1:])
-            print(file_path)
-            command = ['vlc', '--quiet', file_path]
+            file_or_dir_path = "".join(selected_item.text(0).split(": ")[1:])
+            print(file_or_dir_path)
+            command = ['vlc', '--quiet', file_or_dir_path]
             subprocess.Popen(command, stdout=None)
 
     def delete_video(self):
@@ -196,6 +197,6 @@ class ResultWidget(QWidget):
 
         #########
         self.return_to_search_button.clicked.connect(self.show_search_widget_signal.emit)
-        self.search_results_tree.itemDoubleClicked.connect(self.launch_vlc)
+        self.search_results_tree.itemDoubleClicked.connect(self.handle_doubleclick)
         self.delete_video_button.clicked.connect(self.delete_video)
         self.receive_search_results.connect(self.search_done)

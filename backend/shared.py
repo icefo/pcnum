@@ -4,10 +4,13 @@ import asyncio
 import time
 
 
-# FILES_PATHS = {'raw': '/media/storage/raw/', 'compressed': '/media/storage/compressed/',
-#                'imported': '/media/storage/imported/', 'home_dir': os.getenv('HOME') + '/'}
-FILES_PATHS = {'raw': '/home/adrien/Documents/tm/raw/', 'compressed': '/home/adrien/Documents/tm/compressed/',
-               'imported': '/home/adrien/Documents/tm/imported/', 'home_dir': os.getenv('HOME') + '/'}
+# FILES_PATHS = dict(raw='/media/storage/raw/', compressed='/media/storage/compressed/',
+#                    imported='/media/storage/imported/', DVDs='/media/storage/DVDs/',
+#                    home_dir=os.getenv('HOME') + '/')
+
+FILES_PATHS = dict(raw='/home/adrien/Documents/tm/raw/', compressed='/home/adrien/Documents/tm/compressed/',
+                   imported='/home/adrien/Documents/tm/imported/', DVDs='/home/adrien/Documents/tm/DVDs/',
+                   home_dir=os.getenv('HOME') + '/')
 
 
 def wrap_in_future(func):
