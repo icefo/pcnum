@@ -39,8 +39,8 @@ class StatusWidget(QWidget):
         self.waiting_conversions_label = QLabel("Acquisitions en attente:")
 
         #########
-        self.ongoing_captures_dict = TimedKeyDeleteDict(timeout=5)
-        self.waiting_conversions_dict = TimedKeyDeleteDict(timeout=5)
+        self.ongoing_captures_dict = TimedKeyDeleteDict(timeout=60)
+        self.waiting_conversions_dict = TimedKeyDeleteDict(timeout=60)
 
         #########
         self.my_timer = QTimer()

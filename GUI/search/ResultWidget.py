@@ -57,7 +57,6 @@ class ResultWidget(QWidget):
     def handle_doubleclick(self):
         """
         Launch vlc in a separate process when the user double click on a file path
-        Launch caja in a separate process when the user double click on a dir path
         """
 
         selected_item = self.search_results_tree.currentItem()
