@@ -62,7 +62,7 @@ class StatusWidget(QWidget):
 
     def timed_key_delete_dict_updater(self):
         """
-        Update the dictionary by iterating over it, this delete keys that are older than 5 seconds
+        Update the dictionary by iterating over it, this delete keys that are older than 60 seconds
 
         Enable or disable the decklink_radio_button to avoid launching to capture on the same card by mistake
         """

@@ -101,9 +101,15 @@ class ResultWidget(QWidget):
 
             if reply == QMessageBox.Yes and dc_identifier:
                 video_metadata = self.videos_metadata_collection.find_one({"dc:identifier": dc_identifier})
-                for file_path in video_metadata["files_path"].values():
-                    print(file_path)
-                    os.remove(file_path)
+                delete_folder = False
+                for folder_or_file, path in video_metadata["files_path"].items():
+                    print(path)
+                    if folder_or_file == "folder":
+                        delete_folder = path
+                    else:
+                        os.remove(path)
+                if delete_folder:
+                    os.rmdir(delete_folder)
                 self.videos_metadata_collection.remove(spec_or_id={"dc:identifier": dc_identifier}, fsync=True)
                 self.request_refresh.emit()
 
