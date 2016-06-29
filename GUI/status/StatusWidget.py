@@ -88,14 +88,14 @@ class StatusWidget(QWidget):
 
         Args:
             capture_status (dict): Dict that contain the following keys:
-                title, year, dc:identifier, start_date, action
+                title, year, dc:identifier, start_date, source, action, progress
 
         Examples:
             When the function is called, it add the 'dc:identifier' key with the 'capture_status' argument as value
              to a TimedKeyDeleteDict.
 
-            This dictionary is set to delete the keys that are older than 5 seconds so when an ongoing_capture stop to
-             send updates, its key is deleted after 5 seconds and doesn't show up anymore
+            This dictionary is set to delete the keys that are older than 60 seconds so when an ongoing_capture stop to
+             send updates, its key is deleted after 60 seconds and doesn't show up anymore
              in the 'self.ongoing_captures_table'
         """
 

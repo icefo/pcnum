@@ -4,25 +4,32 @@ from PyQt5.QtWidgets import (QWidget,
                              QProgressBar, QLabel, QTableWidget)
 from PyQt5.QtGui import QFont
 from backend.shared import TimedKeyDeleteDict
-
+from random import randint
 # todo check the ffmpeg_complete_logs collection at startup and warn the user that something went wrong if the return code != 0
 
 from PyQt5 import QtGui, QtCore, Qt
-from PyQt5.QtWidgets import QApplication, QTableView, QItemDelegate, QStyleOptionProgressBar, QStyle
+from PyQt5.QtWidgets import QApplication, QTableView, QItemDelegate, QStyleOptionProgressBar, QStyle, QMainWindow, QWidget
+from sortedcontainers.sorteddict import SortedDict
 import sys
 
 
 class CaptureModel(QtCore.QAbstractTableModel):
-    def __init__(self, captures=[[]], headers=[], parent=None):
+    def __init__(self, captures=SortedDict(), headers=[], parent=None, capture_type=None):
         QtCore.QAbstractTableModel.__init__(self, parent)
         self.__captures = captures
         self.__headers = headers
+        if capture_type == "ongoing":
+            self.__capture_type = (capture_type, 7)
+        elif capture_type == "waiting":
+            self.__capture_type = (capture_type, 4)
+        else:
+            raise ValueError
 
     def rowCount(self, parent):
         return len(self.__captures)
 
     def columnCount(self, parent):
-        return len(self.__captures[0])
+        return self.__capture_type[1]
 
     def flags(self, index):
         return QtCore.Qt.ItemIsEnabled
@@ -31,53 +38,96 @@ class CaptureModel(QtCore.QAbstractTableModel):
         if role == QtCore.Qt.DisplayRole:
             row = index.row()
             column = index.column()
-            value = self.__captures[row][column]
-            return  value
-        elif role == QtCore.Qt.EditRole:
-            row = index.row()
-            column = index.column()
-            value = self.__captures[row][column]
+            value = self.__captures.peekitem(row)[1][column]
             return value
 
-    def setData(self, index, value, role=QtCore.Qt.EditRole):
-        if role == QtCore.Qt.EditRole:
+    # def setData(self, index, value, role=QtCore.Qt.EditRole):
+    #     if role == QtCore.Qt.EditRole:
+    #
+    #         row = index.row()
+    #         column = index.column()
+    #
+    #         self.__captures[row][column] = value
+    #         self.dataChanged.emit(index, index)
+    #         return True
+    #     return False
 
-            row = index.row()
-            column = index.column()
+    def insertData(self, capture_data):
 
-            self.__captures[row][column] = value
-            self.dataChanged.emit(index, index)
-            return True
-        return False
+        temp_list = list()
+
+        if self.__capture_type[0] == "ongoing":
+            temp_list.append(capture_data["title"])
+            temp_list.append(capture_data["year"])
+            temp_list.append(capture_data["dc:identifier"])
+            temp_list.append(capture_data["start_date"])
+            temp_list.append(capture_data["source"])
+            temp_list.append(capture_data["action"])
+            temp_list.append(capture_data["progress"])
+
+            if capture_data["dc:identifier"] not in self.__captures:
+                pos = self.__captures.bisect(capture_data["dc:identifier"])
+                self.beginInsertRows(QtCore.QModelIndex(), pos, pos)
+                self.__captures[capture_data["dc:identifier"]] = temp_list
+                self.endInsertRows()
+            else:
+                self.__captures[capture_data["dc:identifier"]] = temp_list
+
+        elif self.__capture_type[0] == "waiting":
+            for dico in capture_data:
+                temp_list.append(dico["title"])
+                temp_list.append(dico["dcterms:created"])
+                temp_list.append(dico["dc:identifier"])
+                temp_list.append(dico["source"])
+
+                if dico["dc:identifier"] not in self.__captures:
+                    pos = self.__captures.bisect(dico["dc:identifier"])
+                    self.beginInsertRows(QtCore.QModelIndex(), pos, pos)
+                    self.__captures[dico["dc:identifier"]] = temp_list
+                    self.endInsertRows()
+                else:
+                    self.__captures[dico["dc:identifier"]] = temp_list
+
+
+
+        self.dataChanged.emit(self.index(0, 0), self.index(len(self.__captures),
+                                                           self.__capture_type[1]))
 
     def headerData(self, section, orientation, role):
-        if role == QtCore.Qt.DisplayRole:
-            if orientation == QtCore.Qt.Horizontal:
-                if section < len(self.__headers):
-                    return self.__headers[section]
-                else:
-                    return "not implemented"
+        if self.__capture_type[0] == "ongoing":
+            headers = ["title", "year", "dc:identifier", "start_date", "source", "action", "progress"]
+        elif self.__capture_type[0] == "waiting":
+            headers = ["title", "dcterms:created", "dc:identifier", "source"]
+        else:
+            headers = None
 
-    def insertRows(self, position, rows, parent=QtCore.QModelIndex()):
-        self.beginInsertRows(parent, position, position + rows - 1)
+        if role == QtCore.Qt.DisplayRole and orientation == QtCore.Qt.Horizontal:
+            if section < len(headers):
+                return headers[section]
+            else:
+                return "not implemented"
 
-        for i in range(rows):
-            defaultValues = [QtGui.QColor("#000000") for i in range(self.columnCount(None))]
-            self.__captures.insert(position, defaultValues)
+    # def insertRow(self, position, rows, parent=QtCore.QModelIndex()):
+    #     self.beginInsertRow(parent, position, position + rows - 1)
+    #
+    #     for i in range(rows):
+    #         defaultValues = [QtGui.QColor("#000000") for i in range(self.columnCount(None))]
+    #         self.__captures.insert(position, defaultValues)
+    #
+    #     self.endInsertRows()
+    #
+    #     return True
 
-        self.endInsertRows()
-
-        return True
-
-    def removeRows(self, position, rows, parent=QtCore.QModelIndex()):
-        self.beginRemoveRows(parent, position, position + rows - 1)
-
-        for i in range(rows):
-            value = self.__captures[position]
-            self.__captures.remove(value)
-
-        self.endRemoveRows()
-        return True
+    #
+    # def removeRows(self, position, rows, parent=QtCore.QModelIndex()):
+    #     self.beginRemoveRows(parent, position, position + rows - 1)
+    #
+    #     for i in range(rows):
+    #         value = self.__captures[position]
+    #         self.__captures.remove(value)
+    #
+    #     self.endRemoveRows()
+    #     return True
 
 
 class ProgressBarDelegate(QItemDelegate):
@@ -114,22 +164,67 @@ class ProgressBarDelegate(QItemDelegate):
         QApplication.style().drawControl(QStyle.CE_ProgressBar, opts, QPainter)
 
 
+class MainWindow(QMainWindow):
+    """
+    This class is a wamp client and adds the CaptureWidget, MainSearchWidget and StatusWidget in a QTabWidget.
+
+    This class acts as a proxy for the widgets that want to communicate with the backend because they can't have a valid
+     ApplicationSession that would allow them to be a wamp client and a QWidget.
+    """
+
+    def __init__(self, config=None):
+        QMainWindow.__init__(self)
+
+        self.my_timer = QTimer()
+
+        self.main_window_init()
+        self.timed_key_delete_dict_updater()
+
+    def timed_key_delete_dict_updater(self):
+        """
+        Update the dictionary by iterating over it, this delete keys that are older than 60 seconds
+
+        Enable or disable the decklink_radio_button to avoid launching to capture on the same card by mistake
+        """
+        lala = randint(0,100)
+        self.ongoing_model.insertData(
+            {"title": "l'honneur", "year": 1896, "dc:identifier": '75293c71-cbc4-4ab0-9038-eaa51522912f',
+             "start_date": "16:86:96", "source": "vhs", "action": "digitise", "progress": lala})
+
+        self.my_timer.singleShot(2000, self.timed_key_delete_dict_updater)
+
+    def main_window_init(self):
+        """
+        This function init the main window
+
+        It sets the status bar, menu bar and set the tabs class as central widget
+        """
+        self.setFont(QFont(QFont().defaultFamily(), 12))
+
+        self.ongoing_model = CaptureModel(capture_type="ongoing")
+        # model.insertColumns(0, 5)
+        # model.removeRows(3, 1)
+        # model.setData(model.index(0, 6), 12)
+        self.ongoing_model.insertData({"title": "l'honneur", "year": 1896, "dc:identifier": '65293c71-cbc4-4ab0-9038-eaa51522912f',
+                          "start_date": "16:86:96", "source": "vhs", "action": "digitise", "progress": 22})
+        # self.waiting_model.insertData(
+        #     [{"title": "hey", "dcterms:created": "15:98:65", "dc:identifier": '75293c71-cbc4-4ab0-9038-eaa51522912f',
+        #       "source": "bidule"}])
+        tableView = QTableView()
+        tableView.setModel(self.ongoing_model)
+
+        delegate = ProgressBarDelegate()
+        tableView.setItemDelegateForColumn(6, delegate)
+
+        #########
+        self.setCentralWidget(tableView)
+
+        #########
+        self.setGeometry(300, 300, 500, 400)
+        self.setWindowTitle('Logiciel Numérisation')
+        self.show()
+
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-
-    headers = ["title", "year", "dc:identifier", "start_date", "source", "action", "progress"]
-    tableData0 = [[0, '', '', '', '', '', 0]]
-
-    model = CaptureModel(tableData0, headers)
-    # model.insertColumns(0, 5)
-    # model.removeRows(3, 1)
-    model.setData(model.index(0, 6), 12)
-
-    tableView = QTableView()
-    tableView.setModel(model)
-
-    delegate = ProgressBarDelegate()
-    tableView.setItemDelegateForColumn(6, delegate)
-    tableView.show()
-
+    ex = MainWindow()
     sys.exit(app.exec_())
