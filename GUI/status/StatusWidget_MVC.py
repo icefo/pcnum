@@ -11,13 +11,14 @@ from PyQt5 import QtGui, QtCore, Qt
 from PyQt5.QtWidgets import QApplication, QTableView, QItemDelegate, QStyleOptionProgressBar, QStyle, QMainWindow, QWidget
 from sortedcontainers.sorteddict import SortedDict
 import sys
-
+from datetime import datetime
+from uuid import uuid4
 
 class CaptureModel(QtCore.QAbstractTableModel):
-    def __init__(self, captures=SortedDict(), headers=[], parent=None, capture_type=None):
+    def __init__(self, captures=SortedDict(), parent=None, capture_type=None):
         QtCore.QAbstractTableModel.__init__(self, parent)
         self.__captures = captures
-        self.__headers = headers
+        self.__captures_time = dict()
         if capture_type == "ongoing":
             self.__capture_type = (capture_type, 7)
         elif capture_type == "waiting":
@@ -54,8 +55,9 @@ class CaptureModel(QtCore.QAbstractTableModel):
 
     def insertData(self, capture_data):
 
-        temp_list = list()
+        self.__captures_time[capture_data["dc:identifier"]] = capture_data["date_data_send"]
 
+        temp_list = list()
         if self.__capture_type[0] == "ongoing":
             temp_list.append(capture_data["title"])
             temp_list.append(capture_data["year"])
@@ -88,7 +90,21 @@ class CaptureModel(QtCore.QAbstractTableModel):
                 else:
                     self.__captures[dico["dc:identifier"]] = temp_list
 
+                temp_list.clear()
 
+        time_now = datetime.now().timestamp()
+        capture_keys_to_be_deleted = list()
+        for uuid, timestamp in self.__captures_time.items():
+            if time_now - timestamp > 15:
+                capture_keys_to_be_deleted.append(uuid)
+        if capture_keys_to_be_deleted:
+            for key in capture_keys_to_be_deleted:
+                pos = self.__captures.index(key)
+                self.beginRemoveRows(QtCore.QModelIndex(), pos, pos)
+                del self.__captures[key]
+                del self.__captures_time[key]
+                self.endRemoveRows()
+        capture_keys_to_be_deleted.clear()
 
         self.dataChanged.emit(self.index(0, 0), self.index(len(self.__captures),
                                                            self.__capture_type[1]))
@@ -186,10 +202,12 @@ class MainWindow(QMainWindow):
 
         Enable or disable the decklink_radio_button to avoid launching to capture on the same card by mistake
         """
-        lala = randint(0,100)
-        self.ongoing_model.insertData(
-            {"title": "l'honneur", "year": 1896, "dc:identifier": '75293c71-cbc4-4ab0-9038-eaa51522912f',
-             "start_date": "16:86:96", "source": "vhs", "action": "digitise", "progress": lala})
+
+        for _ in range(10):
+            self.ongoing_model.insertData(
+                {"title": "your other honor", "year": 1896, "dc:identifier": str(randint(1, 10)),
+                 "start_date": "16:86:96", "source": "vhs", "action": "digitise", "progress": randint(0, 100),
+                 "date_data_send": datetime.now().timestamp()})
 
         self.my_timer.singleShot(2000, self.timed_key_delete_dict_updater)
 
@@ -206,7 +224,8 @@ class MainWindow(QMainWindow):
         # model.removeRows(3, 1)
         # model.setData(model.index(0, 6), 12)
         self.ongoing_model.insertData({"title": "l'honneur", "year": 1896, "dc:identifier": '65293c71-cbc4-4ab0-9038-eaa51522912f',
-                          "start_date": "16:86:96", "source": "vhs", "action": "digitise", "progress": 22})
+                                       "start_date": "16:86:96", "source": "vhs", "action": "digitise", "progress": 22,
+                                       "date_data_send": datetime.now().timestamp()})
         # self.waiting_model.insertData(
         #     [{"title": "hey", "dcterms:created": "15:98:65", "dc:identifier": '75293c71-cbc4-4ab0-9038-eaa51522912f',
         #       "source": "bidule"}])
