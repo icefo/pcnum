@@ -14,6 +14,7 @@ import sys
 from datetime import datetime
 from uuid import uuid4
 
+
 class CaptureModel(QtCore.QAbstractTableModel):
     def __init__(self, captures=SortedDict(), parent=None, capture_type=None):
         QtCore.QAbstractTableModel.__init__(self, parent)
@@ -219,21 +220,22 @@ class MainWindow(QMainWindow):
         """
         self.setFont(QFont(QFont().defaultFamily(), 12))
 
-        self.ongoing_model = CaptureModel(capture_type="ongoing")
+        # self.ongoing_model = CaptureModel(capture_type="ongoing")
+        self.waiting_model = CaptureModel(capture_type="waiting")
         # model.insertColumns(0, 5)
         # model.removeRows(3, 1)
         # model.setData(model.index(0, 6), 12)
-        self.ongoing_model.insertData({"title": "l'honneur", "year": 1896, "dc:identifier": '65293c71-cbc4-4ab0-9038-eaa51522912f',
-                                       "start_date": "16:86:96", "source": "vhs", "action": "digitise", "progress": 22,
-                                       "date_data_send": datetime.now().timestamp()})
-        # self.waiting_model.insertData(
-        #     [{"title": "hey", "dcterms:created": "15:98:65", "dc:identifier": '75293c71-cbc4-4ab0-9038-eaa51522912f',
-        #       "source": "bidule"}])
+        # self.ongoing_model.insertData({"title": "l'honneur", "year": 1896, "dc:identifier": '65293c71-cbc4-4ab0-9038-eaa51522912f',
+        #                                "start_date": "16:86:96", "source": "vhs", "action": "digitise", "progress": 22,
+        #                                "date_data_send": datetime.now().timestamp()})
+        self.waiting_model.insertData(
+            [{"title": "hey", "dcterms:created": "15:98:65", "dc:identifier": '75293c71-cbc4-4ab0-9038-eaa51522912f',
+              "source": "bidule", "date_data_send": datetime.now().timestamp()}])
         tableView = QTableView()
-        tableView.setModel(self.ongoing_model)
+        tableView.setModel(self.wa)
 
         delegate = ProgressBarDelegate()
-        tableView.setItemDelegateForColumn(6, delegate)
+        # tableView.setItemDelegateForColumn(6, delegate)
 
         #########
         self.setCentralWidget(tableView)
