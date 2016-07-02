@@ -5,7 +5,6 @@ from PyQt5.QtWidgets import (QWidget,
 from PyQt5.QtGui import QFont
 from backend.shared import TimedKeyDeleteDict
 from random import randint
-# todo check the ffmpeg_complete_logs collection at startup and warn the user that something went wrong if the return code != 0
 
 from PyQt5 import QtGui, QtCore, Qt
 from PyQt5.QtWidgets import QApplication, QTableView, QItemDelegate, QStyleOptionProgressBar, QStyle, QMainWindow, QWidget
@@ -220,7 +219,7 @@ class MainWindow(QMainWindow):
         """
         self.setFont(QFont(QFont().defaultFamily(), 12))
 
-        # self.ongoing_model = CaptureModel(capture_type="ongoing")
+        # self.ongoing_model = OngoingCapturesModel(capture_type="ongoing")
         self.waiting_model = CaptureModel(capture_type="waiting")
         # model.insertColumns(0, 5)
         # model.removeRows(3, 1)
