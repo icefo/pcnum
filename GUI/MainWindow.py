@@ -55,8 +55,8 @@ class MainWindow(ApplicationSession, QMainWindow):
 
         print("session ready ")
         yield from self.subscribe(self.capture_tab.backend_is_alive_beacon, 'com.digitize_app.backend_is_alive_beacon')
-        yield from self.subscribe(self.status_tab.ongoing_capture_dict_receiver, 'com.digitize_app.ongoing_capture')
-        yield from self.subscribe(self.status_tab.waiting_captures_table_updater, 'com.digitize_app.waiting_captures')
+        yield from self.subscribe(self.status_tab.ongoing_capture_receiver, 'com.digitize_app.ongoing_capture')
+        yield from self.subscribe(self.status_tab.waiting_captures_receiver, 'com.digitize_app.waiting_captures')
 
     def set_status_bar_message(self, message):
         """

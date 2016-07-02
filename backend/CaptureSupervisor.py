@@ -76,6 +76,7 @@ def get_ongoing_conversion_document(log_settings):
                                    "year": log_settings["year"],
                                    "title": log_settings["title"],
                                    "start_date": datetime.now().replace(microsecond=0).isoformat(),
+                                   "date_data_send": datetime.now().timestamp(),
                                    "progress": None
                                    }
 
@@ -309,6 +310,7 @@ class FFmpegWampSupervisor(ApplicationSession):
                 progress = round(progress)
 
                 ongoing_conversion_document['progress'] = progress
+                ongoing_conversion_document["date_data_send"] = datetime.now().timestamp()
                 self.publish('com.digitize_app.ongoing_capture', ongoing_conversion_document)
 
 
@@ -437,6 +439,7 @@ class CopyFileSupervisor(ApplicationSession):
             for elem in stdout_list:
                 if '%' in elem:
                     ongoing_conversion_document['progress'] = round(float(elem[:-1]))
+                    ongoing_conversion_document["date_data_send"] = datetime.now().timestamp()
                     self.publish('com.digitize_app.ongoing_capture', ongoing_conversion_document)
                     break
 
@@ -577,6 +580,7 @@ class MakemkvconSupervisor(ApplicationSession):
                 progress = round((int(progress_list[1])/int(progress_list[2]))*100)
 
                 ongoing_conversion_document['progress'] = progress
+                ongoing_conversion_document["date_data_send"] = datetime.now().timestamp()
                 self.publish('com.digitize_app.ongoing_capture', ongoing_conversion_document)
             else:
                 print(stdout_complete_line)
