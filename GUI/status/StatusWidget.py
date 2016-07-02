@@ -1,13 +1,12 @@
-from PyQt5.QtCore import pyqtSignal, Qt, QTimer
+from PyQt5.QtCore import pyqtSignal, QTimer
 from PyQt5.QtWidgets import (QWidget,
                              QHeaderView, QGridLayout,
                              QLabel, QTableView)
 from PyQt5.QtGui import QFont
-from backend.shared import TimedKeyDeleteDict
+
 from GUI.status.Models import OngoingCapturesModel, WaitingCapturesModel
 from GUI.status.Views import ProgressBarDelegate
-from copy import deepcopy
-from datetime import datetime
+
 # todo check the ffmpeg_complete_logs collection at startup and warn the user that something went wrong if the return code != 0
 
 
@@ -52,7 +51,7 @@ class StatusWidget(QWidget):
         #########
         self.tab_init()
 
-    def ongoing_capture_dict_receiver(self, capture_status):
+    def ongoing_capture_receiver(self, capture_status):
         """
         Is called whenever one of the ongoing capture has an update which happens randomly.
 
@@ -63,6 +62,21 @@ class StatusWidget(QWidget):
         """
 
         self.ongoing_captures_model.insertData(capture_status)
+
+    def waiting_captures_receiver(self, waiting_captures):
+
+        """
+        Is called when the backend publish a list of waiting captures
+
+        Notes:
+            If there is at least one capture waiting this function is called every 5 seconds.
+
+        Args:
+            waiting_captures (list): List of dicts. These dicts contain the following keys:
+                dc:title, dcterms:created, dc:identifier, source, date_data_send
+        """
+
+        self.waiting_captures_model.insertData(waiting_captures)
 
     def timed_decklink_check(self):
         """
@@ -81,31 +95,6 @@ class StatusWidget(QWidget):
         self.send_enable_decklink_radio_2.emit(activate_decklink_button[2])
 
         self.my_timer.singleShot(2000, self.timed_decklink_check)
-
-    def waiting_captures_table_receiver(self, waiting_captures):
-
-        """
-        Is called when the backend publish a list of waiting captures
-
-        Notes:
-            If there is at least one capture waiting this function is called every 5 seconds.
-
-        Args:
-            waiting_captures (list): List of dicts. These dicts contain the following keys and others:
-                dc:title, dcterms:created, dc:identifier, source
-        """
-
-        temp_list = list()
-        for row in waiting_captures:
-            dico = dict()
-            dico["dc:title"] = row[1]["dc:title"][0]
-            dico["dcterms:created"] = row[1]["dcterms:created"]
-            dico["dc:identifier"] = row[1]["dc:identifier"]
-            dico["source"] = row[0]["source"]
-            dico["date_data_send"] = datetime.now().timestamp()
-            temp_list.append(deepcopy(dico))
-
-        self.waiting_captures_model.insertData(temp_list)
 
     def tab_init(self):
         """

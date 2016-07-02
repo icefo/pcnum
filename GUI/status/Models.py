@@ -4,8 +4,15 @@ from sortedcontainers.sorteddict import SortedDict
 from datetime import datetime
 from copy import deepcopy
 
+# todo fusion the two models ? They turned out to be very similar
 
 class WaitingCapturesModel(QtCore.QAbstractTableModel):
+    """
+    This class is the model for the waiting captures, it gets updated every 5 seconds or so if there is captures waiting
+
+    This model use a SortedDict because I felt that a regular dict would have needed ugly hacks to do what I want and
+    after some head-scratching I managed to write a working model thanks to that wonderful datastructure
+    """
     def __init__(self, captures=SortedDict(), parent=None):
         QtCore.QAbstractTableModel.__init__(self, parent)
         self.__captures = captures
@@ -27,6 +34,13 @@ class WaitingCapturesModel(QtCore.QAbstractTableModel):
             return self.__captures.peekitem(row)[1][column]
 
     def insertData(self, capture_data):
+        """
+        This function insert or update data in the model, it also automatically delete old data from the model
+        Args:
+            capture_data (list): contains a list of dictionaries containing the following keys:
+                                title, date_data_send, dcterms:created, dc:identifier, source
+
+        """
 
         temp_list = list()
         for dico in capture_data:
@@ -49,7 +63,7 @@ class WaitingCapturesModel(QtCore.QAbstractTableModel):
         time_now = datetime.now().timestamp()
         capture_keys_to_be_deleted = list()
         for uuid, timestamp in self.__captures_time.items():
-            if time_now - timestamp > 120:
+            if time_now - timestamp > 30:
                 capture_keys_to_be_deleted.append(uuid)
 
         if capture_keys_to_be_deleted:
@@ -60,6 +74,7 @@ class WaitingCapturesModel(QtCore.QAbstractTableModel):
                 del self.__captures_time[key]
                 self.endRemoveRows()
         capture_keys_to_be_deleted.clear()
+
         self.dataChanged.emit(self.index(0, 0), self.index(len(self.__captures), 4))
 
     def headerData(self, section, orientation, role):
@@ -74,6 +89,12 @@ class WaitingCapturesModel(QtCore.QAbstractTableModel):
 
 
 class OngoingCapturesModel(QtCore.QAbstractTableModel):
+    """
+    This class is the model for the ongoing captures, it gets updated randomly
+
+    This model use a SortedDict because I felt that a regular dict would have needed ugly hacks to do what I want and
+    after some head-scratching I managed to write a working model thanks to that wonderful datastructure
+    """
     def __init__(self, captures=SortedDict(), parent=None):
         QtCore.QAbstractTableModel.__init__(self, parent)
         self.__captures = captures
@@ -103,6 +124,13 @@ class OngoingCapturesModel(QtCore.QAbstractTableModel):
             return value
 
     def insertData(self, capture_data):
+        """
+        This function insert or update data in the model, it also automatically delete old data from the model
+        Args:
+            capture_data (dict): Is a dictionary containing the following keys:
+                title, year, dc:identifier, start_date, source, action, progress, decklink_id (if applicable)
+
+        """
 
         self.__captures_time[capture_data["dc:identifier"]] = capture_data["date_data_send"]
 
@@ -130,6 +158,7 @@ class OngoingCapturesModel(QtCore.QAbstractTableModel):
         for uuid, timestamp in self.__captures_time.items():
             if time_now - timestamp > 15:
                 capture_keys_to_be_deleted.append(uuid)
+
         if capture_keys_to_be_deleted:
             for key in capture_keys_to_be_deleted:
                 pos = self.__captures.index(key)

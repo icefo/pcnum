@@ -19,6 +19,7 @@ import functools
 import os
 from uuid import uuid4
 import multiprocessing
+from copy import deepcopy
 
 # todo make the Gui subscribe to an "error" topic and open a pop-up to display the messages
 
@@ -214,6 +215,8 @@ class Backend(ApplicationSession):
         Just like a RPC call from the GUI would do. If the video can still not get captured, it will get back in the queue
         The function also send the waiting_captures_list for the GUI.
         """
+        temp_list = list()
+
         while True:
             if self.close_signal == 'SIGINT':
                 break
@@ -225,7 +228,20 @@ class Backend(ApplicationSession):
 
             # Give time to the waiting_capture to come back in the list if it can't be processed
             yield from asyncio.sleep(5)
-            self.publish('com.digitize_app.waiting_captures', self.waiting_captures_list)
+
+            temp_list.clear()
+            for capture in self.waiting_captures_list:
+                temp_capture_dict = dict()
+
+                temp_capture_dict["dc:title"] = capture[1]["dc:title"][0]
+                temp_capture_dict["dcterms:created"] = capture[1]["dcterms:created"]
+                temp_capture_dict["dc:identifier"] = capture[1]["dc:identifier"]
+                temp_capture_dict["source"] = capture[0]["source"]
+                temp_capture_dict["date_data_send"] = datetime.now().timestamp()
+
+                temp_list.append(deepcopy(temp_capture_dict))
+
+            self.publish('com.digitize_app.waiting_captures', temp_list)
 
     @wamp.register("com.digitize_app.launch_capture")
     def launch_capture(self, video_metadata):

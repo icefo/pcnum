@@ -22,5 +22,5 @@ class ProgressBarDelegate(QItemDelegate):
         else:
             opts.textVisible = True
 
-        opts.text = str(percent) + "% E"
+        opts.text = str(percent) + "%"
         QApplication.style().drawControl(QStyle.CE_ProgressBar, opts, QPainter)
