@@ -13,13 +13,21 @@ class ResultWidget(QWidget):
 
     Attributes:
         self.show_search_widget_signal (pyqtSignal()): Is used to ask the MainSearchWidget to display the SearchWidget
-        self.request_refresh (pyqtSignal()): Is used to ask the SearchWidget to rerun the search after a deletion
+        self.show_edit_widget_signal (pyqtSignal()): Is used to ask the MainSearchWidget to display the EditWidget
+
+        self.request_refresh_signal (pyqtSignal()): Is used to ask the SearchWidget to rerun the search after a deletion
+
         self.receive_search_results (pyqtSignal([list])): List of dict sent after a search by the SearchWidget
+        self.send_dc_identifier (pyqtSignal([str])): Is used to send the dc:identifier to the EditWidget
     """
 
     show_search_widget_signal = pyqtSignal()
-    request_refresh = pyqtSignal()
+    show_edit_widget_signal = pyqtSignal()
+
+    request_refresh_signal = pyqtSignal()
+
     receive_search_results = pyqtSignal([list])
+    send_dc_identifier = pyqtSignal([str])
 
     def __init__(self):
         super().__init__()
@@ -29,8 +37,9 @@ class ResultWidget(QWidget):
         self.result_font = QFont(QFont().defaultFamily(), 12)
 
         #########
-        self.return_to_search_button = QPushButton('Back')
+        self.return_to_search_button = QPushButton('Retour')
         self.delete_video_button = QPushButton('Supprimer')
+        self.edit_record_button = QPushButton('Modifier')
 
         #########
         # litle hack to set the label of each result; sort of global variable
@@ -105,13 +114,38 @@ class ResultWidget(QWidget):
                 for folder_or_file, path in video_metadata["files_path"].items():
                     print(path)
                     if folder_or_file == "folder":
-                        delete_folder = path
+                        os.rmdir(path)
                     else:
                         os.remove(path)
-                if delete_folder:
-                    os.rmdir(delete_folder)
-                self.videos_metadata_collection.remove(spec_or_id={"dc:identifier": dc_identifier}, fsync=True)
-                self.request_refresh.emit()
+
+                self.videos_metadata_collection.delete_one({"dc:identifier": dc_identifier}, fsync=True)
+                self.request_refresh_signal.emit()
+
+    def edit_record(self):
+        """
+        Check that the user selected the dc:identifier field and make the EditWidget show up
+        """
+
+        selected_item_parent = None
+        dc_identifier = None
+        try:
+            selected_item = self.search_results_tree.currentItem()
+            selected_item_parent = selected_item.parent().text(0)
+            dc_identifier = selected_item.text(0)
+            print(dc_identifier)
+            if selected_item_parent == "dc:identifier":
+                self.send_dc_identifier.emit(dc_identifier)
+                self.show_edit_widget_signal.emit()
+            else:
+                raise ValueError
+
+        except (AttributeError, ValueError):
+            error_box = QMessageBox()
+            error_message = "Vous devez sélectionner l'identifiant sous dc:identifier"
+
+            error_box.setText(error_message)
+            error_box.setWindowTitle("Erreur")
+            error_box.exec_()
 
     def search_done(self, search_results):
         """
@@ -202,6 +236,10 @@ class ResultWidget(QWidget):
 
         #########
         self.return_to_search_button.clicked.connect(self.show_search_widget_signal.emit)
+
         self.search_results_tree.itemDoubleClicked.connect(self.handle_doubleclick)
+
         self.delete_video_button.clicked.connect(self.delete_video)
+        self.edit_record_button.clicked.connect(self.edit_record)
+
         self.receive_search_results.connect(self.search_done)

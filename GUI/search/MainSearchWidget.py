@@ -2,6 +2,7 @@ from PyQt5.QtWidgets import QWidget, QVBoxLayout, QStackedWidget
 from functools import partial
 from GUI.search.SearchWidget import SearchWidget
 from GUI.search.ResultWidget import ResultWidget
+from GUI.search.EditWidget import EditWidget
 
 
 class MainSearchWidget(QWidget):
@@ -19,11 +20,13 @@ class MainSearchWidget(QWidget):
         #########
         self.search_widget = SearchWidget()
         self.result_widget = ResultWidget()
+        self.edit_widget = EditWidget()
 
         #########
         self.stack = QStackedWidget()
         self.stack.addWidget(self.search_widget)
         self.stack.addWidget(self.result_widget)
+        self.stack.addWidget(self.edit_widget)
         self.stack.setCurrentWidget(self.search_widget)
 
         #########
@@ -34,6 +37,10 @@ class MainSearchWidget(QWidget):
         #########
         self.search_widget.show_result_widget_signal.connect(partial(self.stack.setCurrentWidget, self.result_widget))
         self.result_widget.show_search_widget_signal.connect(partial(self.stack.setCurrentWidget, self.search_widget))
+        self.result_widget.show_edit_widget_signal.connect(partial(self.stack.setCurrentWidget, self.edit_widget))
+        self.edit_widget.show_result_widget_signal.connect(partial(self.stack.setCurrentWidget, self.result_widget))
 
         self.search_widget.search_transmit.connect(self.result_widget.receive_search_results)
-        self.result_widget.request_refresh.connect(self.search_widget.search)
+        self.result_widget.request_refresh_signal.connect(self.search_widget.search)
+        self.edit_widget.request_refresh_signal.connect(self.search_widget.search)
+        self.result_widget.send_dc_identifier.connect(self.edit_widget.receive_data)
