@@ -22,6 +22,7 @@ import multiprocessing
 from copy import deepcopy
 
 # todo make the Gui subscribe to an "error" topic and open a pop-up to display the messages
+# todo change the "year" dict key to "dc:identifier"
 
 
 class Backend(ApplicationSession):
@@ -113,7 +114,7 @@ class Backend(ApplicationSession):
         except Exception as e:
             print("could not register procedure: {0}".format(e))
 
-        asyncio.async(self.backend_is_alive_beacon_sender())
+        yield from self.backend_is_alive_beacon_sender()
 
     @wrap_in_future  # the signal handler can't call a coroutine directly
     @asyncio.coroutine

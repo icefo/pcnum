@@ -157,7 +157,6 @@ class ResultWidget(QWidget):
                 'files_path': {'h264': file_path}, 'dc:title': ['the title']}]
         """
 
-        print(search_results)
         self.search_results_tree.clear()
 
         for result in search_results:
@@ -230,9 +229,10 @@ class ResultWidget(QWidget):
         self.search_results_tree.setHeaderLabel("")
 
         #########
-        grid.addWidget(self.search_results_tree, 0, 0, 3, 2)
-        grid.addWidget(self.delete_video_button, 4, 0)
-        grid.addWidget(self.return_to_search_button, 4, 1)
+        grid.addWidget(self.search_results_tree, 0, 0, 3, 3)
+        grid.addWidget(self.return_to_search_button, 4, 0)
+        grid.addWidget(self.delete_video_button, 4, 1)
+        grid.addWidget(self.edit_record_button, 4, 2)
 
         #########
         self.return_to_search_button.clicked.connect(self.show_search_widget_signal.emit)

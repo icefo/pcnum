@@ -6,6 +6,7 @@ from copy import deepcopy
 
 # todo fusion the two models ? They turned out to be very similar
 
+
 class WaitingCapturesModel(QtCore.QAbstractTableModel):
     """
     This class is the model for the waiting captures, it gets updated every 5 seconds or so if there is captures waiting
@@ -135,7 +136,7 @@ class OngoingCapturesModel(QtCore.QAbstractTableModel):
         self.__captures_time[capture_data["dc:identifier"]] = capture_data["date_data_send"]
 
         temp_list = list()
-        temp_list.append(capture_data["title"])
+        temp_list.append(capture_data["title"][0])
         temp_list.append(capture_data["year"])
         temp_list.append(capture_data["dc:identifier"])
         temp_list.append(capture_data["start_date"])

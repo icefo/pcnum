@@ -141,7 +141,7 @@ class FFmpegWampSupervisor(ApplicationSession):
 
     def __init__(self, config):
         ApplicationSession.__init__(self, config)
-        ffmpeg_command, log_settings, video_metadata = config.extra['capture_parameters']
+        self.config_extra = config.extra
 
         #########
         self.ffmpeg_process = None
@@ -164,8 +164,13 @@ class FFmpegWampSupervisor(ApplicationSession):
         # the kill command use the SIGTERM signal by default
         loop.add_signal_handler(signal.SIGTERM, functools.partial(self.exit_cleanup, 'SIGTERM'))
 
-        #########
-        asyncio.async(self.run_ffmpeg(ffmpeg_command, log_settings, video_metadata))
+    @asyncio.coroutine
+    def onJoin(self, details):
+        print("session ready")
+
+        ffmpeg_command, log_settings, video_metadata = self.config_extra['capture_parameters']
+
+        yield from self.run_ffmpeg(ffmpeg_command, log_settings, video_metadata)
 
     @wrap_in_future  # the signal handler can't call a coroutine directly
     @asyncio.coroutine
@@ -317,7 +322,7 @@ class FFmpegWampSupervisor(ApplicationSession):
 class CopyFileSupervisor(ApplicationSession):
     def __init__(self, config):
         ApplicationSession.__init__(self, config)
-        src_dst, log_settings, video_metadata = config.extra['capture_parameters']
+        self.config_extra = config.extra
 
         #########
         self.rsync_process = None
@@ -338,8 +343,12 @@ class CopyFileSupervisor(ApplicationSession):
         # the kill command use the SIGTERM signal by default
         loop.add_signal_handler(signal.SIGTERM, functools.partial(self.exit_cleanup, 'SIGTERM'))
 
-        #########
-        asyncio.async(self.run_rsync(src_dst, log_settings, video_metadata))
+    @asyncio.coroutine
+    def onJoin(self, details):
+        print("session ready")
+
+        src_dst, log_settings, video_metadata = self.config_extra['capture_parameters']
+        yield from self.run_rsync(src_dst, log_settings, video_metadata)
 
     @wrap_in_future
     @asyncio.coroutine
@@ -447,7 +456,7 @@ class CopyFileSupervisor(ApplicationSession):
 class MakemkvconSupervisor(ApplicationSession):
     def __init__(self, config):
         ApplicationSession.__init__(self, config)
-        makemkvcon_command, log_settings, video_metadata = config.extra['capture_parameters']
+        self.config_extra = config.extra
 
         #########
         self.makemkvcon_process = None
@@ -469,7 +478,14 @@ class MakemkvconSupervisor(ApplicationSession):
         loop.add_signal_handler(signal.SIGTERM, functools.partial(self.exit_cleanup, 'SIGTERM'))
 
         #########
-        asyncio.async(self.run_makemkvcon(makemkvcon_command, log_settings, video_metadata))
+
+    @asyncio.coroutine
+    def onJoin(self, details):
+        print("session ready")
+
+        makemkvcon_command, log_settings, video_metadata = self.config_extra['capture_parameters']
+
+        yield from self.run_makemkvcon(makemkvcon_command, log_settings, video_metadata)
 
     @wrap_in_future
     @asyncio.coroutine

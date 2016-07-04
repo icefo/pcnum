@@ -9,8 +9,8 @@ from datetime import datetime
 import os
 import shutil
 from functools import partial
-from backend.shared import FILES_PATHS
-
+from backend.shared import FILES_PATHS, wrap_in_future
+import asyncio
 from pymongo import MongoClient
 import sys
 
@@ -77,6 +77,8 @@ class EditWidget(QWidget):
     def save_modifications(self):
         self.request_refresh_signal.emit()
 
+    @wrap_in_future
+    @asyncio.coroutine
     def receive_data(self, dc_identifier):
         """
         Receive data from the ResultWidget, parse it and call self.add_table_row for each row to add
@@ -84,17 +86,51 @@ class EditWidget(QWidget):
             dc_identifier (str):
 
         """
-        capture_data = self.videos_metadata_collection.find_one({"dc:identifier": dc_identifier})
+        capture_data = self.videos_metadata_collection.find_one({"dc:identifier": dc_identifier}, {'_id': False})
+        print("hey")
+        print(capture_data)
+        for key, values in capture_data.items():
+            if key in ('dc:identifier', 'duration', 'dc:type', 'files_path', 'dcterms:modified'):
+                pass
+            elif key in ('dc:subject', 'dc:publisher', 'dc:creator', 'dc:title', 'dc:language'):
+                for value in values:
+                    row_count = self.edit_table.rowCount()
+                    self.add_table_row()
 
-    def add_table_row(self, key=None, value=None):
+                    self.edit_table.cellWidget(row_count, 0).setCurrentText(key)
+                    self.edit_table.cellWidget(row_count, 1).setText(value)
+            elif key == 'dc:description':
+                row_count = self.edit_table.rowCount()
+                self.add_table_row()
+                print(row_count)
+                print(values)
+                self.edit_table.cellWidget(row_count, 0).setCurrentText(key)
+                yield from asyncio.sleep(0.5)
+                self.edit_table.cellWidget(row_count, 1).setText(values)
+            elif key == 'dc:format':
+                row_count = self.edit_table.rowCount()
+                self.add_table_row()
+                self.edit_table.cellWidget(row_count, 0).setCurrentText('format_video')
+                yield from asyncio.sleep(0.5)
+                self.edit_table.cellWidget(row_count, 1).setCurrentText(values['format'])
+
+                self.add_table_row()
+                self.edit_table.cellWidget(row_count + 1, 0).setCurrentText('ratio')
+                yield from asyncio.sleep(0.5)
+                self.edit_table.cellWidget(row_count + 1, 1).setCurrentText(values['aspect_ratio'])
+            elif key == 'dcterms:created':
+                row_count = self.edit_table.rowCount()
+                self.add_table_row()
+
+                self.edit_table.cellWidget(row_count, 0).setCurrentText(key)
+                self.edit_table.cellWidget(row_count, 1).setText(str(values))
+
+    def add_table_row(self):
         """
         Is called when the "self.new_table_row_button" button is pressed or by the receive_row function
 
         This function will fill the combobox with their name and a tooltip, link the combobox
          to the "self.combobox_changed function" and link the delete button with the self.delete_table_row" function
-        Args:
-            key (str):
-            value (str):
 
         """
 
@@ -108,7 +144,7 @@ class EditWidget(QWidget):
             self.edit_table.cellWidget(row_count, 0).setItemData(count, dc_tooltip, Qt.ToolTipRole)
             count += 1
 
-        self.edit_table.cellWidget(row_count, 0).activated[str].connect(self.combobox_changed)
+        self.edit_table.cellWidget(row_count, 0).currentTextChanged[str].connect(self.combobox_changed)
         self.edit_table.setCellWidget(row_count, 1, QLineEdit())
         self.edit_table.setCellWidget(row_count, 2, QPushButton("Delete"))
         self.edit_table.cellWidget(row_count, 2).clicked.connect(self.delete_table_row)
@@ -135,7 +171,6 @@ class EditWidget(QWidget):
         Args:
             text (str): its the active combobox selection
         """
-
         sender = self.sender()
         index = self.edit_table.indexAt(sender.pos())
         if index.isValid():
@@ -334,9 +369,9 @@ class EditWidget(QWidget):
         grid.addWidget(self.edit_label, 0, 0)
 
         grid.addWidget(self.edit_table, 1, 0, 7, 4)
-        grid.addWidget(self.new_table_row_button, 2, 5)
-        grid.addWidget(self.return_to_result_button, 8, 1)
-        grid.addWidget(self.save_modifications_button, 8, 2)
+        grid.addWidget(self.new_table_row_button, 1, 5)
+        grid.addWidget(self.return_to_result_button, 8, 0)
+        grid.addWidget(self.save_modifications_button, 8, 5)
 
         #########
         self.return_to_result_button.clicked.connect(self.show_result_widget_signal.emit)

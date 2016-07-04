@@ -14,6 +14,7 @@ from backend.shared import FILES_PATHS
 from backend.shared import wrap_in_future
 import asyncio
 
+# todo allow for more than one dc:description
 
 class CaptureWidget(QWidget):
     """
@@ -97,7 +98,8 @@ class CaptureWidget(QWidget):
         Args:
             metadata (list): [digitise_infos, dublincore_dict]
         """
-
+        print("metadata")
+        print(metadata)
         yield from self.main_window.call('com.digitize_app.launch_capture', metadata)
 
     def backend_is_alive_beacon(self):
