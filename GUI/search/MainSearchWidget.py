@@ -18,36 +18,36 @@ class MainSearchWidget(QWidget):
         super(MainSearchWidget, self).__init__()
 
         #########
-        self.search_widget = SearchWidget()
-        self.result_widget = ResultWidget()
-        self.edit_widget = EditWidget()
+        search_widget = SearchWidget()
+        result_widget = ResultWidget()
+        edit_widget = EditWidget()
 
         #########
-        self.stack = QStackedWidget()
-        self.stack.addWidget(self.search_widget)
-        self.stack.addWidget(self.result_widget)
-        self.stack.addWidget(self.edit_widget)
-        self.stack.setCurrentWidget(self.search_widget)
+        stack = QStackedWidget()
+        stack.addWidget(search_widget)
+        stack.addWidget(result_widget)
+        stack.addWidget(edit_widget)
+        stack.setCurrentWidget(search_widget)
 
         #########
         layout = QVBoxLayout(self)
         self.setLayout(layout)
-        layout.addWidget(self.stack)
+        layout.addWidget(stack)
 
         #########
-        self.search_widget.show_result_widget_signal.connect(partial(self.stack.setCurrentWidget, self.result_widget))
+        search_widget.show_result_widget_signal.connect(partial(stack.setCurrentWidget, result_widget))
 
-        self.result_widget.show_search_widget_signal.connect(partial(self.stack.setCurrentWidget, self.search_widget))
-        self.result_widget.show_edit_widget_signal.connect(partial(self.stack.setCurrentWidget, self.edit_widget))
+        result_widget.show_search_widget_signal.connect(partial(stack.setCurrentWidget, search_widget))
+        result_widget.show_edit_widget_signal.connect(partial(stack.setCurrentWidget, edit_widget))
 
-        self.edit_widget.show_result_widget_signal.connect(partial(self.stack.setCurrentWidget, self.result_widget))
+        edit_widget.show_result_widget_signal.connect(partial(stack.setCurrentWidget, result_widget))
 
         #########
-        self.search_widget.search_transmit.connect(self.result_widget.receive_search_results)
+        search_widget.search_transmit.connect(result_widget.receive_search_results)
 
-        self.result_widget.request_refresh_signal.connect(self.search_widget.search)
-        self.result_widget.show_edit_widget_signal.connect(self.edit_widget.reset_edit_table)
-        self.result_widget.send_dc_identifier.connect(self.edit_widget.receive_data)
+        result_widget.request_refresh_signal.connect(search_widget.search)
+        result_widget.show_edit_widget_signal.connect(edit_widget.reset_edit_table)
+        result_widget.send_dc_identifier.connect(edit_widget.receive_data)
 
-        self.edit_widget.request_refresh_signal.connect(self.search_widget.search)
+        edit_widget.request_refresh_signal.connect(search_widget.search)
 
