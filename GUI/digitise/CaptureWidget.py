@@ -16,6 +16,7 @@ import asyncio
 
 # todo allow for more than one dc:description
 
+
 class CaptureWidget(QWidget):
     """
     This QWidget gather and check the user provided metadata and ask the MainWindow to launch the capture

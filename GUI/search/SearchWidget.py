@@ -213,8 +213,8 @@ class SearchWidget(QWidget):
 
         print(mongo_query)
         result_list = []
-        for post in self.videos_metadata_collection.find(mongo_query, {'_id': False}).sort([("dc:format.duration",
-                                                                                             ASCENDING)]):
+        for post in self.videos_metadata_collection.find(mongo_query, {'_id': False}).sort(
+                [("dc:title.0", ASCENDING)]):  # Order with first element of dc:title array
             result_list.append(post)
             print(post)
         self.search_transmit.emit(result_list)

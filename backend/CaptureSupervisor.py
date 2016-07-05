@@ -234,7 +234,7 @@ class FFmpegWampSupervisor(ApplicationSession):
         complete_logs_document = get_complete_logs_document(command, log_settings)
         ongoing_conversion_document = get_ongoing_conversion_document(log_settings)
 
-        complete_logs_document_id = self.complete_ffmpeg_logs_collection.insert(complete_logs_document)
+        complete_logs_document_id = self.complete_ffmpeg_logs_collection.insert_one(complete_logs_document)
         self.ffmpeg_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                                universal_newlines=True)
 
@@ -242,17 +242,13 @@ class FFmpegWampSupervisor(ApplicationSession):
             if self.ffmpeg_process.poll() is not None:  # returns None while subprocess is running
                 return_code = self.ffmpeg_process.returncode
                 converted_file_path = command[-1]
+
                 self.complete_ffmpeg_logs_collection.update_one(
                     filter={"_id": complete_logs_document_id},
-                    update={"$set": {"end_date": datetime.now().replace(microsecond=0), "return_code": return_code}})
+                    update={"$set": {"end_date": datetime.now().replace(microsecond=0), "return_code": return_code}}
+                )
 
-                if return_code == 0 and log_settings['action'] == 'dvd_to_h264':
-                    dublincore_dict = video_metadata[1]
-                    dublincore_dict['files_path'] = {'h264': converted_file_path}
-                    dublincore_dict['source'] = video_metadata[0]['source']
-                    self.videos_metadata_collection.insert(dublincore_dict)
-
-                elif return_code == 0 and log_settings['action'] == 'decklink_to_raw'\
+                if return_code == 0 and log_settings['action'] == 'decklink_to_raw'\
                         and video_metadata[0]["lossless_import"]:
 
                     video_metadata[0]["file_path"] = converted_file_path
@@ -269,27 +265,31 @@ class FFmpegWampSupervisor(ApplicationSession):
                     dublincore_dict['files_path'] = {'h264_aac': converted_file_path}
                     dublincore_dict['source'] = video_metadata[0]['source']
                     os.remove(video_metadata[0]["file_path"])
-                    self.videos_metadata_collection.insert(dublincore_dict)
+
+                    self.videos_metadata_collection.insert_one(dublincore_dict)
 
                 elif return_code == 0 and log_settings['action'] == 'raw_to_ffv1_flac':
                     dublincore_dict = video_metadata[1]
                     dublincore_dict['files_path'] = {'ffv1_flac': converted_file_path}
                     dublincore_dict['source'] = video_metadata[0]['source']
                     os.remove(video_metadata[0]["file_path"])
-                    self.videos_metadata_collection.insert(dublincore_dict)
+
+                    self.videos_metadata_collection.insert_one(dublincore_dict)
 
                 else:
                     os.remove(converted_file_path)
                     raise ChildProcessError("FFMPEG process returned with a non zero code \"", str(return_code),
                                             "\" , see complete log for details")
+
                 self.exit_cleanup('SIGTERM')
                 break
 
             # stdout_line example: frame=  288 fps= 16 q=32.0 size=    1172kB time=00:00:09.77 bitrate= 982.4kbits/s
             stdout_complete_line = self.ffmpeg_process.stdout.readline()
-            self.complete_ffmpeg_logs_collection.find_and_modify(query={"_id": complete_logs_document_id},
-                                                                 update={"$push": {"log_data": stdout_complete_line}}
-                                                                 )
+            self.complete_ffmpeg_logs_collection.update_one(
+                filter={"_id": complete_logs_document_id},
+                update={"$push": {"log_data": stdout_complete_line}}
+            )
 
             stdout_line = stdout_complete_line.strip()
             if stdout_line.startswith("frame="):
@@ -315,6 +315,7 @@ class FFmpegWampSupervisor(ApplicationSession):
 
                 ongoing_conversion_document['progress'] = progress
                 ongoing_conversion_document["date_data_send"] = datetime.now().timestamp()
+
                 self.publish('com.digitize_app.ongoing_capture', ongoing_conversion_document)
 
 
@@ -414,7 +415,7 @@ class CopyFileSupervisor(ApplicationSession):
         complete_logs_document = get_complete_logs_document(command, log_settings)
         ongoing_conversion_document = get_ongoing_conversion_document(log_settings)
 
-        complete_logs_document_id = self.complete_rsync_logs_collection.insert(complete_logs_document)
+        complete_logs_document_id = self.complete_rsync_logs_collection.insert_one(complete_logs_document)
 
         self.rsync_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                               universal_newlines=True)
@@ -422,24 +423,26 @@ class CopyFileSupervisor(ApplicationSession):
             if self.rsync_process.poll() is not None:  # returns None while subprocess is running
                 return_code = self.rsync_process.returncode
                 converted_file_path = command[-1]
-                self.complete_rsync_logs_collection.find_and_modify(query={"_id": complete_logs_document_id},
-                                                                    update={"$set": {"end_date": datetime.now().replace(microsecond=0),
-                                                                                     "return_code": return_code}
-                                                                            }
-                                                                    )
+                self.complete_rsync_logs_collection.update_one(
+                    filter={"_id": complete_logs_document_id},
+                    update={"$set": {"end_date": datetime.now().replace(microsecond=0), "return_code": return_code}}
+                )
+
                 if return_code == 0:
                     dublincore_dict = video_metadata[1]
                     dublincore_dict['files_path'] = {'unknown': converted_file_path}
                     dublincore_dict['source'] = video_metadata[0]['source']
-                    self.videos_metadata_collection.insert(dublincore_dict)
+
+                    self.videos_metadata_collection.insert_one(dublincore_dict)
+
                 self.exit_cleanup('SIGTERM')
                 break
 
             stdout_complete_line = self.rsync_process.stdout.readline()
-            self.complete_rsync_logs_collection.find_and_modify(
-                query={"_id": complete_logs_document_id},
+            self.complete_rsync_logs_collection.update_one(
+                filter={"_id": complete_logs_document_id},
                 update={"$push": {"log_data": stdout_complete_line}}
-                )
+            )
 
             stdout_line = stdout_complete_line.strip()
             stdout_list = re.sub(' +', ' ', stdout_line).split(' ')
@@ -447,6 +450,7 @@ class CopyFileSupervisor(ApplicationSession):
                 if '%' in elem:
                     ongoing_conversion_document['progress'] = round(float(elem[:-1]))
                     ongoing_conversion_document["date_data_send"] = datetime.now().timestamp()
+
                     self.publish('com.digitize_app.ongoing_capture', ongoing_conversion_document)
                     break
 
@@ -546,7 +550,7 @@ class MakemkvconSupervisor(ApplicationSession):
         complete_logs_document = get_complete_logs_document(makemkvcon_command, log_settings)
         ongoing_conversion_document = get_ongoing_conversion_document(log_settings)
 
-        complete_logs_document_id = self.complete_makemkvcon_logs_collection.insert(complete_logs_document)
+        complete_logs_document_id = self.complete_makemkvcon_logs_collection.insert_one(complete_logs_document)
 
         DVD_folder = makemkvcon_command[-1]
         os.mkdir(DVD_folder)
@@ -556,8 +560,8 @@ class MakemkvconSupervisor(ApplicationSession):
         while True:
             if self.makemkvcon_process.poll() is not None:  # returns None while subprocess is running
                 return_code = self.makemkvcon_process.returncode
-                self.complete_makemkvcon_logs_collection.find_and_modify(
-                    query={"_id": complete_logs_document_id},
+                self.complete_makemkvcon_logs_collection.update_one(
+                    filter={"_id": complete_logs_document_id},
                     update={"$set": {"end_date": datetime.now().replace(microsecond=0), "return_code": return_code}}
                 )
 
@@ -575,13 +579,13 @@ class MakemkvconSupervisor(ApplicationSession):
 
                     dublincore_dict["dc:format"]["duration"] = duration
                     dublincore_dict['source'] = video_metadata[0]['source']
-                    self.videos_metadata_collection.insert(dublincore_dict)
+                    self.videos_metadata_collection.insert_one(dublincore_dict)
                 self.exit_cleanup('SIGTERM')
                 break
 
             stdout_complete_line = self.makemkvcon_process.stdout.readline()
-            self.complete_makemkvcon_logs_collection.find_and_modify(
-                query={"_id": complete_logs_document_id},
+            self.complete_makemkvcon_logs_collection.update_one(
+                filter={"_id": complete_logs_document_id},
                 update={"$push": {"log_data": stdout_complete_line}}
             )
 
@@ -594,6 +598,7 @@ class MakemkvconSupervisor(ApplicationSession):
 
                 ongoing_conversion_document['progress'] = progress
                 ongoing_conversion_document["date_data_send"] = datetime.now().timestamp()
+
                 self.publish('com.digitize_app.ongoing_capture', ongoing_conversion_document)
             else:
                 print(stdout_complete_line)
@@ -616,5 +621,5 @@ def start_supervisor(log_settings, video_metadata, ffmpeg_command=None, src_dst=
                                    extra={'capture_parameters': (src_dst, log_settings, video_metadata)})
         runner.run(CopyFileSupervisor)
     else:
-        raise ValueError("Both parameters ffmpeg_command and src_dst are None, this shouldn't happen")
-    print("capture supervisor has exited")
+        raise ValueError("Parameters ffmpeg_command, src_dst and makemkvcon_command are None, this shouldn't happen")
+    print("Capture supervisor has exited")
