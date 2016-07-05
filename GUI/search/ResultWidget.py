@@ -118,7 +118,7 @@ class ResultWidget(QWidget):
                     else:
                         os.remove(path)
 
-                self.videos_metadata_collection.delete_one({"dc:identifier": dc_identifier}, fsync=True)
+                self.videos_metadata_collection.delete_one({"dc:identifier": dc_identifier})
                 self.request_refresh_signal.emit()
 
     def edit_record(self):

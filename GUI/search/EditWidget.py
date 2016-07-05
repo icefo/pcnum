@@ -56,7 +56,6 @@ class EditWidget(QWidget):
         dc_data['dc:title'] = "titre du film"
         dc_data['dcterms:isPartOf'] = "remplir si le film fait partie d'un ensemble de films comme Star Wars"
         dc_data['dcterms:created'] = "année de sortie du film"
-        dc_data['durée'] = "durée du film en minutes"
         dc_data['ratio'] = "format visuel du film"
         dc_data['format_video'] = "format video de la cassette"
         self.digitise_table_row_tooltip = dc_data
@@ -72,10 +71,10 @@ class EditWidget(QWidget):
         self.videos_metadata_collection = digitize_app['videos_metadata']
 
         #########
-        self.tab_init()
+        self.capture_data = None
 
-    def save_modifications(self):
-        self.request_refresh_signal.emit()
+        #########
+        self.tab_init()
 
     @wrap_in_future
     @asyncio.coroutine
@@ -86,13 +85,14 @@ class EditWidget(QWidget):
             dc_identifier (str):
 
         """
-        capture_data = self.videos_metadata_collection.find_one({"dc:identifier": dc_identifier}, {'_id': False})
+        self.capture_data = self.videos_metadata_collection.find_one({"dc:identifier": dc_identifier}, {'_id': False})
         print("hey")
-        print(capture_data)
-        for key, values in capture_data.items():
+        print(self.capture_data)
+        for key, values in self.capture_data.items():
             if key in ('dc:identifier', 'duration', 'dc:type', 'files_path', 'dcterms:modified'):
                 pass
-            elif key in ('dc:subject', 'dc:publisher', 'dc:creator', 'dc:title', 'dc:language'):
+            elif key in ('dc:subject', 'dc:publisher', 'dc:creator', 'dc:title', 'dc:language', 'dc:contributor',
+                         'dcterms:isPartOf'):
                 for value in values:
                     row_count = self.edit_table.rowCount()
                     self.add_table_row()
@@ -105,6 +105,8 @@ class EditWidget(QWidget):
                 print(row_count)
                 print(values)
                 self.edit_table.cellWidget(row_count, 0).setCurrentText(key)
+                # Ugly hack to let the combobox_changed function some time to react
+                # the function is linked with a signal and the reaction is not instantaneous
                 yield from asyncio.sleep(0.5)
                 self.edit_table.cellWidget(row_count, 1).setText(values)
             elif key == 'dc:format':
@@ -184,11 +186,6 @@ class EditWidget(QWidget):
                 self.edit_table.setCellWidget(row, 1, QLineEdit())
                 self.edit_table.cellWidget(row, 1).setInputMask("0000")
                 self.edit_table.setRowHeight(row, 30)
-            elif text == "durée":
-                self.edit_table.removeCellWidget(row, 1)
-                self.edit_table.setCellWidget(row, 1, QLineEdit())
-                self.edit_table.setRowHeight(row, 30)
-                self.edit_table.cellWidget(row, 1).setInputMask("000")
             elif text == "ratio":
                 self.edit_table.removeCellWidget(row, 1)
                 self.edit_table.setCellWidget(row, 1, QComboBox())
@@ -264,32 +261,14 @@ class EditWidget(QWidget):
             warning_box.warning(warning_box, "Attention", warning_message)
             self.launch_digitise_button.setEnabled(True)
 
-    def gather_metadata(self):
+    def save_modifications(self):
         """
         Gather the user provided metadata and add the constants listed below.
-            dublincore_dict["dc:rights"] = "usage libre pour l'éducation"
-            dublincore_dict["dc:type"] = "video"
             dublincore_dict["dcterms:modified"] = datetime.now().replace(microsecond=0).isoformat()
-
-        Notes:
-            This function also set default values for this key but it can be overriden by the user
-            dublincore_dict['dc:format'] = {'aspect_ratio': '4:3', 'format': 'PAL'}
-
-        Call the 'self.metadata_checker' function with the parameter [digitise_infos, dublincore_dict]
         """
 
-        # prevent button hammering
-        self.launch_digitise_button.setEnabled(False)
-
-        file_path = None
-        if self.file_import_radio.isChecked():
-            file_dialog = QFileDialog(self)
-            file_path = file_dialog.getOpenFileName(directory=FILES_PATHS["home_dir"])
-            file_path = file_path[0]
-            print(file_path)
-
         dublincore_dict = dict()
-        dublincore_dict["dc:format"] = {"aspect_ratio": "4:3", "format": "PAL"}
+        dublincore_dict["dc:format"] = dict()
 
         for row in range(self.edit_table.rowCount()):
             combobox_text = self.edit_table.cellWidget(row, 0).currentText()
@@ -302,9 +281,7 @@ class EditWidget(QWidget):
                 widget_text_value = self.edit_table.cellWidget(row, 1).currentText()
 
             if widget_text_value != "":
-                if combobox_text == "durée":
-                    dublincore_dict["dc:format"]["duration"] = int(widget_text_value) * 60  # convert minutes to seconds
-                elif combobox_text == "ratio":
+                if combobox_text == "ratio":
                     dublincore_dict["dc:format"]["aspect_ratio"] = widget_text_value
                 elif combobox_text == "format_video":
                     dublincore_dict["dc:format"]["format"] = widget_text_value
@@ -317,34 +294,22 @@ class EditWidget(QWidget):
                         dublincore_dict[combobox_text].append(widget_text_value)
                     except KeyError:
                         dublincore_dict[combobox_text] = [widget_text_value]
-        dublincore_dict["dc:rights"] = "usage libre pour l'éducation"
-        dublincore_dict["dc:type"] = "video"
         dublincore_dict["dcterms:modified"] = datetime.now().replace(microsecond=0).isoformat()
 
-        # Handle the other infos
-        capture_action = None
-        digitise_infos = {}
-        if self.decklink_radio_1.isChecked() and self.decklink_radio_1.isEnabled():
-            digitise_infos["source"] = "decklink_1"
-            digitise_infos["lossless_import"] = self.lossless_import_checkbox.isChecked()
-            capture_action = "decklink"
-        elif self.decklink_radio_2.isChecked() and self.decklink_radio_2.isEnabled():
-            digitise_infos["source"] = "decklink_2"
-            digitise_infos["lossless_import"] = self.lossless_import_checkbox.isChecked()
-            capture_action = "decklink"
-        elif self.file_import_radio.isChecked():
-            digitise_infos["source"] = "file"
-            capture_action = "file"
-        elif self.dvd_import_radio.isChecked():
-            digitise_infos["source"] = "DVD"
-            capture_action = "DVD"
+        if 'dc:title' in dublincore_dict:
+            dc_identifier = self.capture_data['dc:identifier']
+            self.videos_metadata_collection.update_one(
+                filter={"dc:identifier": dc_identifier},
+                update={"$set": dublincore_dict})
+        else:
+            warning_box = QMessageBox()
+            warning_message = "Il ne faut pas supprimer le titre de la vidéo !"
 
-        digitise_infos["file_path"] = file_path
+            warning_box.warning(warning_box, "Attention", warning_message)
+        self.request_refresh_signal.emit()
 
-        to_be_send = [digitise_infos, dublincore_dict]
-        print(to_be_send)
-
-        self.metadata_checker(capture_action=capture_action, data=to_be_send)
+    def reset_edit_table(self):
+        self.edit_table.setRowCount(0)
 
     def tab_init(self):
         """

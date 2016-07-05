@@ -36,11 +36,18 @@ class MainSearchWidget(QWidget):
 
         #########
         self.search_widget.show_result_widget_signal.connect(partial(self.stack.setCurrentWidget, self.result_widget))
+
         self.result_widget.show_search_widget_signal.connect(partial(self.stack.setCurrentWidget, self.search_widget))
         self.result_widget.show_edit_widget_signal.connect(partial(self.stack.setCurrentWidget, self.edit_widget))
+
         self.edit_widget.show_result_widget_signal.connect(partial(self.stack.setCurrentWidget, self.result_widget))
 
+        #########
         self.search_widget.search_transmit.connect(self.result_widget.receive_search_results)
+
         self.result_widget.request_refresh_signal.connect(self.search_widget.search)
-        self.edit_widget.request_refresh_signal.connect(self.search_widget.search)
+        self.result_widget.show_edit_widget_signal.connect(self.edit_widget.reset_edit_table)
         self.result_widget.send_dc_identifier.connect(self.edit_widget.receive_data)
+
+        self.edit_widget.request_refresh_signal.connect(self.search_widget.search)
+

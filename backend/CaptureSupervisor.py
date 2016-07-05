@@ -11,6 +11,8 @@ import signal
 import os
 import re
 
+# todo fix deprecated mongodb calls
+
 
 def get_complete_logs_document(command, log_settings):
     """
@@ -240,18 +242,15 @@ class FFmpegWampSupervisor(ApplicationSession):
             if self.ffmpeg_process.poll() is not None:  # returns None while subprocess is running
                 return_code = self.ffmpeg_process.returncode
                 converted_file_path = command[-1]
-                self.complete_ffmpeg_logs_collection.find_and_modify(query={"_id": complete_logs_document_id},
-                                                                     update={"$set": {"end_date": datetime.now().replace(microsecond=0),
-                                                                                      "return_code": return_code}
-                                                                             },
-                                                                     fsync=True
-                                                                     )
+                self.complete_ffmpeg_logs_collection.update_one(
+                    filter={"_id": complete_logs_document_id},
+                    update={"$set": {"end_date": datetime.now().replace(microsecond=0), "return_code": return_code}})
 
                 if return_code == 0 and log_settings['action'] == 'dvd_to_h264':
                     dublincore_dict = video_metadata[1]
                     dublincore_dict['files_path'] = {'h264': converted_file_path}
                     dublincore_dict['source'] = video_metadata[0]['source']
-                    self.videos_metadata_collection.insert(dublincore_dict, fsync=True)
+                    self.videos_metadata_collection.insert(dublincore_dict)
 
                 elif return_code == 0 and log_settings['action'] == 'decklink_to_raw'\
                         and video_metadata[0]["lossless_import"]:
@@ -270,14 +269,14 @@ class FFmpegWampSupervisor(ApplicationSession):
                     dublincore_dict['files_path'] = {'h264_aac': converted_file_path}
                     dublincore_dict['source'] = video_metadata[0]['source']
                     os.remove(video_metadata[0]["file_path"])
-                    self.videos_metadata_collection.insert(dublincore_dict, fsync=True)
+                    self.videos_metadata_collection.insert(dublincore_dict)
 
                 elif return_code == 0 and log_settings['action'] == 'raw_to_ffv1_flac':
                     dublincore_dict = video_metadata[1]
                     dublincore_dict['files_path'] = {'ffv1_flac': converted_file_path}
                     dublincore_dict['source'] = video_metadata[0]['source']
                     os.remove(video_metadata[0]["file_path"])
-                    self.videos_metadata_collection.insert(dublincore_dict, fsync=True)
+                    self.videos_metadata_collection.insert(dublincore_dict)
 
                 else:
                     os.remove(converted_file_path)
@@ -426,14 +425,13 @@ class CopyFileSupervisor(ApplicationSession):
                 self.complete_rsync_logs_collection.find_and_modify(query={"_id": complete_logs_document_id},
                                                                     update={"$set": {"end_date": datetime.now().replace(microsecond=0),
                                                                                      "return_code": return_code}
-                                                                            },
-                                                                    fsync=True
+                                                                            }
                                                                     )
                 if return_code == 0:
                     dublincore_dict = video_metadata[1]
                     dublincore_dict['files_path'] = {'unknown': converted_file_path}
                     dublincore_dict['source'] = video_metadata[0]['source']
-                    self.videos_metadata_collection.insert(dublincore_dict, fsync=True)
+                    self.videos_metadata_collection.insert(dublincore_dict)
                 self.exit_cleanup('SIGTERM')
                 break
 
@@ -560,8 +558,7 @@ class MakemkvconSupervisor(ApplicationSession):
                 return_code = self.makemkvcon_process.returncode
                 self.complete_makemkvcon_logs_collection.find_and_modify(
                     query={"_id": complete_logs_document_id},
-                    update={"$set": {"end_date": datetime.now().replace(microsecond=0), "return_code": return_code}},
-                    fsync=True
+                    update={"$set": {"end_date": datetime.now().replace(microsecond=0), "return_code": return_code}}
                 )
 
                 if return_code == 0:
@@ -578,7 +575,7 @@ class MakemkvconSupervisor(ApplicationSession):
 
                     dublincore_dict["dc:format"]["duration"] = duration
                     dublincore_dict['source'] = video_metadata[0]['source']
-                    self.videos_metadata_collection.insert(dublincore_dict, fsync=True)
+                    self.videos_metadata_collection.insert(dublincore_dict)
                 self.exit_cleanup('SIGTERM')
                 break
 
