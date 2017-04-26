@@ -82,7 +82,7 @@ class EditWidget(QWidget):
         """
         Receive data from the ResultWidget, parse it and call self.add_table_row for each row to add
         Args:
-            dc_identifier (str):
+            dc_identifier (str): the uuid of the video
 
         """
         self.capture_data = self.videos_metadata_collection.find_one({"dc:identifier": dc_identifier}, {'_id': False})

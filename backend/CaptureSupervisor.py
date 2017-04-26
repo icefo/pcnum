@@ -11,8 +11,6 @@ import signal
 import os
 import re
 
-# todo fix deprecated mongodb calls
-
 
 def get_complete_logs_document(command, log_settings):
     """
@@ -27,7 +25,7 @@ def get_complete_logs_document(command, log_settings):
                 "dc:identifier": 'a29f7c4d-9523-4c10-b66f-da314b7d992e',
                 "year": 1995,
                 "title": "the killer cactus' story",
-                "duration": 2 (min)
+                "duration": 120 (sec)
                 }
 
     Returns:
@@ -66,7 +64,7 @@ def get_ongoing_conversion_document(log_settings):
                 "dc:identifier": 'a29f7c4d-9523-4c10-b66f-da314b7d992e',
                 "year": 1995,
                 "title": "the killer cactus' story",
-                "duration": 2 (min)
+                "duration": 120 (sec)
                 }
 
     Returns:
@@ -226,7 +224,7 @@ class FFmpegWampSupervisor(ApplicationSession):
                     "dc:identifier": 'a29f7c4d-9523-4c10-b66f-da314b7d992e',
                     "year": 1995,
                     "title": "the killer cactus' story",
-                    "duration": 2 (min)
+                    "duration": 120 (min)
                     }
             video_metadata (list): [digitise_infos, dublincore_dict]
         """
@@ -402,7 +400,7 @@ class CopyFileSupervisor(ApplicationSession):
                     "dc:identifier": 'a29f7c4d-9523-4c10-b66f-da314b7d992e',
                     "year": 1995,
                     "title": "the killer cactus' story",
-                    "duration": 2 (min)
+                    "duration": 120 (sec)
                     }
             video_metadata (list): [digitise_infos, dublincore_dict]
         """
@@ -542,7 +540,7 @@ class MakemkvconSupervisor(ApplicationSession):
                     "dc:identifier": 'a29f7c4d-9523-4c10-b66f-da314b7d992e',
                     "year": 1995,
                     "title": "the killer cactus' story",
-                    "duration": 2 (min)
+                    "duration": 120 (sec)
                     }
             video_metadata (list): [digitise_infos, dublincore_dict]
         """
