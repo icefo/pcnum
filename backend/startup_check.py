@@ -1,5 +1,3 @@
-__author__ = 'adrien'
-
 from backend.shared import FILES_PATHS
 import os
 

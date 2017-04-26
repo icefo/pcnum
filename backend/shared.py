@@ -4,13 +4,13 @@ import asyncio
 import time
 
 
-# FILES_PATHS = dict(raw='/media/storage/raw/', compressed='/media/storage/compressed/',
-#                    imported='/media/storage/imported/', DVDs='/media/storage/DVDs/',
-#                    home_dir=os.getenv('HOME') + '/')
-
-FILES_PATHS = dict(raw='/home/adrien/Documents/tm/raw/', compressed='/home/adrien/Documents/tm/compressed/',
-                   imported='/home/adrien/Documents/tm/imported/', DVDs='/home/adrien/Documents/tm/DVDs/',
+FILES_PATHS = dict(raw='/media/storage/raw/', compressed='/media/storage/compressed/',
+                   imported='/media/storage/imported/', DVDs='/media/storage/DVDs/',
                    home_dir=os.getenv('HOME') + '/')
+
+# FILES_PATHS = dict(raw='/home/adrien/Documents/tm/raw/', compressed='/home/adrien/Documents/tm/compressed/',
+#                    imported='/home/adrien/Documents/tm/imported/', DVDs='/home/adrien/Documents/tm/DVDs/',
+#                    home_dir=os.getenv('HOME') + '/')
 
 
 def wrap_in_future(func):
@@ -21,7 +21,7 @@ def wrap_in_future(func):
         func (function):
 
     Returns:
-        function: wrapper around func
+        function: wrapped func
     """
     @functools.wraps(func)
     def wrapper(*args, **kwargs):

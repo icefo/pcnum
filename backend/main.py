@@ -144,7 +144,7 @@ class Backend(ApplicationSession):
 
             # if there is only one waiting_capture left, it might disappear for a brief time before coming back as a process
             # the sleep ensure that the exit loop don't miss it and terminate the program early.
-            yield from asyncio.sleep(3)
+            yield from asyncio.sleep(6)
 
             self.ffmpeg_supervisor_processes = [process for process in self.ffmpeg_supervisor_processes
                                                 if process.is_alive()]
