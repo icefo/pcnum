@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import (QWidget,
                              QRadioButton, QCheckBox, QTextEdit, QLabel, QLineEdit, QTableWidget, QComboBox,
                              QPushButton, QFileDialog, QMessageBox)
 from PyQt5.QtGui import QFont
-from collections import OrderedDict
+from collections import OrderedDict, Counter
 from datetime import datetime
 import os
 import shutil
@@ -14,8 +14,11 @@ from backend.shared import FILES_PATHS
 from backend.shared import wrap_in_future
 import asyncio
 
-# todo allow for more than one dc:description
+import subprocess
 
+
+# todo allow for more than one dc:description
+# todo check if possible to add multiples dc:language
 
 class CaptureWidget(QWidget):
     """
@@ -39,8 +42,8 @@ class CaptureWidget(QWidget):
 
         #########
         self.decklink_label = QLabel("Choisissez la source vidéo")
-        self.decklink_radio_1 = QRadioButton("Decklink 1")
-        self.decklink_radio_2 = QRadioButton("Decklink 2")
+        self.decklink_radio_1 = QRadioButton("Decklink 1 (NTSC/PAL)")
+        self.decklink_radio_2 = QRadioButton("Decklink 2 (NTSC/PAL/SECAM)")
         self.file_import_radio = QRadioButton("importer fichier vidéo")
         self.dvd_import_radio = QRadioButton("importer dvd")
         self.lossless_import_checkbox = QCheckBox("Importer sans perte de qualité")
@@ -49,6 +52,7 @@ class CaptureWidget(QWidget):
         self.digitise_table = QTableWidget()
         self.table_font = QFont(QFont().defaultFamily(), 12)
         self.new_table_row_button = QPushButton("Ajouter")
+        self.launch_ffplay_button = QPushButton("Lancer aperçu")
         self.launch_digitise_button = QPushButton("Numériser")
 
         #########
@@ -103,6 +107,50 @@ class CaptureWidget(QWidget):
         print(metadata)
         yield from self.main_window.call('com.digitize_app.launch_capture', metadata)
 
+    def launch_ffplay(self):
+        decklink_id = None
+        video_format = None
+
+        if self.decklink_radio_1.isChecked() and self.decklink_radio_1.isEnabled():
+            decklink_id = '1'
+        elif self.decklink_radio_2.isChecked() and self.decklink_radio_2.isEnabled():
+            decklink_id = '2'
+        else:
+            error_box = QMessageBox()
+            error_box.setText("Veuillez sélectionner une carte d'aquisition non utilisée")
+            error_box.setWindowTitle("Erreur")
+            error_box.exec_()
+
+        for row in range(self.digitise_table.rowCount()):
+            combobox_text = self.digitise_table.cellWidget(row, 0).currentText()
+            if combobox_text == 'format_video':
+                video_format = self.digitise_table.cellWidget(row, 1).currentText()
+                break
+        if video_format is None and decklink_id == '1':
+            error_box = QMessageBox()
+            error_box.setText("Veuillez préciser le format de la vidéo")
+            error_box.setWindowTitle("Erreur")
+            error_box.exec_()
+
+        if decklink_id == '1' and video_format:
+            decklink_input = "Intensity Pro (1)"
+
+            if video_format == 'SECAM':
+                error_box = QMessageBox()
+                error_box.setText("Il est impossible de numériser une cassette SECAM avec la carte numéro 1")
+                error_box.setWindowTitle("Erreur")
+                error_box.exec_()
+            elif video_format == 'PAL':
+                subprocess.Popen(['ffplay', '-f', 'decklink', '-format_code', 'pal', '-video_input', 'composite', '-i',
+                                  decklink_input])
+            elif video_format == 'NTSC':
+                subprocess.Popen(['ffplay', '-f', 'decklink', '-format_code', 'ntsc', '-video_input', 'composite', '-i',
+                                  decklink_input])
+        elif decklink_id == '2':
+            decklink_input = "Intensity Pro (1)"
+            subprocess.Popen(['ffplay', '-f', 'decklink', '-format_code', 'hp60', '-video_input', 'hdmi', '-i',
+                              decklink_input])
+
     def backend_is_alive_beacon(self):
         """
         Is called when the backend send a beacon
@@ -155,9 +203,23 @@ class CaptureWidget(QWidget):
         Args:
             text (str): its the active combobox selection
         """
+        index = self.digitise_table.indexAt(self.sender().pos())
 
-        sender = self.sender()
-        index = self.digitise_table.indexAt(sender.pos())
+        comboboxes_names_counter = []
+        for row in range(self.digitise_table.rowCount()):
+            comboboxes_names_counter.append(self.digitise_table.cellWidget(row, 0).currentText())
+        comboboxes_names_counter = Counter(comboboxes_names_counter)
+
+        forbidden_duplicates = ["dc:description", "dcterms:created", "durée", "ratio", "format_video"]
+
+        if text in forbidden_duplicates and comboboxes_names_counter[text] > 1:
+            self.digitise_table.cellWidget(index.row(), 0).setCurrentText('dc:contributor')
+            text = 'dc:contributor'
+            error_box = QMessageBox()
+            error_box.setText("Il est impossible d'avoir plus d'une entrée de ce type")
+            error_box.setWindowTitle("Erreur")
+            error_box.exec_()
+
         if index.isValid():
             row = index.row()
             if text == "dc:description":
@@ -279,7 +341,7 @@ class CaptureWidget(QWidget):
         elif import_file_path:
             free_space = shutil.disk_usage(self.imported_files_path)[2]
             file_size = os.path.getsize(import_file_path)
-            if free_space - file_size < 10000000000: # 10GB
+            if free_space - file_size < 10000000000:  # 10GB
                 error_box = QMessageBox()
                 error_box.setText(error_text)
                 error_box.setWindowTitle("Erreur")
@@ -307,8 +369,8 @@ class CaptureWidget(QWidget):
             dublincore_dict["dcterms:modified"] = datetime.now().replace(microsecond=0).isoformat()
 
         Notes:
-            This function also set default values for this key but it can be overriden by the user
-            dublincore_dict['dc:format'] = {'aspect_ratio': '4:3', 'format': 'PAL'}
+            This function also set default values for this key but it can be overridden by the user
+            dublincore_dict['dc:format'] = {'aspect_ratio': '4:3', 'format': 'Non spécifié'}
 
         Call the 'self.metadata_checker' function with the parameter [digitise_infos, dublincore_dict]
         """
@@ -324,7 +386,7 @@ class CaptureWidget(QWidget):
             print(file_path)
 
         dublincore_dict = dict()
-        dublincore_dict["dc:format"] = {"aspect_ratio": "4:3", "format": "PAL"}
+        dublincore_dict["dc:format"] = {"aspect_ratio": "4:3", "format": "Non spécifié"}
 
         for row in range(self.digitise_table.rowCount()):
             combobox_text = self.digitise_table.cellWidget(row, 0).currentText()
@@ -410,6 +472,7 @@ class CaptureWidget(QWidget):
 
         grid.addWidget(self.digitise_table, 2, 0, 7, 4)
         grid.addWidget(self.new_table_row_button, 2, 5)
+        grid.addWidget(self.launch_ffplay_button, 5, 5)
         grid.addWidget(self.launch_digitise_button, 8, 5)
 
         #########
@@ -424,4 +487,5 @@ class CaptureWidget(QWidget):
 
         #########
         self.new_table_row_button.clicked.connect(self.add_table_row)
+        self.launch_ffplay_button.clicked.connect(self.launch_ffplay)
         self.launch_digitise_button.clicked.connect(self.gather_metadata)

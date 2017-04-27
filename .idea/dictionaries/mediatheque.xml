@@ -2,6 +2,7 @@
   <dictionary name="mediatheque">
     <words>
       <w>dest</w>
+      <w>ffplay</w>
       <w>fsync</w>
       <w>nostdin</w>
       <w>pyqt</w>
