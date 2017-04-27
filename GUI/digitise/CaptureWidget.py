@@ -267,7 +267,7 @@ class CaptureWidget(QWidget):
         """
 
         # this check if at least a duration, title, and creation date is set before sending the data to the back end
-        if capture_action == "decklink" and "duration" in data[1].get('dc:format', {}) and "dc:title" in data[1] \
+        if capture_action == "decklink" and "duration" in data[1].get('dc:format', {}) and "format" in data[1].get('dc:format', {}) and "dc:title" in data[1] \
                 and "dcterms:created" in data[1] and self.check_remaining_space(
             VHS_duration=data[1]["dc:format"]["duration"]):
 
@@ -304,7 +304,7 @@ class CaptureWidget(QWidget):
                 "   Pour enregistrer un dvd:\n"
                 "       un titre et la date de creation de l'oeuvre\n"
                 "   Pour enregistrer une cassette:\n"
-                "       la durée, un titre et la date de creation de l'oeuvre\n"
+                "       la durée, un titre, le format et la date de creation de l'oeuvre\n"
                 "\n"
                 "   Il faut aussi avoir sélectionné une méthode d'enregistrement (decklink, dvd...)")
 
@@ -386,7 +386,7 @@ class CaptureWidget(QWidget):
             print(file_path)
 
         dublincore_dict = dict()
-        dublincore_dict["dc:format"] = {"aspect_ratio": "4:3", "format": "Non spécifié"}
+        dublincore_dict["dc:format"] = {"aspect_ratio": "4:3"}
 
         for row in range(self.digitise_table.rowCount()):
             combobox_text = self.digitise_table.cellWidget(row, 0).currentText()

@@ -41,10 +41,10 @@ class Backend(ApplicationSession):
 
         self.default_decklink_to_raw = OrderedDict()
         self.default_decklink_to_raw['part1'] = ('nice', '-n', '0', 'ffmpeg', '-y', '-nostdin', '-f', 'decklink', '-i')
-        self.default_decklink_to_raw['input'] = ["Intensity Pro (1)@16", ]
-        self.default_decklink_to_raw['recording_duration'] = ['-t', '60', ]  # in seconds
+        self.default_decklink_to_raw['input'] = ['-format_code', 'hp60', '-video_input', 'hdmi', '-i', "Intensity Pro (1)"]
+        self.default_decklink_to_raw['recording_duration'] = ['-t', '60']  # in seconds
         self.default_decklink_to_raw['part2'] = ('-acodec', 'copy', '-vcodec', 'copy')
-        self.default_decklink_to_raw['frame_rate'] = ['-r', '25', ]
+        self.default_decklink_to_raw['frame_rate'] = ['-r', '25']
         self.default_decklink_to_raw['output'] = ['/this/is/a/path/video_file.mkv', ]
 
         self.default_raw_to_h264_aac = OrderedDict()
@@ -259,11 +259,30 @@ class Backend(ApplicationSession):
         print(ongoing_captures_names)
         print(video_metadata)
         video_metadata[1]['dc:identifier'] = str(uuid4())
+        video_format = video_metadata[1]["dc:format"]["duration"]
         if video_metadata[0]["source"] == "decklink_1":
-            self.start_decklink_to_raw(video_metadata, "Intensity Pro (1)@16", 1)
+            if video_format == 'PAL':
+                self.start_decklink_to_raw(video_metadata,
+                                           input_params=['-format_code', 'pal', '-video_input', 'composite', '-i',
+                                                         "Intensity Pro (1)"],
+                                           frame_rate=[], decklink_id=1)
+            elif video_format == 'NTSC':
+                self.start_decklink_to_raw(video_metadata,
+                                           input_params=['-format_code', 'ntsc', '-video_input', 'composite', '-i',
+                                                         "Intensity Pro (1)"],
+                                           frame_rate=[], decklink_id=1)
 
         elif video_metadata[0]["source"] == "decklink_2":
-            self.start_decklink_to_raw(video_metadata, "Intensity Pro (2)@16", 2)
+            if video_format == 'PAL' or video_format == 'SECAM':
+                self.start_decklink_to_raw(video_metadata,
+                                           input_params=['-format_code', 'hp60', '-video_input', 'hdmi', '-i',
+                                                         "Intensity Pro (2)"],
+                                           frame_rate=['-r', '25'], decklink_id=2)
+            elif video_format == 'NTSC':
+                self.start_decklink_to_raw(video_metadata,
+                                           input_params=['-format_code', 'hp60', '-video_input', 'hdmi', '-i',
+                                                         "Intensity Pro (2)"],
+                                           frame_rate=['-r', '30000/1001'], decklink_id=2)
 
         elif video_metadata[0]["source"] == "DVD":
             if 'dvd_to_mpeg2' not in ongoing_captures_names:
@@ -282,20 +301,22 @@ class Backend(ApplicationSession):
         else:
             raise ValueError("This is not a valid capture request\n" + str(video_metadata))
 
-    def start_decklink_to_raw(self, video_metadata, decklink_card, decklink_id):
+    def start_decklink_to_raw(self, video_metadata, input_params, frame_rate, decklink_id):
         """
         Gather necessary metadata and launch FFmpeg
 
         Args:
             video_metadata (list): [digitise_infos, dublincore_dict]
-            decklink_card (str): "Intensity Pro (1)@16" or "Intensity Pro (2)@16"
+            input_params (list): ['-format_code', 'hp60', '-video_input', 'hdmi', '-i', "Intensity Pro (1)"]
+            frame_rate (list): ['-r', '25']
             decklink_id (int): 1 or 2
         """
 
         duration = video_metadata[1]["dc:format"]["duration"]
 
         ffmpeg_command = self.default_decklink_to_raw.copy()
-        ffmpeg_command['input'][0] = decklink_card
+        ffmpeg_command['input'] = input_params
+        ffmpeg_command['frame_rate'] = frame_rate
         ffmpeg_command['recording_duration'][1] = str(duration)
         ffmpeg_command['output'][0] = FILES_PATHS['raw'] + video_metadata[1]["dc:title"][0] + " -- " +\
                     str(video_metadata[1]["dcterms:created"]) + " -- " + video_metadata[1]['dc:identifier'] + ".nut"
@@ -312,10 +333,11 @@ class Backend(ApplicationSession):
         log_settings["duration"] = duration
         log_settings["decklink_id"] = decklink_id
 
-        p = Process(target=start_supervisor, args=(log_settings, video_metadata),
-                    kwargs={'ffmpeg_command': ffmpeg_command}, name='decklink_to_raw')
-        p.start()
-        self.ffmpeg_supervisor_processes.append(p)
+        print(ffmpeg_command)
+        # p = Process(target=start_supervisor, args=(log_settings, video_metadata),
+        #             kwargs={'ffmpeg_command': ffmpeg_command}, name='decklink_to_raw')
+        # p.start()
+        # self.ffmpeg_supervisor_processes.append(p)
 
     @wamp.register("com.digitize_app.start_raw_to_h264_aac")
     def start_raw_to_h264_aac(self, video_metadata):
