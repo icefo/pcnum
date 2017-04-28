@@ -147,16 +147,16 @@ class CaptureWidget(QWidget):
                 subprocess.Popen(['ffplay', '-f', 'decklink', '-format_code', 'ntsc', '-video_input', 'composite', '-i',
                                   decklink_input])
         elif decklink_id == '2':
-            decklink_input = "Intensity Pro (1)"
-            subprocess.Popen(['ffplay', '-f', 'decklink', '-format_code', 'hp60', '-video_input', 'hdmi', '-i',
-                              decklink_input])
+            decklink_input = "Intensity Pro (2)"
+            subprocess.Popen(['ffplay', '-f', 'decklink', '-format_code', 'hp60', '-video_input', 'hdmi',
+                              '-aspect', '4:3', '-i', decklink_input])
 
     def backend_is_alive_beacon(self):
         """
         Is called when the backend send a beacon
-        Effect: make a timer decrement from 4000 ms. If the timer reach zero, the widget can't start a new capture.
+        Effect: make a timer decrement from 15000 ms. If the timer reach zero, the widget can't start a new capture.
         """
-        self.backend_is_alive_timer.setInterval(4000)
+        self.backend_is_alive_timer.setInterval(39000)
 
     def add_table_row(self):
         """
@@ -267,9 +267,9 @@ class CaptureWidget(QWidget):
         """
 
         # this check if at least a duration, title, and creation date is set before sending the data to the back end
-        if capture_action == "decklink" and "duration" in data[1].get('dc:format', {}) and "format" in data[1].get('dc:format', {}) and "dc:title" in data[1] \
-                and "dcterms:created" in data[1] and self.check_remaining_space(
-            VHS_duration=data[1]["dc:format"]["duration"]):
+        if capture_action == "decklink" and "duration" in data[1].get('dc:format', {}) \
+                and "format" in data[1].get('dc:format', {}) and "dc:title" in data[1] and "dcterms:created" in data[1] \
+                and self.check_remaining_space(VHS_duration=data[1]["dc:format"]["duration"]):
 
             self.launch_digitise_button.setEnabled(False)
 
@@ -304,7 +304,7 @@ class CaptureWidget(QWidget):
                 "   Pour enregistrer un dvd:\n"
                 "       un titre et la date de creation de l'oeuvre\n"
                 "   Pour enregistrer une cassette:\n"
-                "       la durée, un titre, le format et la date de creation de l'oeuvre\n"
+                "       la durée, un titre, le format et l'année de creation de l'oeuvre\n"
                 "\n"
                 "   Il faut aussi avoir sélectionné une méthode d'enregistrement (decklink, dvd...)")
 
@@ -480,7 +480,7 @@ class CaptureWidget(QWidget):
         self.file_import_radio.toggled.connect(self.lossless_import_checkbox.setDisabled)
 
         #########
-        self.backend_is_alive_timer.start(4000)
+        self.backend_is_alive_timer.start(15000)
         self.backend_is_alive_timer.timeout.connect(partial(self.launch_digitise_button.setDisabled, True))
         self.receive_enable_decklink_radio_1.connect(self.decklink_radio_1.setEnabled)
         self.receive_enable_decklink_radio_2.connect(self.decklink_radio_2.setEnabled)

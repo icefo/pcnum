@@ -259,7 +259,7 @@ class Backend(ApplicationSession):
         print(ongoing_captures_names)
         print(video_metadata)
         video_metadata[1]['dc:identifier'] = str(uuid4())
-        video_format = video_metadata[1]["dc:format"]["duration"]
+        video_format = video_metadata[1]["dc:format"]["format"]
         if video_metadata[0]["source"] == "decklink_1":
             if video_format == 'PAL':
                 self.start_decklink_to_raw(video_metadata,
@@ -334,10 +334,10 @@ class Backend(ApplicationSession):
         log_settings["decklink_id"] = decklink_id
 
         print(ffmpeg_command)
-        # p = Process(target=start_supervisor, args=(log_settings, video_metadata),
-        #             kwargs={'ffmpeg_command': ffmpeg_command}, name='decklink_to_raw')
-        # p.start()
-        # self.ffmpeg_supervisor_processes.append(p)
+        p = Process(target=start_supervisor, args=(log_settings, video_metadata),
+                    kwargs={'ffmpeg_command': ffmpeg_command}, name='decklink_to_raw')
+        p.start()
+        self.ffmpeg_supervisor_processes.append(p)
 
     @wamp.register("com.digitize_app.start_raw_to_h264_aac")
     def start_raw_to_h264_aac(self, video_metadata):
