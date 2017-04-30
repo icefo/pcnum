@@ -305,6 +305,7 @@ class CaptureWidget(QWidget):
                 "       un titre et la date de creation de l'oeuvre\n"
                 "   Pour enregistrer une cassette:\n"
                 "       la durée, un titre, le format et l'année de creation de l'oeuvre\n"
+                "   Pour copier un fichier: un titre et la date de créeation de l'oeuvre\n"
                 "\n"
                 "   Il faut aussi avoir sélectionné une méthode d'enregistrement (decklink, dvd...)")
 

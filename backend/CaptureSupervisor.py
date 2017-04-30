@@ -10,6 +10,7 @@ from autobahn.asyncio.wamp import ApplicationSession, ApplicationRunner
 import signal
 import os
 import re
+import traceback
 
 
 def get_complete_logs_document(command, log_settings):
@@ -170,7 +171,10 @@ class FFmpegWampSupervisor(ApplicationSession):
 
         ffmpeg_command, log_settings, video_metadata = self.config_extra['capture_parameters']
 
-        yield from self.run_ffmpeg(ffmpeg_command, log_settings, video_metadata)
+        try:
+            yield from self.run_ffmpeg(ffmpeg_command, log_settings, video_metadata)
+        except Exception:
+            traceback.print_exc()
 
     @wrap_in_future  # the signal handler can't call a coroutine directly
     @asyncio.coroutine
@@ -233,7 +237,7 @@ class FFmpegWampSupervisor(ApplicationSession):
         ongoing_conversion_document = get_ongoing_conversion_document(log_settings)
 
         pprint(complete_logs_document)
-        complete_logs_document_id = self.complete_ffmpeg_logs_collection.insert_one(complete_logs_document)
+        complete_logs_document_id = self.complete_ffmpeg_logs_collection.insert_one(complete_logs_document).inserted_id
         self.ffmpeg_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                                universal_newlines=True)
 
@@ -349,7 +353,10 @@ class CopyFileSupervisor(ApplicationSession):
         print("session ready")
 
         src_dst, log_settings, video_metadata = self.config_extra['capture_parameters']
-        yield from self.run_rsync(src_dst, log_settings, video_metadata)
+        try:
+            yield from self.run_rsync(src_dst, log_settings, video_metadata)
+        except Exception:
+            traceback.print_exc()
 
     @wrap_in_future
     @asyncio.coroutine
@@ -416,7 +423,7 @@ class CopyFileSupervisor(ApplicationSession):
         complete_logs_document = get_complete_logs_document(command, log_settings)
         ongoing_conversion_document = get_ongoing_conversion_document(log_settings)
 
-        complete_logs_document_id = self.complete_rsync_logs_collection.insert_one(complete_logs_document)
+        complete_logs_document_id = self.complete_rsync_logs_collection.insert_one(complete_logs_document).inserted_id
 
         self.rsync_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                               universal_newlines=True)
@@ -488,7 +495,10 @@ class MakemkvconSupervisor(ApplicationSession):
 
         makemkvcon_command, log_settings, video_metadata = self.config_extra['capture_parameters']
 
-        yield from self.run_makemkvcon(makemkvcon_command, log_settings, video_metadata)
+        try:
+            yield from self.run_makemkvcon(makemkvcon_command, log_settings, video_metadata)
+        except Exception:
+            traceback.print_exc()
 
     @wrap_in_future
     @asyncio.coroutine
@@ -551,7 +561,7 @@ class MakemkvconSupervisor(ApplicationSession):
         complete_logs_document = get_complete_logs_document(makemkvcon_command, log_settings)
         ongoing_conversion_document = get_ongoing_conversion_document(log_settings)
 
-        complete_logs_document_id = self.complete_makemkvcon_logs_collection.insert_one(complete_logs_document)
+        complete_logs_document_id = self.complete_makemkvcon_logs_collection.insert_one(complete_logs_document).inserted_id
 
         DVD_folder = makemkvcon_command[-1]
         os.mkdir(DVD_folder)
