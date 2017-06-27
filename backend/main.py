@@ -105,7 +105,6 @@ class Backend(ApplicationSession):
         Args:
             details(class): SessionDetails
         """
-
         print("session ready")
 
         try:
@@ -259,8 +258,9 @@ class Backend(ApplicationSession):
         print(ongoing_captures_names)
         print(video_metadata)
         video_metadata[1]['dc:identifier'] = str(uuid4())
-        video_format = video_metadata[1]["dc:format"]["format"]
+
         if video_metadata[0]["source"] == "decklink_1":
+            video_format = video_metadata[1]["dc:format"]["format"]
             if video_format == 'PAL':
                 self.start_decklink_to_raw(video_metadata,
                                            input_params=['-format_code', 'pal', '-video_input', 'composite', '-i',
@@ -273,6 +273,7 @@ class Backend(ApplicationSession):
                                            frame_rate=[], decklink_id=1)
 
         elif video_metadata[0]["source"] == "decklink_2":
+            video_format = video_metadata[1]["dc:format"]["format"]
             if video_format == 'PAL' or video_format == 'SECAM':
                 self.start_decklink_to_raw(video_metadata,
                                            input_params=['-format_code', 'hp60', '-video_input', 'hdmi', '-i',
@@ -494,11 +495,14 @@ def launch_backend():
     startup_check()
     startup_cleanup()
 
-    crossbar_process = subprocess.Popen(['/usr/local/bin/crossbar', "start", "--cbdir",
-                                         FILES_PATHS['home_dir'] + '.config/crossbar/default/'])
+    # crossbar_process = subprocess.Popen(['/usr/local/bin/crossbar', "start", "--cbdir",
+    #                                      FILES_PATHS['home_dir'] + '.config/crossbar/default/'])
+    crossbar_process = subprocess.Popen(['/home/adrien/Documents/PycharmProjects/Pycharm_env/pcnum_env/bin/crossbar', "start", "--cbdir",
+                                      FILES_PATHS['home_dir'] + '.config/crossbar/default/'])
 
-    sleep(12)
+    sleep(8)
     runner = ApplicationRunner(url="ws://127.0.0.1:8080/ws", realm="realm1")
+
     runner.run(Backend)
     crossbar_process.terminate()
     crossbar_process.wait()
