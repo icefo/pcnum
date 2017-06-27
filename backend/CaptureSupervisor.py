@@ -290,6 +290,9 @@ class FFmpegWampSupervisor(ApplicationSession):
 
             # stdout_line example: frame=  288 fps= 16 q=32.0 size=    1172kB time=00:00:09.77 bitrate= 982.4kbits/s
             stdout_complete_line = self.ffmpeg_process.stdout.readline()
+
+            print(stdout_complete_line)
+
             self.complete_ffmpeg_logs_collection.update_one(
                 filter={"_id": complete_logs_document_id},
                 update={"$push": {"log_data": str(stdout_complete_line)}}

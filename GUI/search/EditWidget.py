@@ -301,6 +301,10 @@ class EditWidget(QWidget):
             self.videos_metadata_collection.update_one(
                 filter={"dc:identifier": dc_identifier},
                 update={"$set": dublincore_dict})
+            info_box = QMessageBox()
+            info_message = "Modifications sauvegardées !"
+
+            info_box.information(info_box, "Attention", info_message)
         else:
             warning_box = QMessageBox()
             warning_message = "Il ne faut pas supprimer le titre de la vidéo !"

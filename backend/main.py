@@ -58,6 +58,7 @@ class Backend(ApplicationSession):
         self.default_raw_to_ffv1_flac = OrderedDict()
         self.default_raw_to_ffv1_flac['part1'] = ('nice', '-n', '11', 'ffmpeg', '-y', '-nostdin', '-i')
         self.default_raw_to_ffv1_flac['input'] = ['/this/is/a/path/video_file.mkv', ]
+        self.default_raw_to_ffv1_flac['aspect_ratio'] = ['-aspect', '4:3']
         self.default_raw_to_ffv1_flac['part2'] = ('-c:v', 'ffv1', '-level', '3', '-g', '1', '-slicecrc', '1',
                                                   '-c:a', 'flac')
         self.default_raw_to_ffv1_flac['output'] = ['/this/is/a/path/video_file.mkv', ]
@@ -392,9 +393,11 @@ class Backend(ApplicationSession):
         """
         duration = video_metadata[1]["dc:format"]["duration"]
         file_path = video_metadata[0]["file_path"]
+        aspect_ratio = video_metadata[1]["dc:format"]["aspect_ratio"]
 
         ffmpeg_command = self.default_raw_to_ffv1_flac.copy()
         ffmpeg_command['input'][0] = file_path
+        ffmpeg_command['aspect_ratio'][1] = aspect_ratio
         ffmpeg_command['output'][0] = FILES_PATHS['compressed'] + video_metadata[1]["dc:title"][0] + " -- " +\
                     str(video_metadata[1]["dcterms:created"]) + " -- " + video_metadata[1]['dc:identifier'] + ".mkv"
 
@@ -495,10 +498,10 @@ def launch_backend():
     startup_check()
     startup_cleanup()
 
-    # crossbar_process = subprocess.Popen(['/usr/local/bin/crossbar', "start", "--cbdir",
-    #                                      FILES_PATHS['home_dir'] + '.config/crossbar/default/'])
-    crossbar_process = subprocess.Popen(['/home/adrien/Documents/PycharmProjects/Pycharm_env/pcnum_env/bin/crossbar', "start", "--cbdir",
-                                      FILES_PATHS['home_dir'] + '.config/crossbar/default/'])
+    crossbar_process = subprocess.Popen(['/usr/local/bin/crossbar', "start", "--cbdir",
+                                         FILES_PATHS['home_dir'] + '.config/crossbar/default/'])
+    # crossbar_process = subprocess.Popen(['/home/adrien/Documents/PycharmProjects/Pycharm_env/pcnum_env/bin/crossbar', "start", "--cbdir",
+    #                                   FILES_PATHS['home_dir'] + '.config/crossbar/default/'])
 
     sleep(8)
     runner = ApplicationRunner(url="ws://127.0.0.1:8080/ws", realm="realm1")
