@@ -5,6 +5,7 @@ import subprocess
 from pymongo import MongoClient
 import atexit
 import os
+from shutil import rmtree
 
 
 class ResultWidget(QWidget):
@@ -110,13 +111,16 @@ class ResultWidget(QWidget):
 
             if reply == QMessageBox.Yes and dc_identifier:
                 video_metadata = self.videos_metadata_collection.find_one({"dc:identifier": dc_identifier})
-                delete_folder = False
+
                 for folder_or_file, path in video_metadata["files_path"].items():
                     print(path)
-                    if folder_or_file == "folder":
-                        os.rmdir(path)
-                    else:
-                        os.remove(path)
+                    try:
+                        if folder_or_file == "folder":
+                            rmtree(path)
+                        else:
+                            os.remove(path)
+                    except FileNotFoundError:
+                        pass
 
                 self.videos_metadata_collection.delete_one({"dc:identifier": dc_identifier})
                 self.request_refresh_signal.emit()
