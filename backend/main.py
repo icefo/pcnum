@@ -40,7 +40,7 @@ class Backend(ApplicationSession):
         self.default_dvd_to_mpeg2_unknown['output_folder'] = ['/this/is/a/path', ]
 
         self.default_decklink_to_raw = OrderedDict()
-        self.default_decklink_to_raw['part1'] = ('nice', '-n', '0', 'ffmpeg', '-y', '-nostdin', '-f', 'decklink', '-i')
+        self.default_decklink_to_raw['part1'] = ('nice', '-n', '0', 'ffmpeg', '-y', '-nostdin', '-f', 'decklink')
         self.default_decklink_to_raw['input'] = ['-format_code', 'hp60', '-video_input', 'hdmi', '-i', "Intensity Pro (1)"]
         self.default_decklink_to_raw['recording_duration'] = ['-t', '60']  # in seconds
         self.default_decklink_to_raw['part2'] = ('-acodec', 'copy', '-vcodec', 'copy')
