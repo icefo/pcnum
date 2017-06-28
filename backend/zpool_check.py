@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # [H]ardForum
 # http://hardforum.com/showthread.php?t=1595773
 # converted to python3 and ported to debian8 by Adrien
@@ -17,14 +18,14 @@ from email.mime.text import MIMEText
 
 TEST = False
 
-MAIL_FROM = 'nas@host.tld'
-MAIL_TO = 'user@host.tld;user2@host2.tld'
-MAIL_HOST = 'smtp.host.tld'
-MAIL_PORT = 25 # 465 SSL/TLS
-MAIL_USER = 'foo'
-MAIL_PASS = '42'
+# MAIL_FROM = 'nas@host.tld'
+# MAIL_TO = 'user@host.tld'
+# MAIL_HOST = 'smtp.host.tld'
+# MAIL_PORT = 25 # 465 SSL/TLS
+# MAIL_USER = 'foo'
+# MAIL_PASS = '42'
 
-MAIL_ALL_OK = True # Even send an EMail if everything is OK
+MAIL_ALL_OK = False  # True send an EMail if everything is OK
 
 CMD_ZPOOL = '/sbin/zpool'
 CMD_SMARTCTL = '/usr/sbin/smartctl'
@@ -47,11 +48,10 @@ DISKS = [
 # open a connection to the SMTP-Server
 def initSMTP():
     try:
-        connection = smtplib.SMTP(MAIL_HOST, MAIL_PORT)
+        connection = smtplib.SMTP_SSL(MAIL_HOST, MAIL_PORT)
         connection.ehlo()
-        connection.starttls()
         # DETAILED TRACE
-        # s.set_debuglevel(1)
+        connection.set_debuglevel(1)
 
         connection.login(MAIL_USER, MAIL_PASS)
         return connection
