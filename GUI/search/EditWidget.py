@@ -116,12 +116,13 @@ class EditWidget(QWidget):
                     self.edit_table.cellWidget(row_count, 0).setCurrentText('format_video')
                     yield from asyncio.sleep(0.5)
                     self.edit_table.cellWidget(row_count, 1).setCurrentText(values['format'])
-
-                row_count = self.edit_table.rowCount()
-                self.add_table_row()
-                self.edit_table.cellWidget(row_count, 0).setCurrentText('ratio')
-                yield from asyncio.sleep(0.5)
-                self.edit_table.cellWidget(row_count, 1).setCurrentText(values['aspect_ratio'])
+                
+                if 'aspect_ratio' in values:  # it's possible to delete the aspect_ratio key
+                    row_count = self.edit_table.rowCount()
+                    self.add_table_row()
+                    self.edit_table.cellWidget(row_count, 0).setCurrentText('ratio')
+                    yield from asyncio.sleep(0.5)
+                    self.edit_table.cellWidget(row_count, 1).setCurrentText(values['aspect_ratio'])
             elif key == 'dcterms:created':
                 row_count = self.edit_table.rowCount()
                 self.add_table_row()
@@ -208,63 +209,6 @@ class EditWidget(QWidget):
                 self.edit_table.setCellWidget(row, 1, QLineEdit())
                 self.edit_table.setRowHeight(row, 30)
 
-    def metadata_checker(self, capture_action, data):
-        """
-        Check if the required metadata is present. If yes it launches the launch_capture function
-
-        Args:
-            capture_action (str): tell which capture_action the metadata_checker function should launch
-                Possible values: decklink, file, DVD
-            data: [digitise_infos, dublincore_dict]
-        """
-
-        # this check if at least a duration, title, and creation date is set before sending the data to the back end
-        if capture_action == "decklink" and "duration" in data[1].get('dc:format', {}) and "dc:title" in data[1] \
-                and "dcterms:created" in data[1] and self.check_remaining_space(
-            VHS_duration=data[1]["dc:format"]["duration"]):
-
-            self.launch_digitise_button.setEnabled(False)
-
-            self.launch_capture(data)
-            self.launch_digitise_button.setEnabled(True)
-            # set status bar temp text
-            self.set_statusbar_text_signal.emit("Numérisation Decklink lancée")
-
-        elif capture_action == "file" and "file_path" in data[0] and "dc:title" in data[1] and "dcterms:created" in data[1] \
-                and self.check_remaining_space(import_file_path=data[0]["file_path"]):
-
-            self.launch_digitise_button.setEnabled(False)
-
-            self.launch_capture(data)
-            self.launch_digitise_button.setEnabled(True)
-
-            self.set_statusbar_text_signal.emit("Enregistrement du fichier lancé !")
-
-        elif capture_action == "DVD" and "dc:title" in data[1] and "dcterms:created" in data[1] \
-                and self.check_remaining_space(for_DVD=True):
-
-            self.launch_digitise_button.setEnabled(False)
-
-            self.launch_capture(data)
-            self.launch_digitise_button.setEnabled(True)
-
-            self.set_statusbar_text_signal.emit("Enregistrement du DVD lancé !")
-        else:
-            warning_box = QMessageBox()
-            warning_message = (
-                "Les informations suivantes sont necessaires:\n"
-                "   Pour enregistrer un dvd:\n"
-                "       un titre et la date de creation de l'oeuvre\n"
-                "   Pour enregistrer une cassette:\n"
-                "       la durée, un titre et la date de creation de l'oeuvre\n"
-                "   Pour enregistrer un fichier:\n"
-                "       un titre et la date de creation de l'oeuvre\n"
-                "\n"
-                "   Il faut aussi avoir sélectionné une méthode d'enregistrement (decklink, dvd...)")
-
-            warning_box.warning(warning_box, "Attention", warning_message)
-            self.launch_digitise_button.setEnabled(True)
-
     def save_modifications(self):
         """
         Gather the user provided metadata and add the constants listed below.
@@ -300,17 +244,18 @@ class EditWidget(QWidget):
                         dublincore_dict[combobox_text] = [widget_text_value]
         dublincore_dict["dcterms:modified"] = datetime.now().replace(microsecond=0).isoformat()
 
-        if 'dc:title' in dublincore_dict:
+        if 'dc:title' in dublincore_dict and "dcterms:created" in dublincore_dict:
             dc_identifier = self.capture_data['dc:identifier']
             self.videos_metadata_collection.update_one(
                 filter={"dc:identifier": dc_identifier},
                 update={"$set": dublincore_dict})
+            self.request_refresh_signal.emit()
         else:
             warning_box = QMessageBox()
-            warning_message = "Il ne faut pas supprimer le titre de la vidéo !"
+            warning_message = "Il ne faut pas supprimer le titre ou la date de création de la vidéo !"
 
             warning_box.warning(warning_box, "Attention", warning_message)
-        self.request_refresh_signal.emit()
+
 
     def reset_edit_table(self):
         self.edit_table.setRowCount(0)

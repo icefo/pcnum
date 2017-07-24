@@ -68,15 +68,18 @@ class ResultWidget(QWidget):
         Launch vlc in a separate process when the user double click on a file path
         """
 
-        selected_item = self.search_results_tree.currentItem()
-        selected_item_parent = selected_item.parent().text(0)
+        try:
+            selected_item = self.search_results_tree.currentItem()
+            selected_item_parent = selected_item.parent().text(0)
 
-        if selected_item_parent == "files_path":
-            # unknown: /media/storage/imported/le beau fichier importé: -- 4.mkv
-            file_or_dir_path = "".join(selected_item.text(0).split(": ")[1:])
-            print(file_or_dir_path)
-            command = ['vlc', '--quiet', file_or_dir_path]
-            subprocess.Popen(command, stdout=None)
+            if selected_item_parent == "files_path":
+                # unknown: /media/storage/imported/le beau fichier importé: -- 4.mkv
+                file_or_dir_path = "".join(selected_item.text(0).split(": ")[1:])
+                print(file_or_dir_path)
+                command = ['vlc', '--quiet', file_or_dir_path]
+                subprocess.Popen(command, stdout=None)
+        except AttributeError:  # prevent the GUI from crashing if the user doubleclick on a node without parent
+            pass
 
     def delete_video(self):
         """
