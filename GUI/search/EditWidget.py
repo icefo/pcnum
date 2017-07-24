@@ -110,16 +110,18 @@ class EditWidget(QWidget):
                 yield from asyncio.sleep(0.5)
                 self.edit_table.cellWidget(row_count, 1).setText(values)
             elif key == 'dc:format':
+                if 'format' in values:  # if a file is imported, format may not be defined
+                    row_count = self.edit_table.rowCount()
+                    self.add_table_row()
+                    self.edit_table.cellWidget(row_count, 0).setCurrentText('format_video')
+                    yield from asyncio.sleep(0.5)
+                    self.edit_table.cellWidget(row_count, 1).setCurrentText(values['format'])
+
                 row_count = self.edit_table.rowCount()
                 self.add_table_row()
-                self.edit_table.cellWidget(row_count, 0).setCurrentText('format_video')
+                self.edit_table.cellWidget(row_count, 0).setCurrentText('ratio')
                 yield from asyncio.sleep(0.5)
-                self.edit_table.cellWidget(row_count, 1).setCurrentText(values['format'])
-
-                self.add_table_row()
-                self.edit_table.cellWidget(row_count + 1, 0).setCurrentText('ratio')
-                yield from asyncio.sleep(0.5)
-                self.edit_table.cellWidget(row_count + 1, 1).setCurrentText(values['aspect_ratio'])
+                self.edit_table.cellWidget(row_count, 1).setCurrentText(values['aspect_ratio'])
             elif key == 'dcterms:created':
                 row_count = self.edit_table.rowCount()
                 self.add_table_row()
@@ -255,6 +257,8 @@ class EditWidget(QWidget):
                 "       un titre et la date de creation de l'oeuvre\n"
                 "   Pour enregistrer une cassette:\n"
                 "       la durée, un titre et la date de creation de l'oeuvre\n"
+                "   Pour enregistrer un fichier:\n"
+                "       un titre et la date de creation de l'oeuvre\n"
                 "\n"
                 "   Il faut aussi avoir sélectionné une méthode d'enregistrement (decklink, dvd...)")
 
