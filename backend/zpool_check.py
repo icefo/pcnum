@@ -24,7 +24,7 @@ MAIL_PORT = 25 # 465 SSL/TLS
 MAIL_USER = 'foo'
 MAIL_PASS = '42'
 
-MAIL_ALL_OK = True # Even send an EMail if everything is OK
+MAIL_ALL_OK = False # Even send an EMail if everything is OK
 
 CMD_ZPOOL = '/sbin/zpool'
 CMD_SMARTCTL = '/usr/sbin/smartctl'
@@ -103,7 +103,7 @@ def summary(failed, details):
 # =====================================
 # START
 alert = False
-
+txt = ''
 # connect to SMTP
 s = initSMTP()
 
@@ -112,8 +112,8 @@ zpoolStatusX = cmd(CMD_ZPOOL + ' status -x')
 if TEST or "all pools are healthy" not in zpoolStatusX:
     alert = True
     zpoolStatus = cmd(CMD_ZPOOL + ' status')
-    txt = summary(zpoolStatusX, zpoolStatus)
-    sendMail(s, "[NAS] ZFS Pool Status", txt)
+    txt += "[NAS] ZFS Pool Status\n" + summary(zpoolStatusX, zpoolStatus) + '\n\n\n'
+    # sendMail(s, "[NAS] ZFS Pool Status", txt)
 
 # SMART checking
 for disk in DISKS:
@@ -121,8 +121,11 @@ for disk in DISKS:
     if TEST or "SMART Health Status: OK" not in smartHealth:
         alert = True
         smart = cmd(CMD_SMARTCTL + ' --all -d sat,12 ' + disk)
-        txt = summary(smartHealth, smart)
-        sendMail(s, "[NAS] S.M.A.R.T. " + disk, txt)
+        txt += "[NAS] S.M.A.R.T. " + disk + '\n' + summary(smartHealth, smart) + '\n\n'
+        # sendMail(s, "[NAS] S.M.A.R.T. " + disk, txt)
+
+if txt:
+    sendMail(s, "Il y a un problème avec le pc numérisation", txt)
 
 # OK
 if alert is False and MAIL_ALL_OK is True:
