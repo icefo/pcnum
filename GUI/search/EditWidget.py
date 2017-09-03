@@ -116,7 +116,7 @@ class EditWidget(QWidget):
                     self.edit_table.cellWidget(row_count, 0).setCurrentText('format_video')
                     yield from asyncio.sleep(0.5)
                     self.edit_table.cellWidget(row_count, 1).setCurrentText(values['format'])
-                
+
                 if 'aspect_ratio' in values:  # it's possible to delete the aspect_ratio key
                     row_count = self.edit_table.rowCount()
                     self.add_table_row()
@@ -249,6 +249,10 @@ class EditWidget(QWidget):
             self.videos_metadata_collection.update_one(
                 filter={"dc:identifier": dc_identifier},
                 update={"$set": dublincore_dict})
+            info_box = QMessageBox()
+            info_message = "Modifications sauvegardées !"
+
+            info_box.information(info_box, "Attention", info_message)
             self.request_refresh_signal.emit()
         else:
             warning_box = QMessageBox()
