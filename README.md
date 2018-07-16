@@ -1,9 +1,8 @@
 # features:
 * digitize vhs, encode dvds and import files at the same time and save all relevant metadata in a database
-* search function
-  * You can delete records
-  * You can open a video
-  * You cannot edit records
+* search to
+  * edit and delete records
+  * play a video
 * progress tab: display the progress of vhs / dvd / file import
 
 # Under the hood
